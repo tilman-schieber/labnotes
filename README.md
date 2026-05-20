@@ -115,16 +115,63 @@ scripts/
     sync.mjs                       # Copy one DB into another
 ```
 
+## Dev Environment
+
+Prerequisites:
+
+- Docker with `docker compose`
+- PostgreSQL CLI tools if you want to use `db:dump`, `db:restore`, or `db:sync`
+
+Optional tooling:
+
+- Node.js via `mise.toml`
+
+If you use `mise`, install the local toolchain with:
+
+```bash
+mise install
+mise trust
+```
+
+Then run project commands inside the `mise` environment:
+
+```bash
+mise exec -- npm install
+```
+
+If you do not use `mise`, install a current Node.js version manually and run the same `npm ...` commands directly.
+
 ## Run Locally
+
+Recommended first-time setup:
+
+With `mise`:
+
+```bash
+mise install
+mise trust
+mise exec -- npm install
+cp .env.example .env
+mise exec -- npm run db:up
+export DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes
+mise exec -- npm run db:bootstrap
+mise exec -- npm run dev:server
+mise exec -- npm run dev
+```
+
+Without `mise`:
 
 ```bash
 npm install
+cp .env.example .env
 npm run db:up
 export DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes
 npm run db:bootstrap
 npm run dev:server
 npm run dev
 ```
+
+If you use `.env`, make sure your shell or process launcher exports it before starting the backend. The current server reads environment variables from the process environment and does not load `.env` automatically.
 
 Frontend dev server: `http://localhost:5173`
 
@@ -175,20 +222,20 @@ export PROD_DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes_pr
 Start the local Postgres container:
 
 ```bash
-npm run db:up
+mise exec -- npm run db:up
 ```
 
 Inspect it:
 
 ```bash
-npm run db:ps
-npm run db:logs
+mise exec -- npm run db:ps
+mise exec -- npm run db:logs
 ```
 
 Stop it:
 
 ```bash
-npm run db:down
+mise exec -- npm run db:down
 ```
 
 This uses a named Docker volume, so your local database state persists across container restarts.
@@ -198,47 +245,47 @@ This uses a named Docker volume, so your local database state persists across co
 Initialize or update the active database:
 
 ```bash
-npm run db:migrate
-npm run db:seed
+mise exec -- npm run db:migrate
+mise exec -- npm run db:seed
 ```
 
 Bootstrap a fresh database from scratch:
 
 ```bash
-npm run db:bootstrap
+mise exec -- npm run db:bootstrap
 ```
 
 For a brand-new local Docker setup, the normal sequence is:
 
 ```bash
-npm run db:up
-npm run db:bootstrap
+mise exec -- npm run db:up
+mise exec -- npm run db:bootstrap
 ```
 
 Target a specific environment alias:
 
 ```bash
-npm run db:migrate -- --env dev
-npm run db:bootstrap -- --env prod
+mise exec -- npm run db:migrate -- --env dev
+mise exec -- npm run db:bootstrap -- --env prod
 ```
 
 Inspect migration status:
 
 ```bash
-npm run db:status
+mise exec -- npm run db:status
 ```
 
 Dump and restore:
 
 ```bash
-npm run db:dump -- --env dev --output /tmp/labnotes-dev.dump
-npm run db:restore -- --env dev --input /tmp/labnotes-dev.dump
+mise exec -- npm run db:dump -- --env dev --output /tmp/labnotes-dev.dump
+mise exec -- npm run db:restore -- --env dev --input /tmp/labnotes-dev.dump
 ```
 
 Sync one environment into another:
 
 ```bash
-npm run db:sync -- --source prod --target dev
+mise exec -- npm run db:sync -- --source prod --target dev
 ```
 
 This uses `pg_dump` and `pg_restore`, so those PostgreSQL CLI tools need to be installed locally.
@@ -269,8 +316,8 @@ For a brand-new deployment:
 
 1. Provision an empty Postgres database.
 2. Set `DATABASE_URL` for that deployment.
-3. Run `npm run db:bootstrap` once.
-4. Start the API server with `npm run server`.
+3. Run `mise exec -- npm run db:bootstrap` once.
+4. Start the API server with `mise exec -- npm run server`.
 
 ## Notes and Non-Goals (Current)
 
