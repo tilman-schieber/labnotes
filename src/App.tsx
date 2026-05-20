@@ -1,33 +1,96 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Editor, JSONContent } from '@tiptap/core';
 import NotebookEditor from './editor/Editor';
 import { type NotebookDocumentKind, createTemplateDocument, extractDocumentTitle, getDefaultTitle } from './documents/templates';
 import { sanitizeLatex } from './editor/extensions/Math';
 import {
   createBlankDocument,
+  createNotebookDocument,
+  deleteNotebookDocument,
   loadNotebookDb,
-  saveNotebookDb,
+  saveActiveSelection,
+  updateNotebookDocument,
+  type NotebookActiveState,
   type NotebookDB,
   type NotebookGroup,
   type NotebookProject,
   type NotebookProtocol
 } from './storage/documentStore';
 
-function createId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
+type SelectedDocument = {
+  kind: NotebookDocumentKind;
+  id: string;
+  title: string;
+  content: JSONContent;
+};
+
+type PendingSave = {
+  id: string;
+  title: string;
+  content: JSONContent;
+};
 
 export default function App() {
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [db, setDb] = useState<NotebookDB>(() => loadNotebookDb());
+  const [db, setDb] = useState<NotebookDB | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
+
+  const reloadDb = useCallback(async (preferredActive?: NotebookActiveState | null) => {
+    setIsLoading(true);
+
+    try {
+      const nextDb = await loadNotebookDb(preferredActive);
+      setDb(nextDb);
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Failed to load notebook data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    saveNotebookDb(db);
+    void reloadDb();
+  }, [reloadDb]);
+
+  useEffect(() => {
+    if (!db) {
+      return;
+    }
+
+    saveActiveSelection(db.active);
   }, [db]);
 
-  const selectedDocument = useMemo(() => {
+  useEffect(() => {
+    if (!pendingSave) {
+      return;
+    }
+
+    setSaveState('saving');
+    const timer = window.setTimeout(() => {
+      void updateNotebookDocument(pendingSave.id, pendingSave.title, pendingSave.content)
+        .then(() => {
+          setPendingSave((current) => (current === pendingSave ? null : current));
+          setSaveState('idle');
+        })
+        .catch(() => {
+          setSaveState('error');
+        });
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [pendingSave]);
+
+  const selectedDocument = useMemo<SelectedDocument | null>(() => {
+    if (!db) {
+      return null;
+    }
+
     if (db.active.protocolId) {
       const protocol = db.protocols.find((item) => item.id === db.active.protocolId) ?? null;
       if (!protocol) {
@@ -35,8 +98,9 @@ export default function App() {
       }
 
       return {
-        kind: 'protocol' as NotebookDocumentKind,
+        kind: 'protocol',
         id: protocol.id,
+        title: protocol.title,
         content: protocol.content
       };
     }
@@ -48,8 +112,9 @@ export default function App() {
       }
 
       return {
-        kind: 'project' as NotebookDocumentKind,
+        kind: 'project',
         id: project.id,
+        title: project.name,
         content: project.content
       };
     }
@@ -61,8 +126,9 @@ export default function App() {
       }
 
       return {
-        kind: 'group' as NotebookDocumentKind,
+        kind: 'group',
         id: group.id,
+        title: group.name,
         content: group.content
       };
     }
@@ -138,145 +204,108 @@ export default function App() {
     [editor]
   );
 
+  const setActiveSelection = (active: NotebookActiveState) => {
+    setDb((previous) => (previous ? { ...previous, active } : previous));
+  };
+
   const handleProtocolSelect = (group: NotebookGroup, project: NotebookProject, protocol: NotebookProtocol) => {
     setCollapsedGroups((previous) => ({ ...previous, [group.id]: false }));
     setCollapsedProjects((previous) => ({ ...previous, [project.id]: false }));
-
-    setDb((previous) => ({
-      ...previous,
-      active: {
-        groupId: group.id,
-        projectId: project.id,
-        protocolId: protocol.id
-      }
-    }));
+    setActiveSelection({
+      groupId: group.id,
+      projectId: project.id,
+      protocolId: protocol.id
+    });
   };
 
-  const handleProtocolChange = (content: JSONContent) => {
+  const handleDocumentChange = (content: JSONContent) => {
     setDb((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
       if (previous.active.protocolId) {
         const protocolId = previous.active.protocolId;
-        return {
-          ...previous,
-          protocols: previous.protocols.map((protocol) => {
-            if (protocol.id !== protocolId) {
-              return protocol;
-            }
+        const protocols = previous.protocols.map((protocol) => {
+          if (protocol.id !== protocolId) {
+            return protocol;
+          }
 
-            const title = extractDocumentTitle(content, protocol.title || getDefaultTitle('protocol'));
-            return { ...protocol, content, title };
-          })
-        };
+          const title = extractDocumentTitle(content, protocol.title || getDefaultTitle('protocol'));
+          setPendingSave({ id: protocol.id, title, content });
+          return { ...protocol, content, title };
+        });
+
+        return { ...previous, protocols };
       }
 
       if (previous.active.projectId) {
         const projectId = previous.active.projectId;
-        return {
-          ...previous,
-          projects: previous.projects.map((project) => {
-            if (project.id !== projectId) {
-              return project;
-            }
+        const projects = previous.projects.map((project) => {
+          if (project.id !== projectId) {
+            return project;
+          }
 
-            const name = extractDocumentTitle(content, project.name || getDefaultTitle('project'));
-            return { ...project, content, name };
-          })
-        };
+          const name = extractDocumentTitle(content, project.name || getDefaultTitle('project'));
+          setPendingSave({ id: project.id, title: name, content });
+          return { ...project, content, name };
+        });
+
+        return { ...previous, projects };
       }
 
       if (previous.active.groupId) {
         const groupId = previous.active.groupId;
-        return {
-          ...previous,
-          groups: previous.groups.map((group) => {
-            if (group.id !== groupId) {
-              return group;
-            }
+        const groups = previous.groups.map((group) => {
+          if (group.id !== groupId) {
+            return group;
+          }
 
-            const name = extractDocumentTitle(content, group.name || getDefaultTitle('group'));
-            return { ...group, content, name };
-          })
-        };
+          const name = extractDocumentTitle(content, group.name || getDefaultTitle('group'));
+          setPendingSave({ id: group.id, title: name, content });
+          return { ...group, content, name };
+        });
+
+        return { ...previous, groups };
       }
 
       return previous;
     });
   };
 
-  const handleNewGroup = () => {
-    const newGroup: NotebookGroup = {
-      id: createId('group'),
-      name: `Group ${db.groups.length + 1}`,
-      content: createTemplateDocument('group', `Group ${db.groups.length + 1}`)
-    };
+  const handleNewGroup = async () => {
+    if (!db) {
+      return;
+    }
 
-    setDb((previous) => ({
-      ...previous,
-      groups: [...previous.groups, newGroup],
-      active: {
-        groupId: newGroup.id,
-        projectId: null,
-        protocolId: null
-      }
-    }));
-
-    setCollapsedGroups((previous) => ({ ...previous, [newGroup.id]: false }));
+    const title = `Group ${db.groups.length + 1}`;
+    const document = await createNotebookDocument('group', null, title, createTemplateDocument('group', title));
+    setCollapsedGroups((previous) => ({ ...previous, [document.id]: false }));
+    await reloadDb({ groupId: document.id, projectId: null, protocolId: null });
   };
 
   const handleGroupSelect = (groupId: string) => {
     setCollapsedGroups((previous) => ({ ...previous, [groupId]: false }));
-
-    setDb((previous) => ({
-      ...previous,
-      active: {
-        groupId,
-        projectId: null,
-        protocolId: null
-      }
-    }));
+    setActiveSelection({ groupId, projectId: null, protocolId: null });
   };
 
   const handleProjectSelect = (groupId: string, projectId: string) => {
     setCollapsedGroups((previous) => ({ ...previous, [groupId]: false }));
     setCollapsedProjects((previous) => ({ ...previous, [projectId]: false }));
-
-    setDb((previous) => ({
-      ...previous,
-      active: {
-        groupId,
-        projectId,
-        protocolId: null
-      }
-    }));
+    setActiveSelection({ groupId, projectId, protocolId: null });
   };
 
-  const handleNewProject = () => {
-    if (!db.active.groupId) {
+  const handleNewProject = async () => {
+    if (!db?.active.groupId) {
       return;
     }
 
-    const newProject: NotebookProject = {
-      id: createId('project'),
-      groupId: db.active.groupId,
-      name: `Project ${db.projects.filter((project) => project.groupId === db.active.groupId).length + 1}`,
-      content: createTemplateDocument(
-        'project',
-        `Project ${db.projects.filter((project) => project.groupId === db.active.groupId).length + 1}`
-      )
-    };
-
-    setDb((previous) => ({
-      ...previous,
-      projects: [...previous.projects, newProject],
-      active: {
-        groupId: newProject.groupId,
-        projectId: newProject.id,
-        protocolId: null
-      }
-    }));
-
-    setCollapsedGroups((previous) => ({ ...previous, [newProject.groupId]: false }));
-    setCollapsedProjects((previous) => ({ ...previous, [newProject.id]: false }));
+    const siblingCount = db.projects.filter((project) => project.groupId === db.active.groupId).length;
+    const title = `Project ${siblingCount + 1}`;
+    const document = await createNotebookDocument('project', db.active.groupId, title, createTemplateDocument('project', title));
+    setCollapsedGroups((previous) => ({ ...previous, [db.active.groupId!]: false }));
+    setCollapsedProjects((previous) => ({ ...previous, [document.id]: false }));
+    await reloadDb({ groupId: db.active.groupId, projectId: document.id, protocolId: null });
   };
 
   const toggleGroupCollapsed = (groupId: string) => {
@@ -293,33 +322,22 @@ export default function App() {
     }));
   };
 
-  const handleNewProtocol = () => {
-    if (!db.active.groupId || !db.active.projectId) {
+  const handleNewProtocol = async () => {
+    if (!db?.active.projectId) {
       return;
     }
 
     const siblingCount = db.protocols.filter((protocol) => protocol.projectId === db.active.projectId).length;
-
-    const newProtocol: NotebookProtocol = {
-      id: createId('protocol'),
+    const title = siblingCount === 0 ? 'Untitled Protocol' : `Untitled Protocol ${siblingCount + 1}`;
+    const document = await createNotebookDocument('protocol', db.active.projectId, title, createBlankDocument(title));
+    await reloadDb({
       groupId: db.active.groupId,
       projectId: db.active.projectId,
-      title: siblingCount === 0 ? 'Untitled Protocol' : `Untitled Protocol ${siblingCount + 1}`,
-      content: createBlankDocument(siblingCount === 0 ? 'Untitled Protocol' : `Untitled Protocol ${siblingCount + 1}`)
-    };
-
-    setDb((previous) => ({
-      ...previous,
-      protocols: [...previous.protocols, newProtocol],
-      active: {
-        groupId: newProtocol.groupId,
-        projectId: newProtocol.projectId,
-        protocolId: newProtocol.id
-      }
-    }));
+      protocolId: document.id
+    });
   };
 
-  const handleDeleteSelectedDocument = () => {
+  const handleDeleteSelectedDocument = async () => {
     if (!selectedDocument) {
       return;
     }
@@ -330,111 +348,49 @@ export default function App() {
       return;
     }
 
-    if (selectedDocument.kind === 'protocol') {
-      const protocolId = selectedDocument.id;
-      setDb((previous) => {
-        const target = previous.protocols.find((item) => item.id === protocolId);
-        if (!target) {
-          return previous;
-        }
-
-        const protocols = previous.protocols.filter((item) => item.id !== protocolId);
-        const sibling = protocols.find((item) => item.projectId === target.projectId && item.groupId === target.groupId) ?? null;
-
-        return {
-          ...previous,
-          protocols,
-          active: {
-            groupId: target.groupId,
-            projectId: target.projectId,
-            protocolId: sibling?.id ?? null
-          }
-        };
-      });
-
-      return;
-    }
-
-    if (selectedDocument.kind === 'project') {
-      const projectId = selectedDocument.id;
-      setCollapsedProjects((previous) => {
-        const next = { ...previous };
-        delete next[projectId];
-        return next;
-      });
-
-      setDb((previous) => {
-        const target = previous.projects.find((item) => item.id === projectId);
-        if (!target) {
-          return previous;
-        }
-
-        return {
-          ...previous,
-          projects: previous.projects.filter((item) => item.id !== projectId),
-          protocols: previous.protocols.filter((item) => item.projectId !== projectId),
-          active: {
-            groupId: target.groupId,
-            projectId: null,
-            protocolId: null
-          }
-        };
-      });
-
-      return;
-    }
-
-    const groupId = selectedDocument.id;
-    const projectIdsInGroup = db.projects.filter((project) => project.groupId === groupId).map((project) => project.id);
-    setCollapsedGroups((previous) => {
-      const next = { ...previous };
-      delete next[groupId];
-      return next;
-    });
-    setCollapsedProjects((previous) => {
-      const next = { ...previous };
-      projectIdsInGroup.forEach((projectId) => {
-        delete next[projectId];
-      });
-      return next;
-    });
-
-    setDb((previous) => {
-      const target = previous.groups.find((item) => item.id === groupId);
-      if (!target) {
-        return previous;
-      }
-
-      const projectIds = new Set(previous.projects.filter((project) => project.groupId === groupId).map((project) => project.id));
-      const groups = previous.groups.filter((item) => item.id !== groupId);
-      const nextGroup = groups[0] ?? null;
-
-      return {
-        ...previous,
-        groups,
-        projects: previous.projects.filter((item) => item.groupId !== groupId),
-        protocols: previous.protocols.filter((item) => !projectIds.has(item.projectId)),
-        active: {
-          groupId: nextGroup?.id ?? null,
-          projectId: null,
-          protocolId: null
-        }
-      };
-    });
+    await deleteNotebookDocument(selectedDocument.id);
+    setPendingSave((current) => (current?.id === selectedDocument.id ? null : current));
+    await reloadDb();
   };
+
+  if (isLoading && !db) {
+    return (
+      <main className="page">
+        <div className="shell status-panel">Loading notebook data...</div>
+      </main>
+    );
+  }
+
+  if (loadError && !db) {
+    return (
+      <main className="page">
+        <div className="shell status-panel">
+          <p>Failed to load notebook data.</p>
+          <p>{loadError}</p>
+          <button type="button" onClick={() => void reloadDb()}>
+            Retry
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!db) {
+    return null;
+  }
 
   return (
     <main className="page">
       <div className="shell app-layout">
         <aside className="sidebar">
           <div className="sidebar-actions">
-            <button type="button" onClick={handleNewGroup}>
+            <button type="button" onClick={() => void handleNewGroup()}>
               New Group
             </button>
-            <button type="button" onClick={handleNewProject} disabled={!db.active.groupId}>
+            <button type="button" onClick={() => void handleNewProject()} disabled={!db.active.groupId}>
               New Project
             </button>
-            <button type="button" onClick={handleNewProtocol} disabled={!db.active.projectId}>
+            <button type="button" onClick={() => void handleNewProtocol()} disabled={!db.active.projectId}>
               New Protocol
             </button>
           </div>
@@ -532,7 +488,12 @@ export default function App() {
                 {action.label}
               </button>
             ))}
+            <span className="toolbar-status" aria-live="polite">
+              {saveState === 'saving' ? 'Saving...' : saveState === 'error' ? 'Save failed' : 'Connected'}
+            </span>
           </div>
+
+          {loadError && <div className="status-inline">{loadError}</div>}
 
           <NotebookEditor
             key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}` : 'no-document'}
@@ -540,8 +501,8 @@ export default function App() {
             editable={Boolean(selectedDocument)}
             documentKind={selectedDocument?.kind ?? 'protocol'}
             onEditorReady={setEditor}
-            onDocumentChange={handleProtocolChange}
-            onDeleteDocument={handleDeleteSelectedDocument}
+            onDocumentChange={handleDocumentChange}
+            onDeleteDocument={() => void handleDeleteSelectedDocument()}
           />
         </section>
       </div>

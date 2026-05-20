@@ -28,6 +28,13 @@ body {
   max-width: 1200px;
 }
 
+.status-panel {
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 1rem;
+}
+
 .app-layout {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -148,6 +155,21 @@ body {
   background: #fff;
 }
 
+.toolbar-status {
+  margin-left: auto;
+  align-self: center;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.status-inline {
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  background: #fff1f2;
+  color: #991b1b;
+  padding: 0.65rem 0.8rem;
+}
+
 .editor-shell {
   position: relative;
   background: #fff;
@@ -261,6 +283,14 @@ body {
   padding: 0.1rem 0.35rem;
 }
 
+.ProseMirror .reference-token.reference-user {
+  background: #ede9fe;
+}
+
+.ProseMirror .reference-token.reference-entity {
+  background: #dcfce7;
+}
+
 .ProseMirror .math-node {
   border: 0;
   background: transparent;
@@ -322,6 +352,20 @@ body {
   padding: 0.4rem 0.75rem;
   cursor: pointer;
 }
+
+.mention-item-empty {
+  color: #64748b;
+  cursor: default;
+}
+
+.mention-item-label {
+  font-weight: 600;
+}
+
+.mention-item-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+ }
 
 .mention-item.is-selected {
   background: #dbeafe;

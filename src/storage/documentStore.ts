@@ -1,12 +1,21 @@
 import type { JSONContent } from '@tiptap/core';
+import type { NotebookDocumentKind } from '../documents/templates';
 import {
   createTemplateDocument,
   extractDocumentTitle,
   getDefaultTitle,
   normalizeTemplateDocument
 } from '../documents/templates';
+import {
+  createDocument,
+  deleteDocument,
+  fetchDocumentTree,
+  updateDocument,
+  type BackendDocumentNode,
+  type BackendDocumentRecord
+} from '../api/backend';
 
-export const LAB_DB_STORAGE_KEY = 'lab-notebook-db';
+export const LAB_ACTIVE_STORAGE_KEY = 'lab-notebook-active';
 
 export type NotebookGroup = {
   id: string;
@@ -40,6 +49,8 @@ export type NotebookDB = {
   };
 };
 
+export type NotebookActiveState = NotebookDB['active'];
+
 export function extractProtocolTitle(content: JSONContent, fallback = 'Untitled Protocol'): string {
   return extractDocumentTitle(content, fallback);
 }
@@ -55,90 +66,105 @@ export function createBlankDocument(title = 'Untitled Protocol'): JSONContent {
   return createTemplateDocument('protocol', title);
 }
 
-function createId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function createSeedData(): NotebookDB {
-  const groupId = createId('group');
-  const projectId = createId('project');
-  const protocolId = createId('protocol');
-
+function normalizeStoredActive(active: NotebookActiveState | null | undefined): NotebookActiveState {
   return {
-    groups: [{ id: groupId, name: 'Default Group', content: createTemplateDocument('group', 'Default Group') }],
-    projects: [
-      {
-        id: projectId,
-        groupId,
-        name: 'General',
-        content: createTemplateDocument('project', 'General')
-      }
-    ],
-    protocols: [
-      {
-        id: protocolId,
-        groupId,
-        projectId,
-        title: 'Untitled Protocol',
-        content: createBlankDocument()
-      }
-    ],
-    active: {
-      groupId,
-      projectId,
-      protocolId
-    }
+    groupId: active?.groupId ?? null,
+    projectId: active?.projectId ?? null,
+    protocolId: active?.protocolId ?? null
   };
 }
 
-function normalize(db: NotebookDB): NotebookDB {
-  if (db.groups.length === 0) {
-    return createSeedData();
+function readStoredActive(): NotebookActiveState {
+  if (typeof window === 'undefined') {
+    return normalizeStoredActive(null);
   }
 
-  const groupId = db.groups.some((group) => group.id === db.active.groupId)
-    ? db.active.groupId
-    : db.groups[0]?.id ?? null;
+  const raw = localStorage.getItem(LAB_ACTIVE_STORAGE_KEY);
+  if (!raw) {
+    return normalizeStoredActive(null);
+  }
 
-  const projectsInGroup = db.projects.filter((project) => project.groupId === groupId);
-  const projectId =
-    projectsInGroup.some((project) => project.id === db.active.projectId)
-      ? db.active.projectId
-      : projectsInGroup[0]?.id ?? null;
+  try {
+    return normalizeStoredActive(JSON.parse(raw) as NotebookActiveState);
+  } catch {
+    return normalizeStoredActive(null);
+  }
+}
 
-  const protocolsInProject = db.protocols.filter((protocol) => protocol.projectId === projectId);
-  const protocolId =
-    protocolsInProject.some((protocol) => protocol.id === db.active.protocolId)
-      ? db.active.protocolId
-      : protocolsInProject[0]?.id ?? null;
+export function saveActiveSelection(active: NotebookActiveState): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
 
-  const protocols = db.protocols.map((protocol) => {
-    const content = normalizeProtocolContent(protocol.content, protocol.title || 'Untitled Protocol');
-    const title = extractProtocolTitle(content, protocol.title || 'Untitled Protocol');
+  localStorage.setItem(LAB_ACTIVE_STORAGE_KEY, JSON.stringify(normalizeStoredActive(active)));
+}
 
-    return {
-      ...protocol,
-      content,
-      title
-    };
+function normalizeGroup(node: BackendDocumentNode): NotebookGroup {
+  const fallbackTitle = node.title || getDefaultTitle('group');
+  const content = normalizeTemplateDocument('group', node.content, fallbackTitle);
+  return {
+    id: node.id,
+    name: extractDocumentTitle(content, fallbackTitle),
+    content
+  };
+}
+
+function normalizeProject(node: BackendDocumentNode, groupId: string): NotebookProject {
+  const fallbackTitle = node.title || getDefaultTitle('project');
+  const content = normalizeTemplateDocument('project', node.content, fallbackTitle);
+  return {
+    id: node.id,
+    groupId,
+    name: extractDocumentTitle(content, fallbackTitle),
+    content
+  };
+}
+
+function normalizeProtocol(node: BackendDocumentNode, groupId: string, projectId: string): NotebookProtocol {
+  const fallbackTitle = node.title || getDefaultTitle('protocol');
+  const content = normalizeTemplateDocument('protocol', node.content, fallbackTitle);
+  return {
+    id: node.id,
+    groupId,
+    projectId,
+    title: extractDocumentTitle(content, fallbackTitle),
+    content
+  };
+}
+
+function mapTreeToNotebookDb(tree: BackendDocumentNode[], preferredActive?: NotebookActiveState | null): NotebookDB {
+  const groups: NotebookGroup[] = [];
+  const projects: NotebookProject[] = [];
+  const protocols: NotebookProtocol[] = [];
+
+  tree.forEach((groupNode) => {
+    groups.push(normalizeGroup(groupNode));
+
+    groupNode.children.forEach((projectNode) => {
+      projects.push(normalizeProject(projectNode, groupNode.id));
+
+      projectNode.children.forEach((protocolNode) => {
+        protocols.push(normalizeProtocol(protocolNode, groupNode.id, projectNode.id));
+      });
+    });
   });
 
-  const groups = db.groups.map((group) => {
-    const fallbackTitle = group.name || getDefaultTitle('group');
-    const content = normalizeTemplateDocument('group', group.content, fallbackTitle);
-    const name = extractDocumentTitle(content, fallbackTitle);
-    return { ...group, content, name };
-  });
+  const requestedActive = normalizeStoredActive(preferredActive ?? readStoredActive());
+  const groupId = groups.some((group) => group.id === requestedActive.groupId)
+    ? requestedActive.groupId
+    : groups[0]?.id ?? null;
 
-  const projects = db.projects.map((project) => {
-    const fallbackTitle = project.name || getDefaultTitle('project');
-    const content = normalizeTemplateDocument('project', project.content, fallbackTitle);
-    const name = extractDocumentTitle(content, fallbackTitle);
-    return { ...project, content, name };
-  });
+  const projectsInGroup = projects.filter((project) => project.groupId === groupId);
+  const projectId = projectsInGroup.some((project) => project.id === requestedActive.projectId)
+    ? requestedActive.projectId
+    : projectsInGroup[0]?.id ?? null;
+
+  const protocolsInProject = protocols.filter((protocol) => protocol.projectId === projectId);
+  const protocolId = protocolsInProject.some((protocol) => protocol.id === requestedActive.protocolId)
+    ? requestedActive.protocolId
+    : protocolsInProject[0]?.id ?? null;
 
   return {
-    ...db,
     groups,
     projects,
     protocols,
@@ -150,27 +176,28 @@ function normalize(db: NotebookDB): NotebookDB {
   };
 }
 
-export function loadNotebookDb(): NotebookDB {
-  const raw = localStorage.getItem(LAB_DB_STORAGE_KEY);
-
-  if (!raw) {
-    const seeded = createSeedData();
-    saveNotebookDb(seeded);
-    return seeded;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as NotebookDB;
-    const normalized = normalize(parsed);
-    saveNotebookDb(normalized);
-    return normalized;
-  } catch {
-    const seeded = createSeedData();
-    saveNotebookDb(seeded);
-    return seeded;
-  }
+export async function loadNotebookDb(preferredActive?: NotebookActiveState | null): Promise<NotebookDB> {
+  const tree = await fetchDocumentTree();
+  return mapTreeToNotebookDb(tree, preferredActive);
 }
 
-export function saveNotebookDb(db: NotebookDB): void {
-  localStorage.setItem(LAB_DB_STORAGE_KEY, JSON.stringify(db));
+export async function createNotebookDocument(
+  kind: NotebookDocumentKind,
+  parentId: string | null,
+  title: string,
+  content: JSONContent
+): Promise<BackendDocumentRecord> {
+  return createDocument(kind, parentId, title, content);
+}
+
+export async function updateNotebookDocument(
+  id: string,
+  title: string,
+  content: JSONContent
+): Promise<BackendDocumentRecord> {
+  return updateDocument(id, title, content);
+}
+
+export async function deleteNotebookDocument(id: string): Promise<void> {
+  await deleteDocument(id);
 }

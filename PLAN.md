@@ -1,5 +1,25 @@
 # Entity Backend And Rich Reference Plan
 
+## Status
+
+Completed so far:
+
+- backend storage moved from local-only persistence to a server API
+- Postgres schema and migration tooling added
+- Docker-based local Postgres setup added
+- backend seed/bootstrap flow added
+- groups, projects, and protocols now persist in the backend
+- document entities are mirrored into the entity registry backend model
+- `#` entity lookup and `@` user lookup are wired into the editor
+
+Still pending from this plan:
+
+- persisted `document_mentions` extraction/indexing from editor documents
+- entity registry and detail UI
+- import and draft reconciliation pipeline
+- relation authoring and graph features
+- `/` document hierarchy trigger
+
 ## Goal
 
 Add a simple backend-backed entity system to the lab notebook so that:
