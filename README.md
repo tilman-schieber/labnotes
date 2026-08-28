@@ -26,6 +26,8 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - `#` entity references backed by the server entity registry
   - quick-create from the `#` popup: `Create "Foo" as sample / reagent / …` when nothing matches exactly
   - `@` user references backed by the server user registry
+  - `/` hierarchy-first document references (rendered as `/Title`, stored as document entity mentions)
+  - `#` suggestions rank entities recently used in the current project first
 - Sidebar tree structure:
   - Groups -> Projects -> Experiments
 - Create actions:
@@ -302,6 +304,7 @@ Current backend endpoints:
 
 - `GET /api/health`
 - `GET /api/documents/tree`
+- `GET /api/documents/search?q=...` (`/` lookup, with tree path)
 - `GET /api/documents/:id`
 - `GET /api/documents/:id/mentions` (outbound `#`/`@` references)
 - `GET /api/documents/:id/revisions`

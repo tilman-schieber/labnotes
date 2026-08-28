@@ -37,8 +37,9 @@ function buildTree(documents) {
     }
   });
 
+  // pg returns timestamptz columns as Date objects.
   const sortNodes = (items) => {
-    items.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    items.sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt));
     items.forEach((item) => sortNodes(item.children));
   };
 
@@ -131,6 +132,41 @@ app.get('/api/health', (_request, response) => {
 app.get('/api/documents/tree', async (_request, response) => {
   const documents = await loadDocuments();
   response.json({ documents: buildTree(documents) });
+});
+
+// `/` lookup: documents with their tree path, resolved to the mirrored document entity id.
+app.get('/api/documents/search', async (request, response) => {
+  const queryText = String(request.query.q ?? '').trim().toLowerCase();
+  const documents = await loadDocuments();
+  const byId = new Map(documents.map((document) => [document.id, document]));
+
+  const pathOf = (document) => {
+    const titles = [];
+    let current = document.parentId ? byId.get(document.parentId) : null;
+    while (current) {
+      titles.unshift(current.title);
+      current = current.parentId ? byId.get(current.parentId) : null;
+    }
+    return titles;
+  };
+
+  const matches = documents
+    .filter((document) => !queryText || document.title.toLowerCase().includes(queryText))
+    .sort((left, right) => {
+      const leftPrefix = left.title.toLowerCase().startsWith(queryText) ? 0 : 1;
+      const rightPrefix = right.title.toLowerCase().startsWith(queryText) ? 0 : 1;
+      return leftPrefix - rightPrefix || new Date(right.updatedAt) - new Date(left.updatedAt);
+    })
+    .slice(0, 20)
+    .map((document) => ({
+      id: document.id,
+      entityId: `document-${document.id}`,
+      title: document.title,
+      kind: document.kind,
+      path: pathOf(document)
+    }));
+
+  response.json({ documents: matches });
 });
 
 app.get('/api/documents/:id', async (request, response) => {

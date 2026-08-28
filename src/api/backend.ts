@@ -103,6 +103,20 @@ export async function deleteDocument(id: string): Promise<void> {
   await request(`/documents/${id}`, { method: 'DELETE' });
 }
 
+export type BackendDocumentSearchResult = {
+  id: string;
+  entityId: string;
+  title: string;
+  kind: NotebookDocumentKind;
+  path: string[];
+};
+
+export async function searchDocuments(query: string): Promise<BackendDocumentSearchResult[]> {
+  const params = new URLSearchParams({ q: query });
+  const payload = await request<{ documents: BackendDocumentSearchResult[] }>(`/documents/search?${params.toString()}`);
+  return payload.documents;
+}
+
 export async function fetchDocumentRevisions(id: string): Promise<BackendRevisionSummary[]> {
   const payload = await request<{ revisions: BackendRevisionSummary[] }>(`/documents/${id}/revisions`);
   return payload.revisions;

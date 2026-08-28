@@ -5,7 +5,7 @@ import TableRow from '@tiptap/extension-table-row';
 import TableHeader from '@tiptap/extension-table-header';
 import TableCell from '@tiptap/extension-table-cell';
 import type { Editor, JSONContent } from '@tiptap/core';
-import { createEntityMentionExtension, UserMentionExtension } from './extensions/Mention';
+import { createEntityMentionExtension, DocumentSlashExtension, UserMentionExtension } from './extensions/Mention';
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts';
 import { createBlankDocument } from '../storage/documentStore';
 import { useEffect } from 'react';
@@ -52,6 +52,7 @@ export default function NotebookEditor({
       InlineMath,
       createEntityMentionExtension(documentId),
       UserMentionExtension,
+      DocumentSlashExtension,
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
