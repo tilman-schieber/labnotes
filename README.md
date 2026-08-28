@@ -52,6 +52,11 @@ Implemented now:
 - entity registry view (sidebar "Entities"): search/filter, create, edit label/type/status/attributes, aliases, backlinks
 - duplicate merge: references in documents are rewritten to the surviving entity (as a new revision), aliases move over, the duplicate is deleted
 - entity relations (`uses`, `derived_from`, `stored_in`, `references`, `belongs_to`) authored in the registry, shown in both directions
+- chemistry on `compound` entities (OpenChemLib, loaded on demand):
+  - SMILES entry with validation, 2D structure rendering, formula / MW / exact mass / cLogP / TPSA / H-bond counts
+  - structure editor (draw), PubChem lookup by name or CAS (fills SMILES, IUPAC name, CAS)
+  - same-structure detection via canonical IDCode with one-click merge
+  - compound tokens in the editor show a structure card on hover; click toggles an inline structure
 
 Not implemented yet:
 
@@ -71,6 +76,8 @@ Core persisted tables:
 - `entity_relations`
 
 Schema is defined in `db/migrations/0001_init.sql`.
+
+Compound entities keep their chemistry in `attributes`: `smiles`, `idCode` (canonical, used for duplicate detection), `formula`, `molecularWeight`, `exactMass`, `logP`, `tpsa`, `hDonors`, `hAcceptors`, plus `casNumber`, `iupacName`, `pubchemCid` when known. Registry search matches `idCode`, `smiles`, and `casNumber` exactly.
 
 ## First-Run Seed
 
@@ -98,11 +105,17 @@ src/
   editor/
     Editor.tsx                     # TipTap setup and editor rendering
     RevisionHistory.tsx            # History panel: list and restore revisions
+  chemistry/
+    molecule.ts                    # OpenChemLib wrapper: SMILES parsing, properties, SVG
+    pubchem.ts                     # PubChem PUG REST lookup
   registry/
     EntityRegistry.tsx             # Entity list, filters, create
-    EntityDetail.tsx               # Edit fields/attributes, aliases, backlinks
+    EntityDetail.tsx               # Edit fields/attributes, aliases, relations, backlinks, merge
+    CompoundPanel.tsx              # Structure, properties, draw, PubChem, duplicate hint
+    StructureEditorDialog.tsx      # OpenChemLib CanvasEditor in a modal
     extensions/
-      Mention.ts                   # async #/@ mention extensions
+      Mention.ts                   # async #/@// mention extensions
+      CompoundToken.ts             # entity token node view with structure hover/inline
       MarkdownShortcuts.ts         # markdown input rules
 server/
   index.mjs                        # Express API server

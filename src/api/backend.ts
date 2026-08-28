@@ -35,6 +35,7 @@ export type BackendEntitySearchResult = {
   subtype: string | null;
   status: string;
   documentId: string | null;
+  smiles: string | null;
   usedInContext: boolean;
   description: string;
 };

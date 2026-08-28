@@ -10,9 +10,12 @@ import {
   searchEntities,
   updateEntity,
   type BackendEntityDetail,
+  type BackendEntityListItem,
   type BackendEntitySearchResult,
   type EntityUpdate
 } from '../api/backend';
+import { isCompoundAttributes } from '../chemistry/molecule';
+import CompoundPanel from './CompoundPanel';
 
 // Debounced entity search used by the relation and merge pickers.
 function useEntityPicker(queryText: string, excludeId: string, excludeDocuments: boolean) {
@@ -176,7 +179,34 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
     }
   };
 
-  const handleMerge = async (target: BackendEntitySearchResult) => {
+  // Merges attribute changes into the stored entity without touching the other fields.
+  const handleSaveAttributes = async (patch: Record<string, unknown>) => {
+    const merged: Record<string, unknown> = { ...(detail.entity.attributes ?? {}) };
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value === null || value === undefined) {
+        delete merged[key];
+      } else {
+        merged[key] = value;
+      }
+    });
+
+    try {
+      await updateEntity(entityId, {
+        label: detail.entity.label,
+        type: detail.entity.type,
+        subtype: detail.entity.subtype,
+        status: detail.entity.status,
+        attributes: merged
+      });
+      await load();
+      onChanged();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save attributes');
+      throw saveError;
+    }
+  };
+
+  const handleMerge = async (target: Pick<BackendEntitySearchResult | BackendEntityListItem, 'id' | 'label'>) => {
     const confirmed = window.confirm(
       `Merge "${detail.entity.label}" into "${target.label}"?\n\nReferences in documents are rewritten to "${target.label}", aliases move over, and "${detail.entity.label}" is deleted.`
     );
@@ -294,6 +324,16 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
           {error && <span className="entity-error">{error}</span>}
         </div>
       </form>
+
+      {detail.entity.type === 'compound' && isCompoundAttributes(detail.entity.attributes) && (
+        <CompoundPanel
+          entityId={entityId}
+          label={detail.entity.label}
+          attributes={detail.entity.attributes}
+          onSaveAttributes={handleSaveAttributes}
+          onMergeInto={(target) => void handleMerge(target)}
+        />
+      )}
 
       <section className="entity-section">
         <h3>Aliases</h3>

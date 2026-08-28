@@ -403,6 +403,7 @@ app.get('/api/entities/search', async (request, response) => {
         e.status,
         e.document_id as "documentId",
         e.document_id is not null as "isDocument",
+        e.attributes->>'smiles' as smiles,
         ctx.last_used is not null as "usedInContext"
       from entities e
       left join lateral (
@@ -422,6 +423,8 @@ app.get('/api/entities/search', async (request, response) => {
             from entity_aliases a
             where a.entity_id = e.id and lower(a.alias) like '%' || $1 || '%'
           )
+          or lower(e.attributes->>'casNumber') = $1
+          or lower(e.attributes->>'formula') = $1
         )
       order by
         ctx.last_used is not null desc,
@@ -445,6 +448,7 @@ app.get('/api/entities/search', async (request, response) => {
         subtype: entity.subtype,
         status: entity.status,
         documentId: entity.documentId,
+        smiles: entity.smiles,
         usedInContext: entity.usedInContext,
         description: entity.usedInContext ? `${base} · used in this project` : base
       };
@@ -482,6 +486,10 @@ app.get('/api/entities', async (request, response) => {
             select 1 from entity_aliases a
             where a.entity_id = e.id and lower(a.alias) like '%' || $1 || '%'
           )
+          -- structure identifiers on compounds: exact matches only
+          or e.attributes->>'idCode' = $4
+          or lower(e.attributes->>'smiles') = $1
+          or lower(e.attributes->>'casNumber') = $1
         )
       order by
         ($1 <> '' and lower(e.label) like $1 || '%') desc,
@@ -489,7 +497,7 @@ app.get('/api/entities', async (request, response) => {
         lower(e.label) asc
       limit 200
     `,
-    [queryText, typeFilter, statusFilter]
+    [queryText, typeFilter, statusFilter, String(request.query.q ?? '').trim()]
   );
 
   const typesResult = await query('select distinct type from entities order by type');

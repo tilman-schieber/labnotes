@@ -353,6 +353,158 @@ body {
   background: #dcfce7;
 }
 
+.ProseMirror .reference-token.reference-compound {
+  cursor: pointer;
+}
+
+.ProseMirror .reference-inline-structure {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+  line-height: 0;
+}
+
+.ProseMirror .reference-inline-structure svg {
+  height: 3rem;
+  width: auto;
+}
+
+.compound-hover-card {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  padding: 0.5rem;
+  pointer-events: none;
+}
+
+.compound-hover-svg svg {
+  display: block;
+  max-width: 220px;
+  height: auto;
+}
+
+.compound-hover-meta {
+  font-size: 0.8rem;
+  color: #475569;
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.compound-panel .compound-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.compound-svg {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  min-height: 9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  overflow: hidden;
+}
+
+.compound-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.compound-svg-empty {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.compound-properties {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.75rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.compound-properties dt {
+  color: #64748b;
+}
+
+.compound-properties dd {
+  margin: 0;
+}
+
+.compound-iupac {
+  overflow-wrap: anywhere;
+}
+
+.compound-smiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: #334155;
+  margin-top: 0.6rem;
+}
+
+.compound-smiles input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.compound-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 95vw;
+}
+
+.modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.structure-editor-modal {
+  width: min(860px, 95vw);
+}
+
+.structure-editor-host {
+  width: 100%;
+  height: min(520px, 70vh);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
 .ProseMirror .math-node {
   border: 0;
   background: transparent;

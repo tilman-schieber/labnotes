@@ -3,6 +3,7 @@ import { Extension, type Editor } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
 import { createEntity, searchDocuments, searchEntities, searchUsers } from '../../api/backend';
+import { compoundTokenNodeView } from './CompoundToken';
 
 type SuggestionOption = {
   id: string;
@@ -200,8 +201,14 @@ const EntityMention = Mention.extend({
       ...this.parent?.(),
       label: { default: null },
       entityType: { default: 'entity' },
-      refType: { default: 'entity' }
+      refType: { default: 'entity' },
+      // Compound tokens can show their structure inline; toggled by clicking the token.
+      inlineStructure: { default: false }
     };
+  },
+
+  addNodeView() {
+    return compoundTokenNodeView;
   }
 });
 
