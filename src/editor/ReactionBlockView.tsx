@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { searchEntities, type BackendEntitySearchResult } from '../api/backend';
 import { isCompoundAttributes, smilesToSvg, type CompoundAttributes } from '../chemistry/molecule';
 import { COMPONENT_ROLES, computeReaction, createComponent, type ComponentRole, type ReactionComponent } from '../chemistry/reaction';
+import { componentsFromBlocks, mergeComponents, sectionBlocksBefore } from '../chemistry/reactionFromText';
 import { formatQuantity, parseQuantity, type Quantity } from '../units/quantity';
 import { loadEntity } from './extensions/CompoundToken';
 import type { ReactionAttrs } from './extensions/Reaction';
@@ -142,6 +143,10 @@ function CompoundCell({
     loadEntity(component.entityId)
       .then((entity) => {
         const attributes = entity && isCompoundAttributes(entity.attributes) ? (entity.attributes as CompoundAttributes) : null;
+        // Rows created from prose know the entity but not its MW yet.
+        if (!cancelled && component.molecularWeight === null && attributes?.molecularWeight) {
+          onChange({ molecularWeight: attributes.molecularWeight });
+        }
         return attributes?.smiles ? smilesToSvg(attributes.smiles, 90, 50) : null;
       })
       .then((image) => {
@@ -203,12 +208,23 @@ function CompoundCell({
   );
 }
 
-export default function ReactionBlockView({ node, updateAttributes, editor, selected }: NodeViewProps) {
+export default function ReactionBlockView({ node, updateAttributes, editor, selected, getPos }: NodeViewProps) {
   const attrs = node.attrs as ReactionAttrs;
   const disabled = !editor.isEditable;
   const summary = useMemo(() => computeReaction(attrs.components), [attrs.components]);
 
   const setComponents = (components: ReactionComponent[]) => updateAttributes({ components });
+
+  // Re-read the section above this block and fold new entities/amounts into the table.
+  const refreshFromText = () => {
+    const position = typeof getPos === 'function' ? getPos() : null;
+    if (position === null || position === undefined) {
+      return;
+    }
+    const blocks = editor.state.doc.toJSON().content ?? [];
+    const blockIndex = editor.state.doc.resolve(position).index(0);
+    setComponents(mergeComponents(attrs.components, componentsFromBlocks(sectionBlocksBefore(blocks, blockIndex))));
+  };
   const patch = (id: string, changes: Partial<ReactionComponent>) =>
     setComponents(attrs.components.map((component) => (component.id === id ? { ...component, ...changes } : component)));
   const remove = (id: string) => setComponents(attrs.components.filter((component) => component.id !== id));
@@ -230,6 +246,11 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
           <span className="entity-muted">
             limiting: {summary.components.find((component) => component.id === summary.limitingId)?.label || '—'}
           </span>
+        )}
+        {!disabled && (
+          <button type="button" className="reaction-refresh" onClick={refreshFromText} title="Add entities and amounts written in the text above">
+            ↻ from text
+          </button>
         )}
       </div>
 

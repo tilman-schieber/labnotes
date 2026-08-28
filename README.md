@@ -22,7 +22,8 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - `- ` / `+ ` / `* ` for bullet lists
   - `$...$` inline math and `$$...$$` block math
 - Basic tables (insert and edit)
-- Reaction block (toolbar "Reaction"): stoichiometry table with reactant/reagent/solvent/product rows. Compounds are picked from the registry (MW auto-filled, structure shown); enter mass, or volume + concentration, or volume + density, or just equivalents. Computes mmol, equivalents vs. the limiting reagent, required masses, theoretical yield and % yield from the isolated mass. Component compounds count as references (backlinks).
+- Usages are read from the prose: an entity token with amounts next to it (`#Salicylic acid (2.0 g, 14.5 mmol)`, `12.5 mL of #Compound X`, `2 eq #Base`) records *entity × amounts × role* at save time. Roles come from a few keywords (`dissolved in` → solvent, `afforded/gave/yield` → product); time and temperature are conditions, not amounts. The linked strip shows amounts per entity, the registry shows every usage with totals per dimension.
+- Reaction block (`/reaction` or toolbar): stoichiometry table with reactant/reagent/solvent/product rows, **pre-filled from the current section's prose** and refreshable with "↻ from text" (adds entities and fills empty fields, never overwrites manual edits). Compounds are picked from the registry (MW auto-filled, structure shown); enter mass, or volume + concentration, or volume + density, or just equivalents. Computes mmol, equivalents vs. the limiting reagent, required masses, theoretical yield and % yield from the isolated mass. Component compounds count as references (backlinks).
 - The document always ends with an empty paragraph, and clicking below the content places the caret at the end
 - Quantities: typing `12.5 mL `, `-20 °C `, `2 eq ` turns into a unit-aware token (hover shows conversions, double-click edits, Backspace right after undoes). Units: g/L/mol/M with n/µ/m/k prefixes, °C/K, s/min/h/d, eq, %
 - Rich references:
@@ -127,6 +128,8 @@ src/
   chemistry/
     molecule.ts                    # OpenChemLib wrapper: SMILES parsing, properties, SVG
     reaction.ts                    # stoichiometry engine for reaction blocks (unit-tested)
+    usages.ts                      # entity × amounts × role extraction from prose (unit-tested)
+    reactionFromText.ts            # usages -> reaction rows, section scoping, merge (unit-tested)
     pubchem.ts                     # PubChem PUG REST lookup
   registry/
     EntityRegistry.tsx             # Entity list, filters, create
@@ -165,6 +168,7 @@ db/
     0008_fulltext_search.sql       # search_text + generated tsvector + GIN index
     0009_revision_signatures.sql   # signed_by / signed_at / note on revisions
     0010_attachments.sql           # attachment metadata (bytes on disk)
+    0011_document_usages.sql       # entity × amounts × role rows derived from prose
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -362,7 +366,8 @@ Current backend endpoints:
 - `GET /api/search?q=&tag=` (full-text search; `websearch_to_tsquery` syntax, highlighted snippets)
 - `GET /api/documents/search?q=...` (`/` lookup, with tree path)
 - `GET /api/documents/:id`
-- `GET /api/documents/:id/mentions` (outbound `#`/`@` references)
+- `GET /api/documents/:id/mentions` (outbound `#`/`@` references, with amounts and role from the prose)
+- `GET /api/documents/:id/usages` (entity × amounts × role rows derived from the text)
 - `GET /api/documents/:id/export.typ`, `GET /api/documents/:id/export.pdf` (needs `typst` on PATH or `TYPST_BIN`)
 - `GET /api/documents/:id/attachments`, `POST /api/documents/:id/attachments` (raw body; `X-Filename` header), `GET /api/attachments/:id` (`?download` for a download disposition), `DELETE /api/attachments/:id`
 - `GET /api/documents/:id/revisions`

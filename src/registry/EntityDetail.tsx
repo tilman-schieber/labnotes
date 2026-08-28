@@ -19,6 +19,7 @@ import AttributeFields from './AttributeFields';
 import { expiryState } from './attributeSchema';
 import CompoundPanel from './CompoundPanel';
 import { confirmDialog } from '../ui/dialogs';
+import { formatQuantity } from '../units/quantity';
 
 function parseAttributesText(text: string): Record<string, unknown> | null {
   try {
@@ -469,6 +470,34 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
           </ul>
         )}
       </section>
+
+      {detail.usages.length > 0 && (
+        <section className="entity-section">
+          <h3>Used</h3>
+          {detail.usageTotals.length > 0 && (
+            <div className="usage-totals">
+              {detail.usageTotals.map((total) => (
+                <span key={total.dimension} className="badge">
+                  {total.dimension}: {formatQuantity(total.quantity)} total
+                </span>
+              ))}
+            </div>
+          )}
+          <ul className="entity-usage-list">
+            {detail.usages.map((usage) => (
+              <li key={usage.id}>
+                <button type="button" className="link-button" onClick={() => onOpenDocument(usage.documentId)}>
+                  {usage.documentTitle}
+                </button>
+                {usage.documentDate && <span className="entity-muted">{usage.documentDate}</span>}
+                <span className="usage-amounts">{usage.quantities.length > 0 ? usage.quantities.map(formatQuantity).join(', ') : '—'}</span>
+                {usage.role && <span className="badge">{usage.role}</span>}
+                {usage.sentence && <span className="usage-sentence" title={usage.sentence}>“{usage.sentence}”</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="entity-section">
         <h3>Referenced in</h3>

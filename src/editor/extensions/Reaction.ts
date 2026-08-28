@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { createComponent, type ReactionComponent } from '../../chemistry/reaction';
+import { componentsFromBlocks, sectionBlocksBefore } from '../../chemistry/reactionFromText';
 import ReactionBlockView from '../ReactionBlockView';
 
 export type ReactionAttrs = {
@@ -69,16 +70,27 @@ export const ReactionNode = Node.create({
 
   addCommands() {
     return {
+      // Pre-fills from the prose of the current section (since the last heading) so the table
+      // is a view of what was written, not a second data-entry form.
       insertReaction:
         () =>
-        ({ commands }) =>
-          commands.insertContent({
+        ({ commands, state }) => {
+          const blocks = state.doc.toJSON().content ?? [];
+          const $from = state.selection.$from;
+          const blockIndex = $from.depth > 0 ? $from.index(0) : blocks.length;
+          const fromText = componentsFromBlocks(sectionBlocksBefore(blocks, blockIndex));
+          const components =
+            fromText.length > 0
+              ? fromText.some((component) => component.role === 'product')
+                ? fromText
+                : [...fromText, createComponent('product')]
+              : [createComponent('reactant'), createComponent('reactant'), createComponent('product')];
+
+          return commands.insertContent({
             type: this.name,
-            attrs: {
-              title: '',
-              components: [createComponent('reactant'), createComponent('reactant'), createComponent('product')]
-            } satisfies ReactionAttrs
-          })
+            attrs: { title: '', components } satisfies ReactionAttrs
+          });
+        }
     };
   }
 });

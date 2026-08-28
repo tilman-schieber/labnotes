@@ -213,6 +213,25 @@ export type BackendDocumentMention = {
   currentLabel: string | null;
   entityType: string | null;
   entityDocumentId: string | null;
+  // Amounts read from the prose around the references (see chemistry/usages.ts)
+  quantities: { value: number; unit: string }[];
+  role: 'reactant' | 'product' | 'solvent' | null;
+};
+
+export type BackendUsage = {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  documentKind: NotebookDocumentKind;
+  documentDate: string | null;
+  quantities: { value: number; unit: string }[];
+  role: 'reactant' | 'product' | 'solvent' | null;
+  sentence: string | null;
+};
+
+export type BackendUsageTotal = {
+  dimension: string;
+  quantity: { value: number; unit: string };
 };
 
 export async function fetchDocumentMentions(documentId: string): Promise<BackendDocumentMention[]> {
@@ -345,6 +364,8 @@ export type BackendEntityDetail = {
   aliases: BackendEntityAlias[];
   backlinks: BackendBacklink[];
   relations: BackendRelation[];
+  usages: BackendUsage[];
+  usageTotals: BackendUsageTotal[];
 };
 
 export const RELATION_PREDICATES = ['uses', 'derived_from', 'stored_in', 'references', 'belongs_to'] as const;

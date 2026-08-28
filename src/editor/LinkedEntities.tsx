@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchDocumentMentions, type BackendDocumentMention } from '../api/backend';
+import { formatQuantity } from '../units/quantity';
 import { IconAtom } from '../ui/icons';
 
 type Props = {
@@ -59,6 +60,9 @@ export default function LinkedEntities({ documentId, refreshToken, onOpenEntity,
                   title={mention.entityDocumentId ? 'Open document' : 'Open in registry'}
                 >
                   {mention.currentLabel}
+                  {mention.quantities.length > 0 && (
+                    <span className="linked-entity-amount">{mention.quantities.map(formatQuantity).join(', ')}</span>
+                  )}
                 </button>
               ))}
             </span>

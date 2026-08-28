@@ -8,6 +8,7 @@ import { runMigrations } from './lib/migrations.mjs';
 import { SignError, getRevision, listRevisions, recordRevision, signRevision } from './lib/revisions.mjs';
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { extractText } from './lib/text.mjs';
+import { convert, findUnit, toBase } from '../src/units/quantity.ts';
 import { exportDocumentPdf, exportDocumentTypst } from './lib/export.mjs';
 import {
   MAX_ATTACHMENT_BYTES,
@@ -111,6 +112,51 @@ async function loadDocuments() {
   );
 
   return result.rows;
+}
+
+// Amounts an entity was used with, per document, plus totals per unit dimension.
+async function loadUsages(entityId) {
+  const result = await query(
+    `
+      select
+        du.id,
+        du.document_id as "documentId",
+        d.title as "documentTitle",
+        d.kind as "documentKind",
+        d.metadata ->> 'date' as "documentDate",
+        du.quantities,
+        du.role,
+        du.sentence
+      from document_usages du
+      join documents d on d.id = du.document_id
+      where du.target_id = $1
+      order by d.updated_at desc, du.block_index asc
+    `,
+    [entityId]
+  );
+
+  const totals = new Map();
+  for (const row of result.rows) {
+    for (const quantity of row.quantities ?? []) {
+      const unit = findUnit(quantity.unit);
+      if (!unit || unit.dimension === 'ratio' || unit.dimension === 'concentration') {
+        continue;
+      }
+      const base = toBase(quantity);
+      totals.set(unit.dimension, (totals.get(unit.dimension) ?? 0) + base);
+    }
+  }
+
+  const BASE_UNIT = { mass: 'g', volume: 'L', amount: 'mol' };
+  const usageTotals = [...totals.entries()].map(([dimension, base]) => {
+    // Pick a readable unit: the base unit or its milli- variant.
+    const baseUnit = BASE_UNIT[dimension];
+    const quantity = { value: base, unit: baseUnit };
+    const preferred = base < 1 && baseUnit !== 'g' ? convert(quantity, `m${baseUnit}`) : base < 1 ? convert(quantity, 'mg') : quantity;
+    return { dimension, quantity: { value: Number(preferred.value.toPrecision(6)), unit: preferred.unit } };
+  });
+
+  return { usages: result.rows, usageTotals };
 }
 
 // Mentions joined with their document so callers can render backlinks without a second lookup.
@@ -264,7 +310,12 @@ app.get('/api/documents/:id/mentions', async (request, response) => {
         m.created_at as "createdAt",
         coalesce(e.label, u.display_name) as "currentLabel",
         e.type as "entityType",
-        e.document_id as "entityDocumentId"
+        e.document_id as "entityDocumentId",
+        coalesce(
+          (select jsonb_agg(q) from document_usages du, jsonb_array_elements(du.quantities) q where du.document_id = m.document_id and du.target_id = m.target_id),
+          '[]'::jsonb
+        ) as quantities,
+        (select du.role from document_usages du where du.document_id = m.document_id and du.target_id = m.target_id and du.role is not null limit 1) as role
       from document_mentions m
       left join entities e on m.ref_type = 'entity' and e.id = m.target_id
       left join users u on m.ref_type = 'user' and u.id = m.target_id
@@ -283,6 +334,25 @@ app.get('/api/documents/:id/mentions', async (request, response) => {
   }
 
   response.json({ mentions: result.rows });
+});
+
+app.get('/api/documents/:id/usages', async (request, response) => {
+  const exists = await query('select 1 from documents where id = $1', [request.params.id]);
+  if (exists.rowCount === 0) {
+    response.status(404).json({ error: 'Document not found' });
+    return;
+  }
+
+  const result = await query(
+    `
+      select id, target_id as "targetId", label, entity_type as "entityType", quantities, role, block_index as "blockIndex", sentence
+      from document_usages
+      where document_id = $1
+      order by block_index asc, created_at asc
+    `,
+    [request.params.id]
+  );
+  response.json({ usages: result.rows });
 });
 
 app.post('/api/documents', async (request, response) => {
@@ -832,7 +902,7 @@ app.get('/api/entities/:id', async (request, response) => {
     return;
   }
 
-  const [aliasesResult, backlinks, relations] = await Promise.all([
+  const [aliasesResult, backlinks, relations, usage] = await Promise.all([
     query(
       `
         select id, entity_id as "entityId", alias, kind, created_at as "createdAt"
@@ -843,10 +913,11 @@ app.get('/api/entities/:id', async (request, response) => {
       [entity.id]
     ),
     loadBacklinks('entity', entity.id),
-    loadRelations(entity.id)
+    loadRelations(entity.id),
+    loadUsages(entity.id)
   ]);
 
-  response.json({ entity, aliases: aliasesResult.rows, backlinks, relations });
+  response.json({ entity, aliases: aliasesResult.rows, backlinks, relations, usages: usage.usages, usageTotals: usage.usageTotals });
 });
 
 // Relations touching an entity, in both directions, with the other side resolved for display.

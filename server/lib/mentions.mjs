@@ -1,4 +1,5 @@
 import { createId } from './ids.mjs';
+import { extractUsages } from '../../src/chemistry/usages.ts';
 
 // TipTap node type -> document_mentions.ref_type
 const MENTION_NODE_TYPES = {
@@ -128,7 +129,26 @@ export async function syncDocumentMentions(client, documentId, content) {
     }
   }
 
+  await syncDocumentUsages(client, documentId, content);
   return mentions;
+}
+
+// Usages are fully derived, so they are simply replaced on every save.
+export async function syncDocumentUsages(client, documentId, content) {
+  const usages = extractUsages(content);
+  await client.query('delete from document_usages where document_id = $1', [documentId]);
+
+  for (const usage of usages) {
+    await client.query(
+      `
+        insert into document_usages (id, document_id, target_id, label, entity_type, quantities, role, block_index, sentence)
+        values ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9)
+      `,
+      [createId('usage'), documentId, usage.entityId, usage.label, usage.entityType, JSON.stringify(usage.quantities), usage.role, usage.blockIndex, usage.sentence]
+    );
+  }
+
+  return usages;
 }
 
 export async function syncAllDocumentMentions(client) {
