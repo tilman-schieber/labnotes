@@ -1,6 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
-import type { CanvasEditor } from 'openchemlib';
-import { loadOcl } from '../chemistry/molecule';
+import { Component, Suspense, lazy, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import type { Ketcher } from 'ketcher-core';
+
+// Ketcher (with its Indigo WASM) is only downloaded when the dialog opens.
+const KetcherEditor = lazy(() => import('./KetcherEditor'));
+
+// Keeps a failing editor chunk inside the dialog instead of unmounting the whole app.
+class EditorBoundary extends Component<{ onError: (message: string) => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    this.props.onError(error.message || 'The structure editor failed to load');
+  }
+
+  render() {
+    return this.state.failed ? <div className="structure-editor-loading">Structure editor unavailable</div> : this.props.children;
+  }
+}
 
 type Props = {
   initialSmiles: string;
@@ -8,77 +28,62 @@ type Props = {
   onSave: (smiles: string) => void;
 };
 
-// Wraps OpenChemLib's CanvasEditor in a modal. The editor owns its DOM; React only supplies the host.
 export default function StructureEditorDialog({ initialSmiles, onCancel, onSave }: Props) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const editorRef = useRef<CanvasEditor | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const ketcherRef = useRef<Ketcher | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    loadOcl()
-      .then(({ CanvasEditor: Editor, Molecule }) => {
-        if (cancelled || !hostRef.current) {
-          return;
-        }
-
-        const editor = new Editor(hostRef.current, { initialMode: 'molecule' });
-        if (initialSmiles.trim()) {
-          try {
-            editor.setMolecule(Molecule.fromSmiles(initialSmiles));
-          } catch {
-            setError('Could not load the current SMILES into the editor');
-          }
-        }
-        editorRef.current = editor;
-        setIsReady(true);
-      })
-      .catch((loadError: unknown) => {
-        setError(loadError instanceof Error ? loadError.message : 'Failed to load the structure editor');
-      });
-
-    return () => {
-      cancelled = true;
-      editorRef.current?.destroy();
-      editorRef.current = null;
-    };
-  }, [initialSmiles]);
-
-  const handleSave = () => {
-    const editor = editorRef.current;
-    if (!editor) {
+  const handleSave = async () => {
+    const ketcher = ketcherRef.current;
+    if (!ketcher) {
       return;
     }
 
-    const molecule = editor.getMolecule();
-    if (molecule.getAllAtoms() === 0) {
-      onSave('');
-      return;
+    setIsSaving(true);
+    try {
+      // Isomeric SMILES keeps stereo; Ketcher returns '' for an empty canvas.
+      const smiles = (await ketcher.getSmiles(true)).trim();
+      onSave(smiles);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not read the structure');
+      setIsSaving(false);
     }
-
-    onSave(molecule.toIsomericSmiles());
   };
 
-  return (
+  // Portalled to <body> so the registry's form styling does not leak into Ketcher's toolbars.
+  return createPortal(
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Structure editor">
       <div className="modal structure-editor-modal">
         <div className="modal-header">
           <strong>Edit structure</strong>
-          <span className="entity-muted">Draw or paste a structure, then save to update the SMILES.</span>
+          <span className="entity-muted">Draw or paste a structure (Ketcher), then use it to update the SMILES.</span>
         </div>
-        <div className="structure-editor-host" ref={hostRef} />
+        <div className="structure-editor-host">
+          <EditorBoundary onError={setError}>
+            <Suspense fallback={<div className="structure-editor-loading">Loading structure editor…</div>}>
+              <KetcherEditor
+                initialSmiles={initialSmiles}
+                onReady={(ketcher) => {
+                  ketcherRef.current = ketcher;
+                  setIsReady(true);
+                }}
+                onError={setError}
+              />
+            </Suspense>
+          </EditorBoundary>
+        </div>
         {error && <div className="entity-error">{error}</div>}
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" onClick={handleSave} disabled={!isReady}>
-            Use structure
+          <button type="button" onClick={() => void handleSave()} disabled={!isReady || isSaving}>
+            {isSaving ? 'Reading…' : 'Use structure'}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

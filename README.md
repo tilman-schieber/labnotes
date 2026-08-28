@@ -65,7 +65,7 @@ Implemented now:
 - entity relations (`uses`, `derived_from`, `stored_in`, `references`, `belongs_to`) authored in the registry, shown in both directions
 - chemistry on `compound` entities (OpenChemLib, loaded on demand):
   - SMILES entry with validation, 2D structure rendering, formula / MW / exact mass / cLogP / TPSA / H-bond counts
-  - structure editor (draw), PubChem lookup by name or CAS (fills SMILES, IUPAC name, CAS)
+  - structure editor: Ketcher (EPAM, Apache-2.0, loaded on demand with its Indigo WASM); PubChem lookup by name or CAS (fills SMILES, IUPAC name, CAS)
   - same-structure detection via canonical IDCode with one-click merge
   - compound tokens in the editor show a structure card on hover; click toggles an inline structure
 
@@ -130,7 +130,7 @@ src/
     EntityDetail.tsx               # Edit fields/attributes, aliases, relations, backlinks, merge
     CompoundPanel.tsx              # Structure, properties, draw, PubChem, duplicate hint
     AttributeFields.tsx            # typed attribute inputs per entity type (schema in attributeSchema.ts)
-    StructureEditorDialog.tsx      # OpenChemLib CanvasEditor in a modal
+    StructureEditorDialog.tsx      # modal around the lazily loaded Ketcher editor (KetcherEditor.tsx)
     extensions/
       Mention.ts                   # async #/@// mention extensions
       CompoundToken.ts             # entity token node view with structure hover/inline
