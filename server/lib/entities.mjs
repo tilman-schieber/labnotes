@@ -1,6 +1,7 @@
 import { createId } from './ids.mjs';
 import { retargetEntityMentions, syncDocumentMentions } from './mentions.mjs';
 import { recordRevision } from './revisions.mjs';
+import { extractText } from './text.mjs';
 
 export class MergeError extends Error {
   constructor(message, status = 400) {
@@ -104,7 +105,11 @@ export async function mergeEntities(client, targetId, sourceId) {
       continue;
     }
 
-    await client.query('update documents set content = $2::jsonb, updated_at = now() where id = $1', [document.id, JSON.stringify(content)]);
+    await client.query('update documents set content = $2::jsonb, search_text = $3, updated_at = now() where id = $1', [
+      document.id,
+      JSON.stringify(content),
+      extractText(content)
+    ]);
     await syncDocumentMentions(client, document.id, content);
     await recordRevision(client, document.id, { title: document.title, content, coalesce: false });
     rewrittenDocumentIds.push(document.id);

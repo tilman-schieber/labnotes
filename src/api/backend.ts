@@ -156,6 +156,27 @@ export async function deleteTemplate(id: string): Promise<void> {
   await request(`/templates/${id}`, { method: 'DELETE' });
 }
 
+export type NotebookSearchResult = {
+  id: string;
+  kind: NotebookDocumentKind;
+  title: string;
+  path: string[];
+  status: DocumentStatus | null;
+  tags: string[];
+  // Matches are wrapped in [[ ]]
+  snippet: string;
+  updatedAt: string;
+};
+
+export async function searchNotebook(queryText: string, tag?: string): Promise<NotebookSearchResult[]> {
+  const params = new URLSearchParams({ q: queryText });
+  if (tag) {
+    params.set('tag', tag);
+  }
+  const payload = await request<{ results: NotebookSearchResult[] }>(`/search?${params.toString()}`);
+  return payload.results;
+}
+
 export type BackendDocumentSearchResult = {
   id: string;
   entityId: string;

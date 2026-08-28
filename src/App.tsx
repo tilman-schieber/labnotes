@@ -20,6 +20,7 @@ import {
   type DocumentMetadata
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
+import SearchResults from './sidebar/SearchResults';
 import {
   createBlankDocument,
   createNotebookDocument,
@@ -60,6 +61,7 @@ export default function App() {
   const [editorEpoch, setEditorEpoch] = useState(0);
   const [view, setView] = useState<'notebook' | 'entities'>('notebook');
   const [templates, setTemplates] = useState<BackendTemplate[]>([]);
+  const [searchText, setSearchText] = useState('');
 
   const reloadTemplates = useCallback(async () => {
     try {
@@ -565,6 +567,24 @@ export default function App() {
             </button>
           </div>
 
+          <input
+            type="search"
+            className="sidebar-search"
+            placeholder="Search notebook (#tag for tags)"
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            aria-label="Search notebook"
+          />
+
+          {searchText.trim() ? (
+            <SearchResults
+              queryText={searchText.trim()}
+              onOpenDocument={(id) => {
+                openDocumentById(id);
+                setSearchText('');
+              }}
+            />
+          ) : (
           <div className="tree">
             {db.groups.map((group) => {
               const groupProjects = db.projects.filter((project) => project.groupId === group.id);
@@ -649,6 +669,7 @@ export default function App() {
               );
             })}
           </div>
+          )}
         </aside>
 
         <section className="main-panel">

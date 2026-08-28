@@ -7,6 +7,7 @@ import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mj
 import { runMigrations } from './lib/migrations.mjs';
 import { getRevision, listRevisions, recordRevision } from './lib/revisions.mjs';
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
+import { extractText } from './lib/text.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
 
 const PORT = Number(process.env.PORT ?? 5174);
@@ -135,6 +136,64 @@ app.get('/api/documents/tree', async (_request, response) => {
   response.json({ documents: buildTree(documents) });
 });
 
+// Full-text search across titles, content and tags. Optional `tag` narrows to documents tagged with it.
+app.get('/api/search', async (request, response) => {
+  const queryText = String(request.query.q ?? '').trim();
+  const tag = String(request.query.tag ?? '').trim().toLowerCase();
+
+  if (!queryText && !tag) {
+    response.json({ results: [] });
+    return;
+  }
+
+  const result = await query(
+    `
+      select
+        d.id,
+        d.kind,
+        d.title,
+        d.metadata,
+        d.updated_at as "updatedAt",
+        case when $1 = '' then null else ts_rank(d.search_tsv, websearch_to_tsquery('simple', $1)) end as rank,
+        case when $1 = '' then left(d.search_text, 160)
+             else ts_headline('simple', d.search_text, websearch_to_tsquery('simple', $1),
+                              'MaxWords=24, MinWords=12, StartSel=[[, StopSel=]], MaxFragments=2, FragmentDelimiter=" … "')
+        end as snippet
+      from documents d
+      where ($1 = '' or d.search_tsv @@ websearch_to_tsquery('simple', $1))
+        and ($2 = '' or d.metadata -> 'tags' ? $2)
+      order by rank desc nulls last, d.updated_at desc
+      limit 50
+    `,
+    [queryText, tag]
+  );
+
+  const documents = await loadDocuments();
+  const byId = new Map(documents.map((document) => [document.id, document]));
+  const pathOf = (id) => {
+    const titles = [];
+    let current = byId.get(id)?.parentId ? byId.get(byId.get(id).parentId) : null;
+    while (current) {
+      titles.unshift(current.title);
+      current = current.parentId ? byId.get(current.parentId) : null;
+    }
+    return titles;
+  };
+
+  response.json({
+    results: result.rows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      title: row.title,
+      path: pathOf(row.id),
+      status: row.metadata?.status ?? null,
+      tags: row.metadata?.tags ?? [],
+      snippet: row.snippet ?? '',
+      updatedAt: row.updatedAt
+    }))
+  });
+});
+
 // `/` lookup: documents with their tree path, resolved to the mirrored document entity id.
 app.get('/api/documents/search', async (request, response) => {
   const queryText = String(request.query.q ?? '').trim().toLowerCase();
@@ -238,10 +297,17 @@ app.post('/api/documents', async (request, response) => {
 
     await client.query(
       `
-        insert into documents (id, kind, parent_id, title, content)
-        values ($1, $2, $3, $4, $5::jsonb)
+        insert into documents (id, kind, parent_id, title, content, search_text)
+        values ($1, $2, $3, $4, $5::jsonb, $6)
       `,
-      [nextDocument.id, nextDocument.kind, nextDocument.parentId, nextDocument.title, JSON.stringify(nextDocument.content)]
+      [
+        nextDocument.id,
+        nextDocument.kind,
+        nextDocument.parentId,
+        nextDocument.title,
+        JSON.stringify(nextDocument.content),
+        extractText(nextDocument.content)
+      ]
     );
     await syncDocumentEntity(client, nextDocument.id);
     await syncDocumentMentions(client, nextDocument.id, nextDocument.content);
@@ -320,10 +386,11 @@ app.patch('/api/documents/:id', async (request, response) => {
         update documents
         set title = $2,
             content = $3::jsonb,
+            search_text = $4,
             updated_at = now()
         where id = $1
       `,
-      [request.params.id, nextTitle, JSON.stringify(nextContent)]
+      [request.params.id, nextTitle, JSON.stringify(nextContent), extractText(nextContent)]
     );
 
     await syncDocumentEntity(client, request.params.id);
@@ -376,10 +443,11 @@ app.post('/api/documents/:id/revisions/:revision/restore', async (request, respo
         update documents
         set title = $2,
             content = $3::jsonb,
+            search_text = $4,
             updated_at = now()
         where id = $1
       `,
-      [request.params.id, revision.title, JSON.stringify(revision.content)]
+      [request.params.id, revision.title, JSON.stringify(revision.content), extractText(revision.content)]
     );
 
     await syncDocumentEntity(client, request.params.id);
@@ -883,6 +951,14 @@ app.get('/api/users/:id', async (request, response) => {
   response.json({ user: result.rows[0], backlinks });
 });
 
+// Documents written before full-text indexing existed (or by older extractors) get their text refreshed.
+async function backfillSearchText(client) {
+  const result = await client.query("select id, content from documents where search_text = ''");
+  for (const row of result.rows) {
+    await client.query('update documents set search_text = $2 where id = $1', [row.id, extractText(row.content)]);
+  }
+}
+
 async function bootstrap() {
   if (AUTO_MIGRATE_ON_START) {
     await runMigrations();
@@ -893,6 +969,7 @@ async function bootstrap() {
       await seedDatabase(client);
       // Backfills mentions for content saved before indexing existed and repairs any drift.
       await syncAllDocumentMentions(client);
+      await backfillSearchText(client);
     });
   }
 }

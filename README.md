@@ -37,6 +37,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - New Project (inside selected group)
   - New Experiment (inside selected project)
 - Templates: "Save as template" on an experiment; "New from template…" in the sidebar (delete from the same menu)
+- Full-text search across titles, content (including mentions, quantities, reaction rows, math) and tags — sidebar search box; `#tag` lists everything with that tag
 - Experiment metadata bar: status (planned / in progress / done / failed / abandoned, shown as a dot in the tree), date, tags
 - Task lists (toolbar "Task list" or type `[ ] `)
 - Backend-backed autosave for documents
@@ -136,6 +137,7 @@ server/
     mentions.mjs                   # extract #/@ references from TipTap JSON into document_mentions
     revisions.mjs                  # append-only document revision snapshots
     entities.mjs                   # entity merge
+    text.mjs                       # TipTap JSON -> plain text (search index, exports)
 db/
   migrations/
     0001_init.sql                  # Base schema
@@ -145,6 +147,7 @@ db/
     0005_relation_uniqueness.sql   # NULLS NOT DISTINCT uniqueness for relations
     0006_templates.sql             # experiment templates
     0007_document_metadata.sql     # documents.metadata (status, date, tags)
+    0008_fulltext_search.sql       # search_text + generated tsvector + GIN index
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -336,6 +339,7 @@ Current backend endpoints:
 
 - `GET /api/health`
 - `GET /api/documents/tree`
+- `GET /api/search?q=&tag=` (full-text search; `websearch_to_tsquery` syntax, highlighted snippets)
 - `GET /api/documents/search?q=...` (`/` lookup, with tree path)
 - `GET /api/documents/:id`
 - `GET /api/documents/:id/mentions` (outbound `#`/`@` references)
