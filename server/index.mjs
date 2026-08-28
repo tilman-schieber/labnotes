@@ -387,6 +387,68 @@ function getContextDocumentIds(documents, documentId) {
     .map((item) => item.id);
 }
 
+const TEMPLATE_COLUMNS = 'id, name, kind, created_at as "createdAt", updated_at as "updatedAt"';
+
+app.get('/api/templates', async (request, response) => {
+  const kind = String(request.query.kind ?? '').trim();
+  const result = await query(
+    `select ${TEMPLATE_COLUMNS} from templates where $1 = '' or kind = $1 order by lower(name) asc`,
+    [kind]
+  );
+  response.json({ templates: result.rows });
+});
+
+app.get('/api/templates/:id', async (request, response) => {
+  const result = await query(`select ${TEMPLATE_COLUMNS}, content from templates where id = $1`, [request.params.id]);
+  if (result.rowCount === 0) {
+    response.status(404).json({ error: 'Template not found' });
+    return;
+  }
+  response.json({ template: result.rows[0] });
+});
+
+// Create from explicit content, or snapshot an existing document's content.
+app.post('/api/templates', async (request, response) => {
+  const name = String(request.body.name ?? '').trim();
+  if (!name) {
+    response.status(400).json({ error: 'name is required' });
+    return;
+  }
+
+  let kind = String(request.body.kind ?? 'experiment');
+  let content = request.body.content ?? null;
+
+  if (request.body.documentId) {
+    const documentResult = await query('select kind, content from documents where id = $1', [String(request.body.documentId)]);
+    if (documentResult.rowCount === 0) {
+      response.status(404).json({ error: 'Document not found' });
+      return;
+    }
+    kind = documentResult.rows[0].kind;
+    content = documentResult.rows[0].content;
+  }
+
+  if (!content || typeof content !== 'object') {
+    response.status(400).json({ error: 'content or documentId is required' });
+    return;
+  }
+
+  const result = await query(
+    `insert into templates (id, name, kind, content) values ($1, $2, $3, $4::jsonb) returning ${TEMPLATE_COLUMNS}`,
+    [createId('template'), name, kind, JSON.stringify(content)]
+  );
+  response.status(201).json({ template: result.rows[0] });
+});
+
+app.delete('/api/templates/:id', async (request, response) => {
+  const result = await query('delete from templates where id = $1', [request.params.id]);
+  if (result.rowCount === 0) {
+    response.status(404).json({ error: 'Template not found' });
+    return;
+  }
+  response.status(204).end();
+});
+
 app.get('/api/entities/search', async (request, response) => {
   const queryText = String(request.query.q ?? '').trim().toLowerCase();
   const typeFilter = String(request.query.type ?? '').trim();

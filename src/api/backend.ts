@@ -104,6 +104,37 @@ export async function deleteDocument(id: string): Promise<void> {
   await request(`/documents/${id}`, { method: 'DELETE' });
 }
 
+export type BackendTemplate = {
+  id: string;
+  name: string;
+  kind: NotebookDocumentKind;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchTemplates(kind?: NotebookDocumentKind): Promise<BackendTemplate[]> {
+  const params = new URLSearchParams(kind ? { kind } : {});
+  const payload = await request<{ templates: BackendTemplate[] }>(`/templates?${params.toString()}`);
+  return payload.templates;
+}
+
+export async function fetchTemplate(id: string): Promise<BackendTemplate & { content: JSONContent }> {
+  const payload = await request<{ template: BackendTemplate & { content: JSONContent } }>(`/templates/${id}`);
+  return payload.template;
+}
+
+export async function createTemplateFromDocument(name: string, documentId: string): Promise<BackendTemplate> {
+  const payload = await request<{ template: BackendTemplate }>('/templates', {
+    method: 'POST',
+    body: JSON.stringify({ name, documentId })
+  });
+  return payload.template;
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await request(`/templates/${id}`, { method: 'DELETE' });
+}
+
 export type BackendDocumentSearchResult = {
   id: string;
   entityId: string;

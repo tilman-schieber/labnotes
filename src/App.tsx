@@ -2,8 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Editor, JSONContent } from '@tiptap/core';
 import NotebookEditor from './editor/Editor';
 import EntityRegistry from './registry/EntityRegistry';
-import { type NotebookDocumentKind, createTemplateDocument, extractDocumentTitle, getDefaultTitle } from './documents/templates';
+import {
+  type NotebookDocumentKind,
+  createTemplateDocument,
+  extractDocumentTitle,
+  getDefaultTitle,
+  withDocumentTitle
+} from './documents/templates';
 import { sanitizeLatex } from './editor/extensions/Math';
+import { createTemplateFromDocument, deleteTemplate, fetchTemplate, fetchTemplates, type BackendTemplate } from './api/backend';
 import {
   createBlankDocument,
   createNotebookDocument,
@@ -43,6 +50,19 @@ export default function App() {
   // Bumped when content is replaced outside the editor (e.g. restore) to remount it with fresh content.
   const [editorEpoch, setEditorEpoch] = useState(0);
   const [view, setView] = useState<'notebook' | 'entities'>('notebook');
+  const [templates, setTemplates] = useState<BackendTemplate[]>([]);
+
+  const reloadTemplates = useCallback(async () => {
+    try {
+      setTemplates(await fetchTemplates('experiment'));
+    } catch {
+      setTemplates([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadTemplates();
+  }, [reloadTemplates]);
 
   const reloadDb = useCallback(async (preferredActive?: NotebookActiveState | null) => {
     setIsLoading(true);
@@ -331,19 +351,42 @@ export default function App() {
     }));
   };
 
-  const handleNewExperiment = async () => {
+  const handleNewExperiment = async (templateId?: string) => {
     if (!db?.active.projectId) {
       return;
     }
 
     const siblingCount = db.experiments.filter((experiment) => experiment.projectId === db.active.projectId).length;
     const title = siblingCount === 0 ? 'Untitled Experiment' : `Untitled Experiment ${siblingCount + 1}`;
-    const document = await createNotebookDocument('experiment', db.active.projectId, title, createBlankDocument(title));
+    const content = templateId ? withDocumentTitle((await fetchTemplate(templateId)).content, title) : createBlankDocument(title);
+    const document = await createNotebookDocument('experiment', db.active.projectId, title, content);
     await reloadDb({
       groupId: db.active.groupId,
       projectId: db.active.projectId,
       experimentId: document.id
     });
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!selectedDocument || selectedDocument.kind !== 'experiment') {
+      return;
+    }
+
+    const name = window.prompt('Template name', selectedDocument.title);
+    if (!name?.trim()) {
+      return;
+    }
+
+    await createTemplateFromDocument(name.trim(), selectedDocument.id);
+    await reloadTemplates();
+  };
+
+  const handleDeleteTemplate = async (template: BackendTemplate) => {
+    if (!window.confirm(`Delete template "${template.name}"?`)) {
+      return;
+    }
+    await deleteTemplate(template.id);
+    await reloadTemplates();
   };
 
   const handleDeleteSelectedDocument = async () => {
@@ -441,6 +484,39 @@ export default function App() {
             <button type="button" onClick={() => void handleNewExperiment()} disabled={!db.active.projectId}>
               New Experiment
             </button>
+            {templates.length > 0 && (
+              <div className="template-picker">
+                <select
+                  aria-label="New experiment from template"
+                  value=""
+                  disabled={!db.active.projectId}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value.startsWith('delete:')) {
+                      const template = templates.find((item) => item.id === value.slice('delete:'.length));
+                      if (template) {
+                        void handleDeleteTemplate(template);
+                      }
+                    } else if (value) {
+                      void handleNewExperiment(value);
+                    }
+                  }}
+                >
+                  <option value="">New from template…</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                  <option disabled>──────────</option>
+                  {templates.map((template) => (
+                    <option key={`delete:${template.id}`} value={`delete:${template.id}`}>
+                      Delete “{template.name}”
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               type="button"
               className={view === 'entities' ? 'is-active' : ''}
@@ -563,6 +639,7 @@ export default function App() {
                 onEditorReady={setEditor}
                 onDocumentChange={handleDocumentChange}
                 onDeleteDocument={() => void handleDeleteSelectedDocument()}
+                onSaveAsTemplate={selectedDocument?.kind === 'experiment' ? () => void handleSaveAsTemplate() : null}
                 onDocumentRestored={() => void handleDocumentRestored()}
               />
             </>

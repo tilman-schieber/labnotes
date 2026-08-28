@@ -766,6 +766,16 @@ body {
   background: #dbeafe;
 }
 
+.template-picker select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background: #f8fafc;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  cursor: pointer;
+}
+
 .sidebar-actions button.is-active {
   background: #dbeafe;
   border-color: #93c5fd;

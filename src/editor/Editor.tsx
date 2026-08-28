@@ -26,6 +26,8 @@ type Props = {
   onDocumentChange: (document: JSONContent) => void;
   onDeleteDocument: () => void;
   onDocumentRestored: () => void;
+  // null when the current document kind cannot become a template
+  onSaveAsTemplate: (() => void) | null;
 };
 
 export default function NotebookEditor({
@@ -36,7 +38,8 @@ export default function NotebookEditor({
   onEditorReady,
   onDocumentChange,
   onDeleteDocument,
-  onDocumentRestored
+  onDocumentRestored,
+  onSaveAsTemplate
 }: Props) {
   const editor = useEditor({
     extensions: [
@@ -86,8 +89,14 @@ export default function NotebookEditor({
     <div className="editor-shell">
       <div className="editor-actions">
         <RevisionHistory documentId={editable ? documentId : null} onRestored={onDocumentRestored} />
-        <button type="button" className="editor-action-button" disabled title="Not implemented yet">
-          Reprocess
+        <button
+          type="button"
+          className="editor-action-button"
+          onClick={onSaveAsTemplate ?? undefined}
+          disabled={!editable || !onSaveAsTemplate}
+          title={onSaveAsTemplate ? 'Save this experiment as a reusable template' : 'Only experiments can become templates'}
+        >
+          Save as template
         </button>
         <button type="button" className="editor-action-button" disabled title="Not implemented yet">
           Share

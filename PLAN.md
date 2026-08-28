@@ -19,12 +19,14 @@ Completed so far:
 - entity registry and detail UI (list/filter, create, edit, aliases, backlinks)
 - duplicate merge (rewrites inline references, moves aliases, deletes the duplicate)
 - relation authoring in the registry (both directions shown; merge re-points relations)
+- chemistry: SMILES/structures/properties on compounds, PubChem lookup, structure editor, hover cards
+- unit-aware quantity tokens; reaction block with stoichiometry
+- experiment templates
 
 Still pending from this plan:
 
 - import and draft reconciliation pipeline
 - graph navigation beyond one hop; linked-entity view per experiment
-- experiment templates (later)
 
 ## Goal
 

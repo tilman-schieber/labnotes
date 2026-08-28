@@ -132,6 +132,21 @@ export function normalizeTemplateDocument(
   };
 }
 
+// Copies `content` with its leading h1 replaced by `title` (used when instantiating a saved template).
+export function withDocumentTitle(content: JSONContent, title: string): JSONContent {
+  const cloned = cloneNode(content);
+  const nodes = Array.isArray(cloned.content) ? cloned.content : [];
+  const heading = { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: title }] };
+
+  if (nodes[0]?.type === 'heading') {
+    nodes[0] = heading;
+  } else {
+    nodes.unshift(heading);
+  }
+
+  return { ...cloned, type: 'doc', content: nodes };
+}
+
 export function getDefaultTitle(kind: NotebookDocumentKind): string {
   return TEMPLATE_DEFINITIONS[kind].defaultTitle;
 }

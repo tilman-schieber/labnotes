@@ -36,6 +36,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - New Group
   - New Project (inside selected group)
   - New Experiment (inside selected project)
+- Templates: "Save as template" on an experiment; "New from template…" in the sidebar (delete from the same menu)
 - Backend-backed autosave for documents
 - Last active selection restored locally on reload
 
@@ -140,6 +141,7 @@ db/
     0003_rename_protocol_to_experiment.sql
     0004_document_revisions.sql    # revision history table + backfill
     0005_relation_uniqueness.sql   # NULLS NOT DISTINCT uniqueness for relations
+    0006_templates.sql             # experiment templates
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -340,6 +342,7 @@ Current backend endpoints:
 - `POST /api/documents`
 - `PATCH /api/documents/:id`
 - `DELETE /api/documents/:id`
+- `GET /api/templates?kind=`, `GET /api/templates/:id`, `POST /api/templates` (`{ name, documentId }` or `{ name, kind, content }`), `DELETE /api/templates/:id`
 - `GET /api/entities?q=&type=&status=` (registry listing with mention counts)
 - `GET /api/entities/search?q=&documentId=&type=` (`#` lookup; `documentId` boosts entities used in that project)
 - `GET /api/entities/:id` (includes aliases, relations, and document backlinks)
