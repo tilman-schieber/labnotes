@@ -4,7 +4,7 @@ import { closePool, query, withTransaction } from './lib/database.mjs';
 import { createId } from './lib/ids.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
-import { seedDatabase, syncDocumentEntities } from './lib/seed.mjs';
+import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
 
 const PORT = Number(process.env.PORT ?? 5174);
@@ -205,7 +205,7 @@ app.post('/api/documents', async (request, response) => {
       `,
       [nextDocument.id, nextDocument.kind, nextDocument.parentId, nextDocument.title, JSON.stringify(nextDocument.content)]
     );
-    await syncDocumentEntities(client);
+    await syncDocumentEntity(client, nextDocument.id);
     await syncDocumentMentions(client, nextDocument.id, nextDocument.content);
     return nextDocument;
   });
@@ -235,7 +235,7 @@ app.patch('/api/documents/:id', async (request, response) => {
       return null;
     }
 
-    await syncDocumentEntities(client);
+    await syncDocumentEntity(client, request.params.id);
     await syncDocumentMentions(client, request.params.id, nextContent);
     return result.rows[0].id;
   });
@@ -285,7 +285,11 @@ app.get('/api/entities/search', async (request, response) => {
           from entity_aliases a
           where a.entity_id = e.id and lower(a.alias) like '%' || $1 || '%'
         )
-      order by e.document_id is not null desc, e.updated_at desc
+      order by
+        ($1 <> '' and lower(e.label) like $1 || '%') desc,
+        case when $1 = '' then 0 else similarity(lower(e.label), $1) end desc,
+        e.document_id is not null desc,
+        e.updated_at desc
       limit 20
     `,
     [queryText]
@@ -434,7 +438,10 @@ app.get('/api/users/search', async (request, response) => {
         $1 = ''
         or lower(display_name) like '%' || $1 || '%'
         or lower(coalesce(email, '')) like '%' || $1 || '%'
-      order by updated_at desc
+      order by
+        ($1 <> '' and lower(display_name) like $1 || '%') desc,
+        case when $1 = '' then 0 else similarity(lower(display_name), $1) end desc,
+        updated_at desc
       limit 20
     `,
     [queryText]

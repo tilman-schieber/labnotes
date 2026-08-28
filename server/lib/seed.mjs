@@ -38,6 +38,18 @@ async function upsertDocumentEntity(client, document) {
   );
 }
 
+// Mirrors a single document into the entity registry; used on the write path so an
+// autosave only touches its own row instead of resyncing every document.
+export async function syncDocumentEntity(client, documentId) {
+  const result = await client.query('select id, kind, parent_id, title from documents where id = $1', [documentId]);
+
+  if (result.rows[0]) {
+    await upsertDocumentEntity(client, result.rows[0]);
+  }
+}
+
+// Full resync for bootstrap/repair. Orphan removal is normally handled by the
+// documents -> entities cascade; this catches drift from manual edits.
 export async function syncDocumentEntities(client) {
   const documentsResult = await client.query(
     'select id, kind, parent_id, title from documents order by created_at asc'

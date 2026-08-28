@@ -91,9 +91,6 @@ src/
     documentStore.ts               # Backend-backed document storage adapter
   editor/
     Editor.tsx                     # TipTap setup and editor rendering
-    ReactionBlock.ts               # placeholder
-    SpreadsheetBlock.ts            # placeholder
-    EntityReference.ts             # placeholder
     extensions/
       Mention.ts                   # async #/@ mention extensions
       MarkdownShortcuts.ts         # markdown input rules
@@ -107,6 +104,7 @@ server/
 db/
   migrations/
     0001_init.sql                  # Base schema
+    0002_trigram_search.sql        # pg_trgm indexes for #/@ lookup
 scripts/
   db/
     migrate.mjs                    # Apply migrations
