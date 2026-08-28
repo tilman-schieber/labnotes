@@ -19,27 +19,32 @@ function parseTags(text: string): string[] {
   return [...new Set(text.split(/[,\s]+/).map((tag) => tag.trim().toLowerCase()).filter(Boolean))];
 }
 
-// Status / date / tags bar above an experiment. Saves on change; tags commit on blur or Enter.
+// Inline status / date / tags pills for an experiment. Saves on change; tags commit on Enter, comma or blur.
 export default function ExperimentMeta({ metadata, createdAt, onChange }: Props) {
-  const [tagsText, setTagsText] = useState((metadata.tags ?? []).join(', '));
+  const [tagDraft, setTagDraft] = useState('');
+  const tags = metadata.tags ?? [];
 
   useEffect(() => {
-    setTagsText((metadata.tags ?? []).join(', '));
+    setTagDraft('');
   }, [metadata.tags]);
 
   const commitTags = () => {
-    const tags = parseTags(tagsText);
-    if (tags.join(',') !== (metadata.tags ?? []).join(',')) {
-      onChange({ ...metadata, tags });
+    const next = parseTags(tagDraft);
+    if (next.length === 0) {
+      return;
     }
+    onChange({ ...metadata, tags: [...new Set([...tags, ...next])] });
+    setTagDraft('');
   };
+
+  const removeTag = (tag: string) => onChange({ ...metadata, tags: tags.filter((item) => item !== tag) });
 
   return (
     <div className="experiment-meta">
-      <label>
-        Status
+      <span className={`meta-field status-pill status-${metadata.status ?? 'none'}`}>
+        <label htmlFor="meta-status">Status</label>
         <select
-          className={`status-select status-${metadata.status ?? 'none'}`}
+          id="meta-status"
           value={metadata.status ?? ''}
           onChange={(event) => onChange({ ...metadata, status: (event.target.value || undefined) as DocumentStatus | undefined })}
         >
@@ -50,31 +55,53 @@ export default function ExperimentMeta({ metadata, createdAt, onChange }: Props)
             </option>
           ))}
         </select>
-      </label>
-      <label>
-        Date
+      </span>
+
+      <span className="meta-field">
+        <label htmlFor="meta-date">Date</label>
         <input
+          id="meta-date"
           type="date"
           value={metadata.date ?? createdAt.slice(0, 10)}
           onChange={(event) => onChange({ ...metadata, date: event.target.value || undefined })}
         />
-      </label>
-      <label className="experiment-meta-tags">
-        Tags
+      </span>
+
+      <span className="meta-field meta-tags">
+        <label htmlFor="meta-tags">Tags</label>
+        {tags.map((tag) => (
+          <span key={tag} className="tag-chip">
+            #{tag}
+            <button type="button" className="link-button" aria-label={`Remove tag ${tag}`} onClick={() => removeTag(tag)} style={{ marginLeft: 4, textDecoration: 'none' }}>
+              ×
+            </button>
+          </span>
+        ))}
         <input
+          id="meta-tags"
           type="text"
-          value={tagsText}
-          placeholder="comma separated"
-          onChange={(event) => setTagsText(event.target.value)}
+          value={tagDraft}
+          placeholder={tags.length === 0 ? 'add tag…' : ''}
+          onChange={(event) => {
+            if (event.target.value.endsWith(',')) {
+              setTagDraft(event.target.value.slice(0, -1));
+              window.setTimeout(commitTags, 0);
+              return;
+            }
+            setTagDraft(event.target.value);
+          }}
           onBlur={commitTags}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
               commitTags();
             }
+            if (event.key === 'Backspace' && !tagDraft && tags.length > 0) {
+              removeTag(tags[tags.length - 1]);
+            }
           }}
         />
-      </label>
+      </span>
     </div>
   );
 }

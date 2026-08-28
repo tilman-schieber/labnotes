@@ -333,7 +333,7 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
       {!disabled && (
         <div className="reaction-actions">
           {COMPONENT_ROLES.map((role) => (
-            <button key={role} type="button" className="editor-action-button" onClick={() => add(role)}>
+            <button key={role} type="button" onClick={() => add(role)}>
               + {role}
             </button>
           ))}

@@ -8,16 +8,15 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import type { Editor, JSONContent } from '@tiptap/core';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { attachmentUrl, uploadAttachment } from '../api/backend';
 import { createEntityMentionExtension, DocumentSlashExtension, UserMentionExtension } from './extensions/Mention';
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts';
 import { createBlankDocument } from '../storage/documentStore';
-import { useEffect, useRef } from 'react';
 import { NotebookDocument, NotebookDocumentStructure, NotebookTitlePlaceholder } from './extensions/NotebookDocument';
 import { BlockMath, InlineMath } from './extensions/Math';
 import type { NotebookDocumentKind } from '../documents/templates';
 import { LinkExtension } from './extensions/Link';
-import RevisionHistory from './RevisionHistory';
 import { QuantityNode } from './extensions/Quantity';
 import { ReactionNode } from './extensions/Reaction';
 
@@ -28,12 +27,10 @@ type Props = {
   documentKind: NotebookDocumentKind;
   onEditorReady: (editor: Editor | null) => void;
   onDocumentChange: (document: JSONContent) => void;
-  onDeleteDocument: () => void;
-  onDocumentRestored: () => void;
-  // null when the current document kind cannot become a template
-  onSaveAsTemplate: (() => void) | null;
   // Fired after the editor uploaded a pasted/dropped file so attachment lists can refresh.
   onAttachmentUploaded: () => void;
+  // Rendered inside the sticky toolbar strip above the content.
+  toolbar?: ReactNode;
 };
 
 // Uploads image files from a paste/drop and inserts them; returns whether anything was handled.
@@ -64,10 +61,8 @@ export default function NotebookEditor({
   documentKind,
   onEditorReady,
   onDocumentChange,
-  onDeleteDocument,
-  onDocumentRestored,
-  onSaveAsTemplate,
-  onAttachmentUploaded
+  onAttachmentUploaded,
+  toolbar
 }: Props) {
   // The paste/drop handlers are created before `editor` exists, so they read it through a ref.
   const editorRef = useRef<Editor | null>(null);
@@ -128,37 +123,11 @@ export default function NotebookEditor({
   }, [editor, onEditorReady]);
 
   return (
-    <div className="editor-shell">
-      <div className="editor-actions">
-        <RevisionHistory documentId={editable ? documentId : null} onRestored={onDocumentRestored} />
-        <button
-          type="button"
-          className="editor-action-button"
-          onClick={onSaveAsTemplate ?? undefined}
-          disabled={!editable || !onSaveAsTemplate}
-          title={onSaveAsTemplate ? 'Save this experiment as a reusable template' : 'Only experiments can become templates'}
-        >
-          Save as template
-        </button>
-        <button
-          type="button"
-          className="editor-action-button"
-          onClick={() => documentId && window.open(`/api/documents/${documentId}/export.pdf`, '_blank', 'noopener')}
-          disabled={!editable || !documentId}
-          title="Render this document to PDF with Typst"
-        >
-          Export PDF
-        </button>
-        <button
-          type="button"
-          className="editor-action-button is-danger"
-          onClick={onDeleteDocument}
-          disabled={!editable}
-        >
-          Delete
-        </button>
+    <div className="editor-frame">
+      {toolbar}
+      <div className="editor-shell">
+        <EditorContent editor={editor} />
       </div>
-      <EditorContent editor={editor} />
     </div>
   );
 }

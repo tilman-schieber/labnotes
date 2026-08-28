@@ -7,6 +7,7 @@ import {
   type BackendRevisionSummary,
   type BackendUserSearchResult
 } from '../api/backend';
+import { IconHistory } from '../ui/icons';
 
 type Props = {
   documentId: string | null;
@@ -91,10 +92,12 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
     <>
       <button
         type="button"
-        className={`editor-action-button${isOpen ? ' is-active' : ''}`}
+        className={`btn btn-sm${isOpen ? ' is-active' : ''}`}
         onClick={() => setIsOpen((previous) => !previous)}
         disabled={!documentId}
+        title="Revision history"
       >
+        <IconHistory size={14} />
         History
       </button>
 
@@ -132,14 +135,14 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
               </div>
               <div className="revision-actions">
                 {!item.signedAt && signerId && (
-                  <button type="button" className="editor-action-button" onClick={() => void handleSign(item.revision)} disabled={busyRevision !== null}>
+                  <button type="button" className="btn btn-sm" onClick={() => void handleSign(item.revision)} disabled={busyRevision !== null}>
                     Sign
                   </button>
                 )}
                 {index === 0 ? (
                   <span className="revision-current">current</span>
                 ) : (
-                  <button type="button" className="editor-action-button" onClick={() => void handleRestore(item.revision)} disabled={busyRevision !== null}>
+                  <button type="button" className="btn btn-sm" onClick={() => void handleRestore(item.revision)} disabled={busyRevision !== null}>
                     {busyRevision === item.revision ? 'Restoring…' : 'Restore'}
                   </button>
                 )}

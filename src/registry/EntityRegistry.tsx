@@ -150,7 +150,10 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
                     </span>
                   )}
                 </td>
-                <td>{entity.subtype ? `${entity.type} / ${entity.subtype}` : entity.type}</td>
+                <td>
+                  <span className={`badge type-badge type-${entity.type}`}>{entity.type}</span>
+                  {entity.subtype && <span className="faint"> / {entity.subtype}</span>}
+                </td>
                 <td>{entity.status}</td>
                 <td className="is-numeric">{entity.mentionCount}</td>
               </tr>

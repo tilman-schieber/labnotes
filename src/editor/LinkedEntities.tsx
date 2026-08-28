@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchDocumentMentions, type BackendDocumentMention } from '../api/backend';
+import { IconAtom } from '../ui/icons';
 
 type Props = {
   documentId: string;
@@ -28,10 +29,6 @@ export default function LinkedEntities({ documentId, refreshToken, onOpenEntity,
   }, [documentId, refreshToken]);
 
   const entities = mentions.filter((mention) => mention.refType === 'entity' && mention.currentLabel);
-  if (entities.length === 0) {
-    return null;
-  }
-
   const groups = new Map<string, BackendDocumentMention[]>();
   entities.forEach((mention) => {
     const type = mention.entityType ?? 'entity';
@@ -39,24 +36,35 @@ export default function LinkedEntities({ documentId, refreshToken, onOpenEntity,
   });
 
   return (
-    <div className="linked-entities">
-      <span className="linked-entities-title">Linked</span>
-      {[...groups.entries()].map(([type, items]) => (
-        <span key={type} className="linked-entities-group">
-          <span className="linked-entities-type">{type}</span>
-          {items.map((mention) => (
-            <button
-              key={mention.id}
-              type="button"
-              className={`linked-entity linked-entity-${type}`}
-              onClick={() => (mention.entityDocumentId ? onOpenDocument(mention.entityDocumentId) : onOpenEntity(mention.targetId))}
-              title={mention.entityDocumentId ? 'Open document' : 'Open in registry'}
-            >
-              {mention.currentLabel}
-            </button>
+    <div className="panel">
+      <span className="panel-title">
+        <IconAtom size={14} />
+        Linked entities{entities.length > 0 ? ` · ${entities.length}` : ''}
+      </span>
+      {entities.length === 0 ? (
+        <div className="linked-empty" style={{ marginTop: '0.4rem' }}>
+          Reference samples, reagents or compounds with <code>#</code>, documents with <code>/</code>.
+        </div>
+      ) : (
+        <div className="linked-entities" style={{ marginTop: '0.5rem' }}>
+          {[...groups.entries()].map(([type, items]) => (
+            <span key={type} className="linked-entities-group">
+              <span className="linked-entities-type">{type}</span>
+              {items.map((mention) => (
+                <button
+                  key={mention.id}
+                  type="button"
+                  className={`linked-entity linked-entity-${type}`}
+                  onClick={() => (mention.entityDocumentId ? onOpenDocument(mention.entityDocumentId) : onOpenEntity(mention.targetId))}
+                  title={mention.entityDocumentId ? 'Open document' : 'Open in registry'}
+                >
+                  {mention.currentLabel}
+                </button>
+              ))}
+            </span>
           ))}
-        </span>
-      ))}
+        </div>
+      )}
     </div>
   );
 }

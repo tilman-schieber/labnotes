@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { attachmentUrl, deleteAttachment, fetchAttachments, uploadAttachment, type BackendAttachment } from '../api/backend';
+import { IconPaperclip, IconPlus } from '../ui/icons';
 
 type Props = {
   documentId: string;
@@ -71,15 +72,20 @@ export default function AttachmentsPanel({ documentId, onInsertImage, refreshTok
   };
 
   return (
-    <div className="attachments">
+    <div className="panel attachments">
       <div className="attachments-header">
-        <span className="attachments-title">Attachments{attachments.length > 0 ? ` (${attachments.length})` : ''}</span>
+        <span className="panel-title">
+          <IconPaperclip size={14} />
+          Attachments{attachments.length > 0 ? ` · ${attachments.length}` : ''}
+        </span>
         <input ref={inputRef} type="file" multiple hidden onChange={(event) => void handleFiles(event.target.files)} />
-        <button type="button" className="editor-action-button" onClick={() => inputRef.current?.click()} disabled={isUploading}>
-          {isUploading ? 'Uploading…' : 'Attach file'}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => inputRef.current?.click()} disabled={isUploading}>
+          <IconPlus size={14} />
+          {isUploading ? 'Uploading…' : 'Attach'}
         </button>
       </div>
       {error && <div className="entity-error">{error}</div>}
+      {attachments.length === 0 && !error && <div className="attachments-empty">Drop images into the text or attach files here.</div>}
       {attachments.length > 0 && (
         <ul className="attachments-list">
           {attachments.map((attachment) => (
@@ -90,8 +96,8 @@ export default function AttachmentsPanel({ documentId, onInsertImage, refreshTok
               <a href={attachmentUrl(attachment.id)} target="_blank" rel="noopener noreferrer">
                 {attachment.filename}
               </a>
-              <span className="entity-muted">{formatSize(attachment.sizeBytes)}</span>
-              <a className="entity-muted" href={attachmentUrl(attachment.id, true)}>
+              <span className="faint">{formatSize(attachment.sizeBytes)}</span>
+              <a className="link-button" href={attachmentUrl(attachment.id, true)}>
                 download
               </a>
               {attachment.mimeType.startsWith('image/') && onInsertImage && (
