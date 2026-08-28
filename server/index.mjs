@@ -62,7 +62,7 @@ function getDocumentWithAncestors(documents, documentId) {
 }
 
 function validateDocumentPayload(documents, kind, parentId) {
-  if (!['group', 'project', 'protocol'].includes(kind)) {
+  if (!['group', 'project', 'experiment'].includes(kind)) {
     return 'Unsupported document kind';
   }
 
@@ -79,8 +79,8 @@ function validateDocumentPayload(documents, kind, parentId) {
     return 'Projects must live inside groups';
   }
 
-  if (kind === 'protocol' && parent.kind !== 'project') {
-    return 'Protocols must live inside projects';
+  if (kind === 'experiment' && parent.kind !== 'project') {
+    return 'Experiments must live inside projects';
   }
 
   return null;

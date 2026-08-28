@@ -14,7 +14,7 @@ import {
   type NotebookDB,
   type NotebookGroup,
   type NotebookProject,
-  type NotebookProtocol
+  type NotebookExperiment
 } from './storage/documentStore';
 
 type SelectedDocument = {
@@ -91,17 +91,17 @@ export default function App() {
       return null;
     }
 
-    if (db.active.protocolId) {
-      const protocol = db.protocols.find((item) => item.id === db.active.protocolId) ?? null;
-      if (!protocol) {
+    if (db.active.experimentId) {
+      const experiment = db.experiments.find((item) => item.id === db.active.experimentId) ?? null;
+      if (!experiment) {
         return null;
       }
 
       return {
-        kind: 'protocol',
-        id: protocol.id,
-        title: protocol.title,
-        content: protocol.content
+        kind: 'experiment',
+        id: experiment.id,
+        title: experiment.title,
+        content: experiment.content
       };
     }
 
@@ -208,13 +208,13 @@ export default function App() {
     setDb((previous) => (previous ? { ...previous, active } : previous));
   };
 
-  const handleProtocolSelect = (group: NotebookGroup, project: NotebookProject, protocol: NotebookProtocol) => {
+  const handleExperimentSelect = (group: NotebookGroup, project: NotebookProject, experiment: NotebookExperiment) => {
     setCollapsedGroups((previous) => ({ ...previous, [group.id]: false }));
     setCollapsedProjects((previous) => ({ ...previous, [project.id]: false }));
     setActiveSelection({
       groupId: group.id,
       projectId: project.id,
-      protocolId: protocol.id
+      experimentId: experiment.id
     });
   };
 
@@ -224,19 +224,19 @@ export default function App() {
         return previous;
       }
 
-      if (previous.active.protocolId) {
-        const protocolId = previous.active.protocolId;
-        const protocols = previous.protocols.map((protocol) => {
-          if (protocol.id !== protocolId) {
-            return protocol;
+      if (previous.active.experimentId) {
+        const experimentId = previous.active.experimentId;
+        const experiments = previous.experiments.map((experiment) => {
+          if (experiment.id !== experimentId) {
+            return experiment;
           }
 
-          const title = extractDocumentTitle(content, protocol.title || getDefaultTitle('protocol'));
-          setPendingSave({ id: protocol.id, title, content });
-          return { ...protocol, content, title };
+          const title = extractDocumentTitle(content, experiment.title || getDefaultTitle('experiment'));
+          setPendingSave({ id: experiment.id, title, content });
+          return { ...experiment, content, title };
         });
 
-        return { ...previous, protocols };
+        return { ...previous, experiments };
       }
 
       if (previous.active.projectId) {
@@ -281,18 +281,18 @@ export default function App() {
     const title = `Group ${db.groups.length + 1}`;
     const document = await createNotebookDocument('group', null, title, createTemplateDocument('group', title));
     setCollapsedGroups((previous) => ({ ...previous, [document.id]: false }));
-    await reloadDb({ groupId: document.id, projectId: null, protocolId: null });
+    await reloadDb({ groupId: document.id, projectId: null, experimentId: null });
   };
 
   const handleGroupSelect = (groupId: string) => {
     setCollapsedGroups((previous) => ({ ...previous, [groupId]: false }));
-    setActiveSelection({ groupId, projectId: null, protocolId: null });
+    setActiveSelection({ groupId, projectId: null, experimentId: null });
   };
 
   const handleProjectSelect = (groupId: string, projectId: string) => {
     setCollapsedGroups((previous) => ({ ...previous, [groupId]: false }));
     setCollapsedProjects((previous) => ({ ...previous, [projectId]: false }));
-    setActiveSelection({ groupId, projectId, protocolId: null });
+    setActiveSelection({ groupId, projectId, experimentId: null });
   };
 
   const handleNewProject = async () => {
@@ -305,7 +305,7 @@ export default function App() {
     const document = await createNotebookDocument('project', db.active.groupId, title, createTemplateDocument('project', title));
     setCollapsedGroups((previous) => ({ ...previous, [db.active.groupId!]: false }));
     setCollapsedProjects((previous) => ({ ...previous, [document.id]: false }));
-    await reloadDb({ groupId: db.active.groupId, projectId: document.id, protocolId: null });
+    await reloadDb({ groupId: db.active.groupId, projectId: document.id, experimentId: null });
   };
 
   const toggleGroupCollapsed = (groupId: string) => {
@@ -322,18 +322,18 @@ export default function App() {
     }));
   };
 
-  const handleNewProtocol = async () => {
+  const handleNewExperiment = async () => {
     if (!db?.active.projectId) {
       return;
     }
 
-    const siblingCount = db.protocols.filter((protocol) => protocol.projectId === db.active.projectId).length;
-    const title = siblingCount === 0 ? 'Untitled Protocol' : `Untitled Protocol ${siblingCount + 1}`;
-    const document = await createNotebookDocument('protocol', db.active.projectId, title, createBlankDocument(title));
+    const siblingCount = db.experiments.filter((experiment) => experiment.projectId === db.active.projectId).length;
+    const title = siblingCount === 0 ? 'Untitled Experiment' : `Untitled Experiment ${siblingCount + 1}`;
+    const document = await createNotebookDocument('experiment', db.active.projectId, title, createBlankDocument(title));
     await reloadDb({
       groupId: db.active.groupId,
       projectId: db.active.projectId,
-      protocolId: document.id
+      experimentId: document.id
     });
   };
 
@@ -342,7 +342,7 @@ export default function App() {
       return;
     }
 
-    const label = selectedDocument.kind === 'protocol' ? 'protocol' : selectedDocument.kind;
+    const label = selectedDocument.kind === 'experiment' ? 'experiment' : selectedDocument.kind;
     const confirmed = window.confirm(`Delete this ${label}?`);
     if (!confirmed) {
       return;
@@ -390,8 +390,8 @@ export default function App() {
             <button type="button" onClick={() => void handleNewProject()} disabled={!db.active.groupId}>
               New Project
             </button>
-            <button type="button" onClick={() => void handleNewProtocol()} disabled={!db.active.projectId}>
-              New Protocol
+            <button type="button" onClick={() => void handleNewExperiment()} disabled={!db.active.projectId}>
+              New Experiment
             </button>
           </div>
 
@@ -424,7 +424,7 @@ export default function App() {
                   {isGroupExpanded && (
                     <div className="tree-projects">
                       {groupProjects.map((project) => {
-                        const projectProtocols = db.protocols.filter((protocol) => protocol.projectId === project.id);
+                        const projectExperiments = db.experiments.filter((experiment) => experiment.projectId === project.id);
                         const isProjectSelected = db.active.projectId === project.id;
                         const isProjectExpanded = !collapsedProjects[project.id];
 
@@ -449,17 +449,17 @@ export default function App() {
                             </div>
 
                             {isProjectExpanded && (
-                              <div className="tree-protocols">
-                                {projectProtocols.map((protocol) => (
+                              <div className="tree-experiments">
+                                {projectExperiments.map((experiment) => (
                                   <button
-                                    key={protocol.id}
+                                    key={experiment.id}
                                     type="button"
-                                    className={`tree-item tree-protocol-item${
-                                      db.active.protocolId === protocol.id ? ' is-active' : ''
+                                    className={`tree-item tree-experiment-item${
+                                      db.active.experimentId === experiment.id ? ' is-active' : ''
                                     }`}
-                                    onClick={() => handleProtocolSelect(group, project, protocol)}
+                                    onClick={() => handleExperimentSelect(group, project, experiment)}
                                   >
-                                    {protocol.title}
+                                    {experiment.title}
                                   </button>
                                 ))}
                               </div>
@@ -499,7 +499,7 @@ export default function App() {
             key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}` : 'no-document'}
             initialContent={selectedDocument?.content ?? createBlankDocument()}
             editable={Boolean(selectedDocument)}
-            documentKind={selectedDocument?.kind ?? 'protocol'}
+            documentKind={selectedDocument?.kind ?? 'experiment'}
             onEditorReady={setEditor}
             onDocumentChange={handleDocumentChange}
             onDeleteDocument={() => void handleDeleteSelectedDocument()}

@@ -9,7 +9,7 @@ import { EntityMentionExtension, UserMentionExtension } from './extensions/Menti
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts';
 import { createBlankDocument } from '../storage/documentStore';
 import { useEffect } from 'react';
-import { ProtocolDocument, ProtocolDocumentStructure, ProtocolTitlePlaceholder } from './extensions/ProtocolDocument';
+import { NotebookDocument, NotebookDocumentStructure, NotebookTitlePlaceholder } from './extensions/NotebookDocument';
 import { BlockMath, InlineMath } from './extensions/Math';
 import type { NotebookDocumentKind } from '../documents/templates';
 import { LinkExtension } from './extensions/Link';
@@ -33,14 +33,14 @@ export default function NotebookEditor({
 }: Props) {
   const editor = useEditor({
     extensions: [
-      ProtocolDocument,
+      NotebookDocument,
       StarterKit.configure({
         document: false
       }),
-      ProtocolDocumentStructure.configure({
+      NotebookDocumentStructure.configure({
         kind: documentKind
       }),
-      ProtocolTitlePlaceholder,
+      NotebookTitlePlaceholder,
       MarkdownShortcuts,
       LinkExtension,
       BlockMath,

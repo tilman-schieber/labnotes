@@ -26,11 +26,11 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - `#` entity references backed by the server entity registry
   - `@` user references backed by the server user registry
 - Sidebar tree structure:
-  - Groups -> Projects -> Protocols
+  - Groups -> Projects -> Experiments
 - Create actions:
   - New Group
   - New Project (inside selected group)
-  - New Protocol (inside selected project)
+  - New Experiment (inside selected project)
 - Backend-backed autosave for documents
 - Last active selection restored locally on reload
 
@@ -43,7 +43,7 @@ Implemented now:
 - SQL migrations, bootstrap, dump/restore, and env sync scripts
 - backend entity search for `#` references
 - backend user search for `@` references
-- document entities mirrored from groups, projects, and protocols
+- document entities mirrored from groups, projects, and experiments
 - `document_mentions` indexed from saved editor content (backlinks per entity/user)
 
 Not implemented yet:
@@ -72,7 +72,7 @@ Bootstrapping an empty database seeds:
 
 - `Default Group`
   - `General`
-    - `Untitled Protocol`
+    - `Untitled Experiment`
 - `Researcher` user
 - a few sample entities:
   - `Sample A`

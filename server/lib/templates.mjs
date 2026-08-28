@@ -1,5 +1,5 @@
 export function createTemplateDocument(kind, title) {
-  if (kind === 'protocol') {
+  if (kind === 'experiment') {
     return {
       type: 'doc',
       content: [

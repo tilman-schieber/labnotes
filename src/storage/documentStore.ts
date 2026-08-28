@@ -30,7 +30,7 @@ export type NotebookProject = {
   content: JSONContent;
 };
 
-export type NotebookProtocol = {
+export type NotebookExperiment = {
   id: string;
   groupId: string;
   projectId: string;
@@ -41,36 +41,36 @@ export type NotebookProtocol = {
 export type NotebookDB = {
   groups: NotebookGroup[];
   projects: NotebookProject[];
-  protocols: NotebookProtocol[];
+  experiments: NotebookExperiment[];
   active: {
     groupId: string | null;
     projectId: string | null;
-    protocolId: string | null;
+    experimentId: string | null;
   };
 };
 
 export type NotebookActiveState = NotebookDB['active'];
 
-export function extractProtocolTitle(content: JSONContent, fallback = 'Untitled Protocol'): string {
+export function extractExperimentTitle(content: JSONContent, fallback = 'Untitled Experiment'): string {
   return extractDocumentTitle(content, fallback);
 }
 
-export function normalizeProtocolContent(
+export function normalizeExperimentContent(
   content: JSONContent | null | undefined,
-  fallbackTitle = 'Untitled Protocol'
+  fallbackTitle = 'Untitled Experiment'
 ): JSONContent {
-  return normalizeTemplateDocument('protocol', content, fallbackTitle);
+  return normalizeTemplateDocument('experiment', content, fallbackTitle);
 }
 
-export function createBlankDocument(title = 'Untitled Protocol'): JSONContent {
-  return createTemplateDocument('protocol', title);
+export function createBlankDocument(title = 'Untitled Experiment'): JSONContent {
+  return createTemplateDocument('experiment', title);
 }
 
 function normalizeStoredActive(active: NotebookActiveState | null | undefined): NotebookActiveState {
   return {
     groupId: active?.groupId ?? null,
     projectId: active?.projectId ?? null,
-    protocolId: active?.protocolId ?? null
+    experimentId: active?.experimentId ?? null
   };
 }
 
@@ -120,9 +120,9 @@ function normalizeProject(node: BackendDocumentNode, groupId: string): NotebookP
   };
 }
 
-function normalizeProtocol(node: BackendDocumentNode, groupId: string, projectId: string): NotebookProtocol {
-  const fallbackTitle = node.title || getDefaultTitle('protocol');
-  const content = normalizeTemplateDocument('protocol', node.content, fallbackTitle);
+function normalizeExperiment(node: BackendDocumentNode, groupId: string, projectId: string): NotebookExperiment {
+  const fallbackTitle = node.title || getDefaultTitle('experiment');
+  const content = normalizeTemplateDocument('experiment', node.content, fallbackTitle);
   return {
     id: node.id,
     groupId,
@@ -135,7 +135,7 @@ function normalizeProtocol(node: BackendDocumentNode, groupId: string, projectId
 function mapTreeToNotebookDb(tree: BackendDocumentNode[], preferredActive?: NotebookActiveState | null): NotebookDB {
   const groups: NotebookGroup[] = [];
   const projects: NotebookProject[] = [];
-  const protocols: NotebookProtocol[] = [];
+  const experiments: NotebookExperiment[] = [];
 
   tree.forEach((groupNode) => {
     groups.push(normalizeGroup(groupNode));
@@ -143,8 +143,8 @@ function mapTreeToNotebookDb(tree: BackendDocumentNode[], preferredActive?: Note
     groupNode.children.forEach((projectNode) => {
       projects.push(normalizeProject(projectNode, groupNode.id));
 
-      projectNode.children.forEach((protocolNode) => {
-        protocols.push(normalizeProtocol(protocolNode, groupNode.id, projectNode.id));
+      projectNode.children.forEach((experimentNode) => {
+        experiments.push(normalizeExperiment(experimentNode, groupNode.id, projectNode.id));
       });
     });
   });
@@ -159,19 +159,19 @@ function mapTreeToNotebookDb(tree: BackendDocumentNode[], preferredActive?: Note
     ? requestedActive.projectId
     : projectsInGroup[0]?.id ?? null;
 
-  const protocolsInProject = protocols.filter((protocol) => protocol.projectId === projectId);
-  const protocolId = protocolsInProject.some((protocol) => protocol.id === requestedActive.protocolId)
-    ? requestedActive.protocolId
-    : protocolsInProject[0]?.id ?? null;
+  const experimentsInProject = experiments.filter((experiment) => experiment.projectId === projectId);
+  const experimentId = experimentsInProject.some((experiment) => experiment.id === requestedActive.experimentId)
+    ? requestedActive.experimentId
+    : experimentsInProject[0]?.id ?? null;
 
   return {
     groups,
     projects,
-    protocols,
+    experiments,
     active: {
       groupId,
       projectId,
-      protocolId
+      experimentId
     }
   };
 }

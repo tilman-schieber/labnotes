@@ -8,7 +8,7 @@ Completed so far:
 - Postgres schema and migration tooling added
 - Docker-based local Postgres setup added
 - backend seed/bootstrap flow added
-- groups, projects, and protocols now persist in the backend
+- groups, projects, and experiments now persist in the backend
 - document entities are mirrored into the entity registry backend model
 - `#` entity lookup and `@` user lookup are wired into the editor
 - `document_mentions` extracted from saved editor content; backlinks exposed on entity and user detail
@@ -83,7 +83,7 @@ Current tree items should become referencable too:
 
 - groups
 - projects
-- protocols
+- experiments
 - future notebooks
 
 These should be stored in the backend and exposed as `document` entities so notes can reference notes.
@@ -111,7 +111,7 @@ Documents remain the source for notebook content and structure.
 Suggested fields:
 
 - `id`
-- `kind` (`group`, `project`, `protocol`, later more kinds if needed)
+- `kind` (`group`, `project`, `experiment`, later more kinds if needed)
 - `parent_id` or explicit hierarchy fields
 - `title`
 - `content`
@@ -363,7 +363,7 @@ Relevant current structure:
 
 - static mention extension can be replaced with backend lookup
 - `EntityReference.ts` is an obvious place for typed reference support
-- groups, projects, and protocols already have stable ids
+- groups, projects, and experiments already have stable ids
 - tree items can be mirrored as `document` entities
 - editor document JSON already persists structured content
 
@@ -375,7 +375,7 @@ This means the entity system can be layered onto the current architecture rather
 
 - add backend service and Postgres
 - define tables for documents, users, entities, aliases, mentions, and relations
-- move current group/project/protocol records into backend documents
+- move current group/project/experiment records into backend documents
 - expose tree-view items as `document` entities
 
 ### Phase 2: Rich Reference Tokens
@@ -406,7 +406,7 @@ This means the entity system can be layered onto the current architecture rather
 ### Phase 5: Relations And Graph Features
 
 - record relations such as `uses` and `derived_from`
-- show linked entities for a protocol
+- show linked entities for an experiment
 - support cross-notebook references and graph-style navigation
 
 ## Recommended First Slice
@@ -420,7 +420,7 @@ Build the smallest version that establishes the right architecture:
 - aliases table
 - `#` entity lookup in editor
 - `@` user lookup in editor
-- document entities for groups/projects/protocols
+- document entities for groups/projects/experiments
 - no automatic extraction in normal editing
 - no LLM dependency yet
 
@@ -441,7 +441,7 @@ This gives explicit references immediately and preserves a clean path to imports
 
 - replace `localStorage`-only persistence with backend-backed fetch/save flows
 - keep local editor behavior intact while swapping storage source
-- preserve current group/project/protocol tree behavior
+- preserve current group/project/experiment tree behavior
 - ensure document ids remain stable across reloads
 
 ### Milestone 3: Rich References
@@ -475,7 +475,7 @@ Postgres tables for the first implementation.
 ```sql
 create table documents (
   id text primary key,
-  kind text not null check (kind in ('group', 'project', 'protocol')),
+  kind text not null check (kind in ('group', 'project', 'experiment')),
   parent_id text references documents(id) on delete cascade,
   title text not null,
   content jsonb not null,
@@ -577,11 +577,11 @@ Minimal HTTP API for the first backend integration.
 ### Documents
 
 - `GET /api/documents/tree`
-  - returns groups, projects, and protocols as a nested tree
+  - returns groups, projects, and experiments as a nested tree
 - `GET /api/documents/:id`
   - returns a single document with content
 - `POST /api/documents`
-  - creates a group, project, or protocol
+  - creates a group, project, or experiment
 - `PATCH /api/documents/:id`
   - updates title and content
 - `DELETE /api/documents/:id`
@@ -669,8 +669,10 @@ The next commit after that should start the actual backend foundation.
 ## Resolved Decisions
 
 1. `#` should search broadly across entity types for now.
-2. Groups, projects, and protocols should be stored in the backend too.
+2. Groups, projects, and experiments should be stored in the backend too.
 3. `@` should remain user-focused; document-specific shorthand can be added separately, with `/` as the leading candidate.
+4. Leaf documents are `experiment`s (day-to-day entries). "Protocol" is reserved for reusable procedures, which should become a referencable entity type rather than a document kind.
+5. Documents keep an append-only revision history from the first save.
 
 ## Open Questions
 

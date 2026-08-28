@@ -1,6 +1,6 @@
 import type { JSONContent } from '@tiptap/core';
 
-export type NotebookDocumentKind = 'group' | 'project' | 'protocol';
+export type NotebookDocumentKind = 'group' | 'project' | 'experiment';
 
 type TemplateDefinition = {
   defaultTitle: string;
@@ -16,9 +16,9 @@ const TEMPLATE_DEFINITIONS: Record<NotebookDocumentKind, TemplateDefinition> = {
     defaultTitle: 'Untitled Project',
     nodes: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Untitled Project' }] }]
   },
-  protocol: {
-    defaultTitle: 'Untitled Protocol',
-    nodes: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Untitled Protocol' }] }, { type: 'paragraph' }]
+  experiment: {
+    defaultTitle: 'Untitled Experiment',
+    nodes: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Untitled Experiment' }] }, { type: 'paragraph' }]
   }
 };
 
@@ -104,7 +104,7 @@ export function normalizeTemplateDocument(
   const title = extractDocumentTitle(content ?? { type: 'doc', content: [] }, collectText(firstInputNode).trim() || defaultTitle);
 
   const requiredNodes = createTemplateDocument(kind, title).content ?? [];
-  const strictRequiredCount = kind === 'protocol' ? 1 : requiredNodes.length;
+  const strictRequiredCount = kind === 'experiment' ? 1 : requiredNodes.length;
   const strictRequiredNodes = requiredNodes.slice(0, strictRequiredCount);
 
   const normalizedRequired = strictRequiredNodes.map((requiredNode, index) => {
@@ -123,7 +123,7 @@ export function normalizeTemplateDocument(
     return cloneNode(actualNode as JSONContent);
   });
 
-  const keepTrailingNodes = kind === 'protocol';
+  const keepTrailingNodes = kind === 'experiment';
   const trailing = keepTrailingNodes ? inputNodes.slice(strictRequiredCount).map((node) => cloneNode(node)) : [];
 
   return {

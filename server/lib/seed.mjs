@@ -82,7 +82,7 @@ export async function seedDatabase(client) {
 
   const groupId = createId('group');
   const projectId = createId('project');
-  const protocolId = createId('protocol');
+  const experimentId = createId('experiment');
   const userId = createId('user');
   const sampleId = createId('entity');
   const reagentId = createId('entity');
@@ -94,15 +94,15 @@ export async function seedDatabase(client) {
       values
         ($1, 'group', null, 'Default Group', $2::jsonb),
         ($3, 'project', $1, 'General', $4::jsonb),
-        ($5, 'protocol', $3, 'Untitled Protocol', $6::jsonb)
+        ($5, 'experiment', $3, 'Untitled Experiment', $6::jsonb)
     `,
     [
       groupId,
       JSON.stringify(createTemplateDocument('group', 'Default Group')),
       projectId,
       JSON.stringify(createTemplateDocument('project', 'General')),
-      protocolId,
-      JSON.stringify(createTemplateDocument('protocol', 'Untitled Protocol'))
+      experimentId,
+      JSON.stringify(createTemplateDocument('experiment', 'Untitled Experiment'))
     ]
   );
 

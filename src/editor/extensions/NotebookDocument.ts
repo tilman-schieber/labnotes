@@ -5,16 +5,16 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { NotebookDocumentKind } from '../../documents/templates';
 import { normalizeTemplateDocument } from '../../documents/templates';
 
-export const ProtocolDocument = Document.extend({
+export const NotebookDocument = Document.extend({
   content: 'heading block*'
 });
 
-export const ProtocolDocumentStructure = Extension.create<{ kind: NotebookDocumentKind }>({
-  name: 'protocolDocumentStructure',
+export const NotebookDocumentStructure = Extension.create<{ kind: NotebookDocumentKind }>({
+  name: 'notebookDocumentStructure',
 
   addOptions() {
     return {
-      kind: 'protocol' as NotebookDocumentKind
+      kind: 'experiment' as NotebookDocumentKind
     };
   },
 
@@ -40,8 +40,8 @@ export const ProtocolDocumentStructure = Extension.create<{ kind: NotebookDocume
   }
 });
 
-export const ProtocolTitlePlaceholder = Extension.create({
-  name: 'protocolTitlePlaceholder',
+export const NotebookTitlePlaceholder = Extension.create({
+  name: 'notebookTitlePlaceholder',
 
   addProseMirrorPlugins() {
     return [
