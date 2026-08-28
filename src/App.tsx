@@ -168,6 +168,11 @@ export default function App() {
         isActive: false
       },
       {
+        label: 'Reaction',
+        onClick: () => editor?.chain().focus().insertReaction().run(),
+        isActive: Boolean(editor?.isActive('reaction'))
+      },
+      {
         label: 'Link',
         onClick: () => {
           if (!editor) {

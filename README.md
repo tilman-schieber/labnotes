@@ -22,6 +22,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - `- ` / `+ ` / `* ` for bullet lists
   - `$...$` inline math and `$$...$$` block math
 - Basic tables (insert and edit)
+- Reaction block (toolbar "Reaction"): stoichiometry table with reactant/reagent/solvent/product rows. Compounds are picked from the registry (MW auto-filled, structure shown); enter mass, or volume + concentration, or volume + density, or just equivalents. Computes mmol, equivalents vs. the limiting reagent, required masses, theoretical yield and % yield from the isolated mass. Component compounds count as references (backlinks).
 - Quantities: typing `12.5 mL `, `-20 °C `, `2 eq ` turns into a unit-aware token (hover shows conversions, double-click edits, Backspace right after undoes). Units: g/L/mol/M with n/µ/m/k prefixes, °C/K, s/min/h/d, eq, %
 - Rich references:
   - `#` entity references backed by the server entity registry
@@ -110,6 +111,7 @@ src/
     quantity.ts                    # unit table, parsing, conversion (unit-tested)
   chemistry/
     molecule.ts                    # OpenChemLib wrapper: SMILES parsing, properties, SVG
+    reaction.ts                    # stoichiometry engine for reaction blocks (unit-tested)
     pubchem.ts                     # PubChem PUG REST lookup
   registry/
     EntityRegistry.tsx             # Entity list, filters, create
@@ -120,6 +122,7 @@ src/
       Mention.ts                   # async #/@// mention extensions
       CompoundToken.ts             # entity token node view with structure hover/inline
       Quantity.ts                  # inline quantity node + input rule
+      Reaction.ts                  # reaction block node (React node view in ../ReactionBlockView.tsx)
       MarkdownShortcuts.ts         # markdown input rules
 server/
   index.mjs                        # Express API server

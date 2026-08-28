@@ -11,8 +11,19 @@ function mentionKey(mention) {
 }
 
 // Walks a TipTap JSON document and returns one entry per distinct referenced target.
+// Reaction blocks reference compounds through their component rows.
 export function extractMentions(content) {
   const mentions = new Map();
+
+  const add = (refType, targetId, label) => {
+    if (targetId === null || targetId === undefined || targetId === '') {
+      return;
+    }
+    const mention = { refType, targetId: String(targetId), label: typeof label === 'string' ? label : null };
+    if (!mentions.has(mentionKey(mention))) {
+      mentions.set(mentionKey(mention), mention);
+    }
+  };
 
   const visit = (node) => {
     if (!node || typeof node !== 'object') {
@@ -20,18 +31,12 @@ export function extractMentions(content) {
     }
 
     const refType = MENTION_NODE_TYPES[node.type];
-    const targetId = node.attrs?.id;
+    if (refType) {
+      add(refType, node.attrs?.id, node.attrs?.label);
+    }
 
-    if (refType && targetId !== null && targetId !== undefined && targetId !== '') {
-      const mention = {
-        refType,
-        targetId: String(targetId),
-        label: typeof node.attrs.label === 'string' ? node.attrs.label : null
-      };
-
-      if (!mentions.has(mentionKey(mention))) {
-        mentions.set(mentionKey(mention), mention);
-      }
+    if (node.type === 'reaction' && Array.isArray(node.attrs?.components)) {
+      node.attrs.components.forEach((component) => add('entity', component?.entityId, component?.label));
     }
 
     if (Array.isArray(node.content)) {
@@ -57,6 +62,16 @@ export function retargetEntityMentions(content, fromId, toId, label) {
     if (node.type === 'entityMention' && String(node.attrs?.id) === fromId) {
       changed = true;
       next = { ...node, attrs: { ...node.attrs, id: toId, label } };
+    }
+
+    if (node.type === 'reaction' && Array.isArray(node.attrs?.components)) {
+      const components = node.attrs.components.map((component) =>
+        component?.entityId === fromId ? { ...component, entityId: toId, label } : component
+      );
+      if (components.some((component, index) => component !== node.attrs.components[index])) {
+        changed = true;
+        next = { ...next, attrs: { ...next.attrs, components } };
+      }
     }
 
     if (Array.isArray(next.content)) {

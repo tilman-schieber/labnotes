@@ -15,6 +15,7 @@ import type { NotebookDocumentKind } from '../documents/templates';
 import { LinkExtension } from './extensions/Link';
 import RevisionHistory from './RevisionHistory';
 import { QuantityNode } from './extensions/Quantity';
+import { ReactionNode } from './extensions/Reaction';
 
 type Props = {
   documentId: string | null;
@@ -55,6 +56,7 @@ export default function NotebookEditor({
       UserMentionExtension,
       DocumentSlashExtension,
       QuantityNode,
+      ReactionNode,
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,

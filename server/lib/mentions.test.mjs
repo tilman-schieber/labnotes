@@ -69,6 +69,31 @@ test('retarget reports no change when nothing matches', () => {
   assert.equal(result.content, doc, 'same object returned when unchanged');
 });
 
+test('reaction block components count as entity references and are retargeted on merge', () => {
+  const reaction = {
+    type: 'reaction',
+    attrs: {
+      title: 'Step 1',
+      components: [
+        { id: 'c1', role: 'reactant', entityId: 'cmp-a', label: 'A' },
+        { id: 'c2', role: 'reagent', entityId: null, label: 'free text' },
+        { id: 'c3', role: 'product', entityId: 'cmp-b', label: 'B' }
+      ]
+    }
+  };
+  const doc = { type: 'doc', content: [paragraph(entity('cmp-a', 'A')), reaction] };
+
+  assert.deepEqual(extractMentions(doc), [
+    { refType: 'entity', targetId: 'cmp-a', label: 'A' },
+    { refType: 'entity', targetId: 'cmp-b', label: 'B' }
+  ]);
+
+  const { content, changed } = retargetEntityMentions(doc, 'cmp-b', 'cmp-c', 'C');
+  assert.equal(changed, true);
+  assert.deepEqual(content.content[1].attrs.components[2], { id: 'c3', role: 'product', entityId: 'cmp-c', label: 'C' });
+  assert.equal(content.content[1].attrs.components[0], reaction.attrs.components[0], 'untouched rows keep identity');
+});
+
 test('tolerates a missing label', () => {
   const doc = { type: 'doc', content: [paragraph({ type: 'userMention', attrs: { id: 'user-1' } })] };
 

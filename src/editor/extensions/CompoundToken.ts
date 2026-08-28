@@ -6,7 +6,7 @@ import { formatWeight, isCompoundAttributes, smilesToSvg, type CompoundAttribute
 // registry's current structure without storing SMILES in the document.
 const entityCache = new Map<string, Promise<BackendEntityRecord | null>>();
 
-function loadEntity(id: string) {
+export function loadEntity(id: string) {
   let pending = entityCache.get(id);
   if (!pending) {
     pending = fetchEntity(id)

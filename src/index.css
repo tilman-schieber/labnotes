@@ -353,6 +353,162 @@ body {
   background: #dcfce7;
 }
 
+.reaction-block {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin: 1rem 0;
+  background: #fafafa;
+}
+
+.reaction-block.is-selected {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px #dbeafe;
+}
+
+.reaction-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.reaction-title {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.1rem 0;
+  min-width: 10rem;
+}
+
+.reaction-title:focus {
+  outline: none;
+  border-bottom-color: #93c5fd;
+}
+
+.reaction-table-wrap {
+  overflow-x: auto;
+}
+
+.reaction-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.82rem;
+}
+
+.reaction-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  padding: 0.25rem 0.35rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.reaction-table td {
+  padding: 0.3rem 0.35rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.reaction-row.role-product {
+  background: #f0fdf4;
+}
+
+.reaction-row.is-limiting .reaction-limiting {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.reaction-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.3rem;
+  padding: 0.2rem 0.35rem;
+  font: inherit;
+  font-size: 0.82rem;
+  width: 100%;
+  min-width: 5rem;
+  background: #fff;
+}
+
+.reaction-input.is-invalid {
+  border-color: #fca5a5;
+  background: #fff1f2;
+}
+
+.reaction-input.is-linked {
+  border-color: #86efac;
+}
+
+.reaction-input-number {
+  min-width: 4.5rem;
+}
+
+.reaction-limiting {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.reaction-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.reaction-derived,
+.reaction-derived-cell {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.reaction-derived {
+  font-size: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.reaction-compound {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 12rem;
+}
+
+.reaction-compound-svg svg {
+  height: 2.6rem;
+  width: auto;
+  display: block;
+}
+
+.reaction-compound-picker {
+  position: relative;
+  flex: 1;
+}
+
+.reaction-picker-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 14rem;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.reaction-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
 .ProseMirror .quantity-token {
   background: #fef3c7;
   border-radius: 0.25rem;
