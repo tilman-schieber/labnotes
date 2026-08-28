@@ -29,7 +29,9 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - `#` entity references backed by the server entity registry
   - writing never waits for the registry: `#` matches multi-word names (`#Lysis buff` → Lysis Buffer), Tab or Enter accepts, Escape leaves plain text, and Enter on no match creates an *unclassified draft* on the spot. Drafts are typed later in the registry (a nudge shows how many are waiting; picking a type promotes the draft to verified)
   - `@` user references backed by the server user registry
-  - `/` hierarchy-first document references (rendered as `/Title`, stored as document entity mentions)
+  - documents (groups, projects, experiments) are referenced with `#` like any other entity; they render in the document colour
+  - `/` is the command palette: timestamp, date, headings, lists, task list, table, reaction, formula, quote, divider — filter by typing, Enter/Tab to run
+  - timestamp tokens (`/time` or Ctrl/Cmd+Shift+T) insert the current time and keep the full instant for hover/export
   - `#` suggestions rank entities recently used in the current project first
 - Sidebar tree structure:
   - Groups -> Projects -> Experiments

@@ -141,9 +141,15 @@ export function documentToTypst(
         return ' \\\n';
       case 'entityMention': {
         const isDocument = node.attrs?.entityType === 'document';
-        const label = escapeText(`${isDocument ? '/' : '#'}${node.attrs?.label ?? node.attrs?.id ?? ''}`);
+        const label = escapeText(`#${node.attrs?.label ?? node.attrs?.id ?? ''}`);
         const image = node.attrs?.inlineStructure ? ` ${structureImage(node.attrs.id, '2.4em')}` : '';
-        return `#box(fill: rgb("#dcfce7"), inset: (x: 3pt, y: 1pt), radius: 2pt)[${label}]${image}`;
+        return `#box(fill: rgb("${isDocument ? '#e0e7ff' : '#dcfce7'}"), inset: (x: 3pt, y: 1pt), radius: 2pt)[${label}]${image}`;
+      }
+      case 'timestamp': {
+        const at = String(node.attrs?.at ?? '');
+        const date = new Date(at);
+        const time = Number.isNaN(date.getTime()) ? at : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        return `#box(fill: luma(240), inset: (x: 3pt, y: 1pt), radius: 2pt)[#text(font: "DejaVu Sans Mono", size: 0.85em)[${escapeText(time)}]]`;
       }
       case 'userMention':
         return `#box(fill: rgb("#ede9fe"), inset: (x: 3pt, y: 1pt), radius: 2pt)[${escapeText(`@${node.attrs?.label ?? ''}`)}]`;

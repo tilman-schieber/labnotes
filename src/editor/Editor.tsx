@@ -10,7 +10,9 @@ import Image from '@tiptap/extension-image';
 import type { Editor, JSONContent } from '@tiptap/core';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { attachmentUrl, uploadAttachment } from '../api/backend';
-import { createEntityMentionExtension, DocumentSlashExtension, UserMentionExtension } from './extensions/Mention';
+import { createEntityMentionExtension, UserMentionExtension } from './extensions/Mention';
+import { SlashCommands } from './extensions/SlashCommands';
+import { TimestampNode } from './extensions/Timestamp';
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts';
 import { createBlankDocument } from '../storage/documentStore';
 import { NotebookDocument, NotebookDocumentStructure, NotebookTitlePlaceholder } from './extensions/NotebookDocument';
@@ -91,7 +93,8 @@ export default function NotebookEditor({
       InlineMath,
       createEntityMentionExtension(documentId),
       UserMentionExtension,
-      DocumentSlashExtension,
+      SlashCommands,
+      TimestampNode,
       QuantityNode,
       ReactionNode,
       TrailingParagraph,

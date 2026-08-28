@@ -1084,6 +1084,25 @@ button:disabled {
   cursor: pointer;
 }
 
+.ProseMirror .reference-token.reference-document {
+  background: var(--tok-document);
+  color: var(--tok-document-text);
+}
+
+.ProseMirror .timestamp-token {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--surface-3);
+  color: var(--text-2);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  cursor: default;
+}
+
+.ProseMirror .timestamp-token.ProseMirror-selectednode {
+  outline: 2px solid var(--focus);
+}
+
 .ProseMirror .reference-token.reference-user {
   background: var(--tok-user);
   color: var(--tok-user-text);

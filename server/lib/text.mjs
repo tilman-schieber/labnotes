@@ -19,6 +19,9 @@ export function extractText(content) {
       case 'quantity':
         parts.push(`${node.attrs?.value ?? ''} ${node.attrs?.unit ?? ''}`.trim());
         return;
+      case 'timestamp':
+        parts.push(String(node.attrs?.at ?? '').slice(11, 16));
+        return;
       case 'inlineMath':
       case 'blockMath':
         parts.push(String(node.attrs?.latex ?? ''));

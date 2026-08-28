@@ -1,11 +1,9 @@
 import Mention from '@tiptap/extension-mention';
-import { Extension, type Editor } from '@tiptap/core';
-import { PluginKey } from '@tiptap/pm/state';
-import Suggestion from '@tiptap/suggestion';
-import { createEntity, searchDocuments, searchEntities, searchUsers } from '../../api/backend';
+import type { Editor } from '@tiptap/core';
+import { createEntity, searchEntities, searchUsers } from '../../api/backend';
 import { compoundTokenNodeView } from './CompoundToken';
 
-type SuggestionOption = {
+export type SuggestionOption = {
   id: string;
   label: string;
   description?: string;
@@ -125,7 +123,7 @@ function shouldHide(props: RendererProps): boolean {
   return /[.,;:!?]$/.test(props.query) || props.query.trim().split(/\s+/).length > 4;
 }
 
-function createSuggestionRenderer(char: string) {
+export function createSuggestionRenderer(char: string) {
   let state: SuggestionListState | null = null;
 
   return {
@@ -235,9 +233,9 @@ function makeReferenceLabel(prefix: string, node: { attrs: Record<string, unknow
   return `${prefix}${label}`;
 }
 
-// Document references are entity mentions too, but render with the hierarchy prefix.
-function entityPrefix(node: { attrs: Record<string, unknown> }) {
-  return node.attrs.entityType === 'document' ? '/' : '#';
+// Every entity reference, documents included, reads as #Label; documents differ by colour.
+function entityPrefix(_node: { attrs: Record<string, unknown> }) {
+  return '#';
 }
 
 const EntityMention = Mention.extend({
@@ -286,44 +284,6 @@ export function createEntityMentionExtension(documentId: string | null) {
     }
   });
 }
-
-// `/` opens hierarchy-first document lookup. It inserts the same entityMention node as `#`
-// (pointing at the mirrored document entity), so indexing and backlinks treat both alike.
-export const DocumentSlashExtension = Extension.create({
-  name: 'documentSlash',
-
-  addProseMirrorPlugins() {
-    return [
-      Suggestion<SuggestionOption>({
-        editor: this.editor,
-        pluginKey: new PluginKey('documentSlashSuggestion'),
-        char: '/',
-        items: async ({ query }: { query: string }) => {
-          const documents = await searchDocuments(query);
-          return documents.map((document) => ({
-            id: document.entityId,
-            label: document.title,
-            description: [...document.path, document.kind].join(' › '),
-            refType: 'entity' as const,
-            entityType: 'document'
-          }));
-        },
-        render: () => createSuggestionRenderer('/'),
-        command: ({ editor, range, props }) => {
-          const { id, label, entityType, refType } = props;
-          editor
-            .chain()
-            .focus()
-            .insertContentAt(range, [
-              { type: 'entityMention', attrs: { id, label, entityType, refType } },
-              { type: 'text', text: ' ' }
-            ])
-            .run();
-        }
-      })
-    ];
-  }
-});
 
 export const UserMentionExtension = Mention.extend({
   name: 'userMention',

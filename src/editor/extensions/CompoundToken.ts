@@ -84,13 +84,13 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
   const dom = document.createElement('span');
   const isDocument = node.attrs.entityType === 'document';
   const isCompound = node.attrs.entityType === 'compound';
-  dom.className = `mention reference-token reference-entity${isCompound ? ' reference-compound' : ''}`;
+  dom.className = `mention reference-token reference-entity${isCompound ? ' reference-compound' : ''}${isDocument ? ' reference-document' : ''}`;
   dom.setAttribute('data-id', String(node.attrs.id ?? ''));
   dom.setAttribute('data-type', 'entityMention');
 
   const label = document.createElement('span');
   label.className = 'reference-label';
-  label.textContent = `${isDocument ? '/' : '#'}${node.attrs.label ?? node.attrs.id ?? ''}`;
+  label.textContent = `#${node.attrs.label ?? node.attrs.id ?? ''}`;
   dom.appendChild(label);
 
   let inlineHost: HTMLSpanElement | null = null;
@@ -145,7 +145,7 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
         return false;
       }
       node = updated;
-      label.textContent = `${isDocument ? '/' : '#'}${node.attrs.label ?? node.attrs.id ?? ''}`;
+      label.textContent = `#${node.attrs.label ?? node.attrs.id ?? ''}`;
       if (isCompound) {
         void renderInline();
       }

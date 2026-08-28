@@ -681,7 +681,7 @@ The next commit after that should start the actual backend foundation.
 
 1. `#` should search broadly across entity types for now.
 2. Groups, projects, and experiments should be stored in the backend too.
-3. `@` should remain user-focused; document-specific shorthand can be added separately, with `/` as the leading candidate.
+3. `@` is reserved for users. Documents are ordinary `#` entities. `/` is the block command palette (typing-first editors expect this), not a document shorthand — reversed from the earlier decision after the `/` document trigger shipped.
 4. Leaf documents are `experiment`s — the notebook entry (German: Laborprotokoll). The kind was originally named `protocol` for that reason; there is no separate "reusable procedure" concept. Reusable procedures, if ever needed, are a templating concern, not a document kind or entity type.
 5. Documents keep an append-only revision history from the first save.
 
