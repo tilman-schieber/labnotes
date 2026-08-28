@@ -24,7 +24,7 @@ Still pending from this plan:
 
 - import and draft reconciliation pipeline
 - graph navigation beyond one hop; linked-entity view per experiment
-- `protocol` as an entity type (needs a decision on where protocol text lives)
+- experiment templates (later)
 
 ## Goal
 
@@ -677,7 +677,7 @@ The next commit after that should start the actual backend foundation.
 1. `#` should search broadly across entity types for now.
 2. Groups, projects, and experiments should be stored in the backend too.
 3. `@` should remain user-focused; document-specific shorthand can be added separately, with `/` as the leading candidate.
-4. Leaf documents are `experiment`s (day-to-day entries). "Protocol" is reserved for reusable procedures, which should become a referencable entity type rather than a document kind.
+4. Leaf documents are `experiment`s — the notebook entry (German: Laborprotokoll). The kind was originally named `protocol` for that reason; there is no separate "reusable procedure" concept. Reusable procedures, if ever needed, are a templating concern, not a document kind or entity type.
 5. Documents keep an append-only revision history from the first save.
 
 ## Open Questions

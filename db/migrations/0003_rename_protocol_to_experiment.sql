@@ -1,5 +1,5 @@
--- Leaf documents are experiments (day-to-day entries). "Protocol" is reserved for
--- reusable procedures, which will become a referencable entity type later.
+-- Leaf documents (the notebook entry, German "Laborprotokoll") are called experiments
+-- so the English kind name is not read as "reusable procedure".
 alter table documents drop constraint documents_kind_check;
 
 update documents set kind = 'experiment' where kind = 'protocol';
