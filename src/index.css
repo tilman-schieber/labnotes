@@ -624,8 +624,23 @@ body {
   margin-top: 0.5rem;
 }
 
+.entity-relation-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.entity-predicate {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  background: #f1f5f9;
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  color: #334155;
+}
+
 .entity-alias-list,
 .entity-backlink-list,
+.entity-relation-list,
 .entity-merge-list {
   list-style: none;
   margin: 0 0 0.5rem;
@@ -637,6 +652,7 @@ body {
 
 .entity-alias-list li,
 .entity-backlink-list li,
+.entity-relation-list li,
 .entity-merge-list li {
   display: flex;
   gap: 0.6rem;

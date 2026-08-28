@@ -51,11 +51,12 @@ Implemented now:
 - append-only document revision history with restore (History button in the editor)
 - entity registry view (sidebar "Entities"): search/filter, create, edit label/type/status/attributes, aliases, backlinks
 - duplicate merge: references in documents are rewritten to the surviving entity (as a new revision), aliases move over, the duplicate is deleted
+- entity relations (`uses`, `derived_from`, `stored_in`, `references`, `belongs_to`) authored in the registry, shown in both directions
 
 Not implemented yet:
 
 - import and draft reconciliation flow
-- entity relations / graph features
+- graph navigation beyond one hop
 - authentication and collaboration
 
 ## Backend Data Model
@@ -118,6 +119,7 @@ db/
     0002_trigram_search.sql        # pg_trgm indexes for #/@ lookup
     0003_rename_protocol_to_experiment.sql
     0004_document_revisions.sql    # revision history table + backfill
+    0005_relation_uniqueness.sql   # NULLS NOT DISTINCT uniqueness for relations
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -320,12 +322,14 @@ Current backend endpoints:
 - `DELETE /api/documents/:id`
 - `GET /api/entities?q=&type=&status=` (registry listing with mention counts)
 - `GET /api/entities/search?q=&documentId=&type=` (`#` lookup; `documentId` boosts entities used in that project)
-- `GET /api/entities/:id` (includes aliases and document backlinks)
+- `GET /api/entities/:id` (includes aliases, relations, and document backlinks)
 - `POST /api/entities`
 - `PATCH /api/entities/:id`
 - `POST /api/entities/:id/aliases`
 - `DELETE /api/entities/:id/aliases/:aliasId`
 - `POST /api/entities/:id/merge` (`{ sourceId }` — folds the source into `:id`)
+- `POST /api/entities/:id/relations` (`{ predicate, objectEntityId, sourceDocumentId? }`)
+- `DELETE /api/entities/:id/relations/:relationId`
 - `GET /api/users/search?q=...`
 - `GET /api/users/:id` (includes document backlinks)
 

@@ -521,7 +521,7 @@ app.get('/api/entities/:id', async (request, response) => {
     return;
   }
 
-  const [aliasesResult, backlinks] = await Promise.all([
+  const [aliasesResult, backlinks, relations] = await Promise.all([
     query(
       `
         select id, entity_id as "entityId", alias, kind, created_at as "createdAt"
@@ -531,10 +531,95 @@ app.get('/api/entities/:id', async (request, response) => {
       `,
       [entity.id]
     ),
-    loadBacklinks('entity', entity.id)
+    loadBacklinks('entity', entity.id),
+    loadRelations(entity.id)
   ]);
 
-  response.json({ entity, aliases: aliasesResult.rows, backlinks });
+  response.json({ entity, aliases: aliasesResult.rows, backlinks, relations });
+});
+
+// Relations touching an entity, in both directions, with the other side resolved for display.
+async function loadRelations(entityId) {
+  const result = await query(
+    `
+      select
+        r.id,
+        r.predicate,
+        r.subject_entity_id as "subjectEntityId",
+        s.label as "subjectLabel",
+        s.type as "subjectType",
+        r.object_entity_id as "objectEntityId",
+        o.label as "objectLabel",
+        o.type as "objectType",
+        r.confidence,
+        r.source_document_id as "sourceDocumentId",
+        d.title as "sourceDocumentTitle",
+        r.created_at as "createdAt"
+      from entity_relations r
+      join entities s on s.id = r.subject_entity_id
+      join entities o on o.id = r.object_entity_id
+      left join documents d on d.id = r.source_document_id
+      where r.subject_entity_id = $1 or r.object_entity_id = $1
+      order by r.created_at asc
+    `,
+    [entityId]
+  );
+
+  return result.rows;
+}
+
+app.post('/api/entities/:id/relations', async (request, response) => {
+  const predicate = String(request.body.predicate ?? '').trim();
+  const objectEntityId = String(request.body.objectEntityId ?? '').trim();
+  const sourceDocumentId = request.body.sourceDocumentId ? String(request.body.sourceDocumentId) : null;
+
+  if (!predicate || !objectEntityId) {
+    response.status(400).json({ error: 'predicate and objectEntityId are required' });
+    return;
+  }
+
+  if (objectEntityId === request.params.id) {
+    response.status(400).json({ error: 'An entity cannot relate to itself' });
+    return;
+  }
+
+  const entities = await query('select id from entities where id = any($1::text[])', [[request.params.id, objectEntityId]]);
+  if (entities.rowCount !== 2) {
+    response.status(404).json({ error: 'Entity not found' });
+    return;
+  }
+
+  const result = await query(
+    `
+      insert into entity_relations (id, subject_entity_id, predicate, object_entity_id, confidence, source_document_id)
+      values ($1, $2, $3, $4, $5, $6)
+      on conflict (subject_entity_id, predicate, object_entity_id, source_document_id) do nothing
+      returning id
+    `,
+    [createId('relation'), request.params.id, predicate, objectEntityId, request.body.confidence ?? null, sourceDocumentId]
+  );
+
+  if (result.rowCount === 0) {
+    response.status(409).json({ error: 'Relation already exists' });
+    return;
+  }
+
+  const relations = await loadRelations(request.params.id);
+  response.status(201).json({ relation: relations.find((relation) => relation.id === result.rows[0].id) ?? null });
+});
+
+app.delete('/api/entities/:id/relations/:relationId', async (request, response) => {
+  const result = await query(
+    'delete from entity_relations where id = $1 and (subject_entity_id = $2 or object_entity_id = $2)',
+    [request.params.relationId, request.params.id]
+  );
+
+  if (result.rowCount === 0) {
+    response.status(404).json({ error: 'Relation not found' });
+    return;
+  }
+
+  response.status(204).end();
 });
 
 app.post('/api/entities', async (request, response) => {

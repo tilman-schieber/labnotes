@@ -182,11 +182,42 @@ export type BackendBacklink = {
   createdAt: string;
 };
 
+export type BackendRelation = {
+  id: string;
+  predicate: string;
+  subjectEntityId: string;
+  subjectLabel: string;
+  subjectType: string;
+  objectEntityId: string;
+  objectLabel: string;
+  objectType: string;
+  confidence: number | null;
+  sourceDocumentId: string | null;
+  sourceDocumentTitle: string | null;
+  createdAt: string;
+};
+
 export type BackendEntityDetail = {
   entity: BackendEntityRecord;
   aliases: BackendEntityAlias[];
   backlinks: BackendBacklink[];
+  relations: BackendRelation[];
 };
+
+export const RELATION_PREDICATES = ['uses', 'derived_from', 'stored_in', 'references', 'belongs_to'] as const;
+
+export async function addEntityRelation(id: string, predicate: string, objectEntityId: string): Promise<BackendRelation> {
+  const payload = await request<{ relation: BackendRelation }>(`/entities/${id}/relations`, {
+    method: 'POST',
+    body: JSON.stringify({ predicate, objectEntityId })
+  });
+
+  return payload.relation;
+}
+
+export async function deleteEntityRelation(id: string, relationId: string): Promise<void> {
+  await request(`/entities/${id}/relations/${relationId}`, { method: 'DELETE' });
+}
 
 export type EntityListFilters = {
   q?: string;

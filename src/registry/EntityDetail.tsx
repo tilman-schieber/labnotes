@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
+  RELATION_PREDICATES,
   addEntityAlias,
+  addEntityRelation,
   deleteEntityAlias,
+  deleteEntityRelation,
   fetchEntity,
   mergeEntities,
   searchEntities,
@@ -10,6 +13,41 @@ import {
   type BackendEntitySearchResult,
   type EntityUpdate
 } from '../api/backend';
+
+// Debounced entity search used by the relation and merge pickers.
+function useEntityPicker(queryText: string, excludeId: string, excludeDocuments: boolean) {
+  const [results, setResults] = useState<BackendEntitySearchResult[]>([]);
+
+  useEffect(() => {
+    const trimmed = queryText.trim();
+    if (!trimmed) {
+      setResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      searchEntities(trimmed)
+        .then((items) => {
+          if (!cancelled) {
+            setResults(items.filter((item) => item.id !== excludeId && (!excludeDocuments || !item.documentId)));
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setResults([]);
+          }
+        });
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [queryText, excludeId, excludeDocuments]);
+
+  return results;
+}
 
 type Props = {
   entityId: string;
@@ -48,36 +86,11 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
   const [newAlias, setNewAlias] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [mergeQuery, setMergeQuery] = useState('');
-  const [mergeCandidates, setMergeCandidates] = useState<BackendEntitySearchResult[]>([]);
+  const mergeCandidates = useEntityPicker(mergeQuery, entityId, true);
   const [isMerging, setIsMerging] = useState(false);
-
-  useEffect(() => {
-    const queryText = mergeQuery.trim();
-    if (!queryText) {
-      setMergeCandidates([]);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      searchEntities(queryText)
-        .then((results) => {
-          if (!cancelled) {
-            setMergeCandidates(results.filter((item) => item.id !== entityId && !item.documentId));
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setMergeCandidates([]);
-          }
-        });
-    }, 150);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [mergeQuery, entityId]);
+  const [relationPredicate, setRelationPredicate] = useState<string>(RELATION_PREDICATES[0]);
+  const [relationQuery, setRelationQuery] = useState('');
+  const relationCandidates = useEntityPicker(relationQuery, entityId, false);
 
   const load = async () => {
     try {
@@ -178,6 +191,25 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
     } catch (mergeError) {
       setError(mergeError instanceof Error ? mergeError.message : 'Failed to merge entity');
       setIsMerging(false);
+    }
+  };
+
+  const handleAddRelation = async (object: BackendEntitySearchResult) => {
+    try {
+      await addEntityRelation(entityId, relationPredicate, object.id);
+      setRelationQuery('');
+      await load();
+    } catch (relationError) {
+      setError(relationError instanceof Error ? relationError.message : 'Failed to add relation');
+    }
+  };
+
+  const handleRemoveRelation = async (relationId: string) => {
+    try {
+      await deleteEntityRelation(entityId, relationId);
+      await load();
+    } catch (relationError) {
+      setError(relationError instanceof Error ? relationError.message : 'Failed to remove relation');
     }
   };
 
@@ -290,6 +322,65 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
             Add
           </button>
         </form>
+      </section>
+
+      <section className="entity-section">
+        <h3>Relations</h3>
+        <ul className="entity-relation-list">
+          {detail.relations.length === 0 && <li className="entity-muted">No relations</li>}
+          {detail.relations.map((relation) => {
+            const outgoing = relation.subjectEntityId === entityId;
+            return (
+              <li key={relation.id}>
+                {outgoing ? (
+                  <>
+                    <span className="entity-predicate">{relation.predicate}</span>
+                    <span>{relation.objectLabel}</span>
+                    <span className="entity-muted">{relation.objectType}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{relation.subjectLabel}</span>
+                    <span className="entity-predicate">{relation.predicate}</span>
+                    <span className="entity-muted">this</span>
+                  </>
+                )}
+                {relation.sourceDocumentTitle && <span className="entity-muted">from {relation.sourceDocumentTitle}</span>}
+                <button type="button" className="link-button" onClick={() => void handleRemoveRelation(relation.id)}>
+                  remove
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="entity-relation-form">
+          <select value={relationPredicate} onChange={(event) => setRelationPredicate(event.target.value)} aria-label="Predicate">
+            {RELATION_PREDICATES.map((predicate) => (
+              <option key={predicate} value={predicate}>
+                {predicate}
+              </option>
+            ))}
+          </select>
+          <input
+            type="search"
+            placeholder="Search the related entity"
+            value={relationQuery}
+            onChange={(event) => setRelationQuery(event.target.value)}
+          />
+        </div>
+        {relationCandidates.length > 0 && (
+          <ul className="entity-merge-list">
+            {relationCandidates.map((candidate) => (
+              <li key={candidate.id}>
+                <span>{candidate.label}</span>
+                <span className="entity-muted">{candidate.description}</span>
+                <button type="button" className="link-button" onClick={() => void handleAddRelation(candidate)}>
+                  add "{relationPredicate}"
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="entity-section">

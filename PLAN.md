@@ -18,11 +18,13 @@ Completed so far:
 - `/` document hierarchy trigger
 - entity registry and detail UI (list/filter, create, edit, aliases, backlinks)
 - duplicate merge (rewrites inline references, moves aliases, deletes the duplicate)
+- relation authoring in the registry (both directions shown; merge re-points relations)
 
 Still pending from this plan:
 
 - import and draft reconciliation pipeline
-- relation authoring and graph features
+- graph navigation beyond one hop; linked-entity view per experiment
+- `protocol` as an entity type (needs a decision on where protocol text lives)
 
 ## Goal
 
