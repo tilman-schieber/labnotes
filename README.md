@@ -24,6 +24,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
 - Basic tables (insert and edit)
 - Rich references:
   - `#` entity references backed by the server entity registry
+  - quick-create from the `#` popup: `Create "Foo" as sample / reagent / …` when nothing matches exactly
   - `@` user references backed by the server user registry
 - Sidebar tree structure:
   - Groups -> Projects -> Experiments

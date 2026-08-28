@@ -1,6 +1,6 @@
 import Mention from '@tiptap/extension-mention';
 import type { Editor } from '@tiptap/core';
-import { searchEntities, searchUsers } from '../../api/backend';
+import { createEntity, searchEntities, searchUsers } from '../../api/backend';
 
 type SuggestionOption = {
   id: string;
@@ -8,7 +8,43 @@ type SuggestionOption = {
   description?: string;
   refType: 'entity' | 'user';
   entityType?: string;
+  // Set on the "Create ... as <type>" rows; the entity is created on selection.
+  create?: boolean;
 };
+
+// Types offered by quick-create, in display order. 'document' is excluded: those are mirrored from the tree.
+const QUICK_CREATE_TYPES = ['sample', 'specimen', 'reagent', 'compound', 'instrument', 'container', 'location'];
+
+function buildQuickCreateOptions(query: string, existing: SuggestionOption[]): SuggestionOption[] {
+  const label = query.trim();
+  if (!label) {
+    return [];
+  }
+
+  const hasExactMatch = existing.some((option) => option.label.trim().toLowerCase() === label.toLowerCase());
+  if (hasExactMatch) {
+    return [];
+  }
+
+  return QUICK_CREATE_TYPES.map((entityType) => ({
+    id: '',
+    label,
+    description: `Create as ${entityType}`,
+    refType: 'entity' as const,
+    entityType,
+    create: true
+  }));
+}
+
+// Resolves a quick-create row into a real entity before the mention node is inserted.
+async function resolveOption(option: SuggestionOption): Promise<SuggestionOption> {
+  if (!option.create) {
+    return option;
+  }
+
+  const entity = await createEntity(option.entityType ?? 'sample', option.label);
+  return { ...option, id: entity.id, label: entity.label, create: false };
+}
 
 type SuggestionListState = {
   element: HTMLDivElement;
@@ -37,11 +73,11 @@ function createList(state: SuggestionListState): void {
 
   state.options.forEach((option, index) => {
     const item = document.createElement('div');
-    item.className = `mention-item${index === state.selectedIndex ? ' is-selected' : ''}`;
+    item.className = `mention-item${index === state.selectedIndex ? ' is-selected' : ''}${option.create ? ' mention-item-create' : ''}`;
 
     const label = document.createElement('div');
     label.className = 'mention-item-label';
-    label.textContent = option.label;
+    label.textContent = option.create ? `+ Create "${option.label}"` : option.label;
 
     const meta = document.createElement('div');
     meta.className = 'mention-item-meta';
@@ -77,7 +113,7 @@ function createSuggestionRenderer() {
         element,
         selectedIndex: 0,
         options: props.items,
-        command: (option) => props.command(option)
+        command: (option) => void resolveOption(option).then(props.command)
       };
 
       createList(state);
@@ -90,7 +126,7 @@ function createSuggestionRenderer() {
       }
 
       state.options = props.items;
-      state.command = (option) => props.command(option);
+      state.command = (option) => void resolveOption(option).then(props.command);
       if (state.selectedIndex >= state.options.length) {
         state.selectedIndex = 0;
       }
@@ -168,13 +204,14 @@ export const EntityMentionExtension = Mention.extend({
     char: '#',
     items: async ({ query }: { query: string }) => {
       const entities = await searchEntities(query);
-      return entities.map((entity) => ({
+      const options = entities.map((entity) => ({
         id: entity.id,
         label: entity.label,
         description: entity.description,
         refType: 'entity' as const,
         entityType: entity.type
       }));
+      return [...options, ...buildQuickCreateOptions(query, options)];
     },
     render: () => createSuggestionRenderer()
   },

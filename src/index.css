@@ -407,7 +407,20 @@ body {
   border: 1px solid #d1d5db;
   border-radius: 0.4rem;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.mention-item-create {
+  border-top: 1px solid #e2e8f0;
+}
+
+.mention-item-create + .mention-item-create {
+  border-top: 0;
+}
+
+.mention-item-create .mention-item-label {
+  color: #166534;
 }
 
 .mention-item {

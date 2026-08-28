@@ -121,6 +121,27 @@ export async function searchEntities(query: string): Promise<BackendEntitySearch
   return payload.entities;
 }
 
+export type BackendEntityRecord = {
+  id: string;
+  type: string;
+  subtype: string | null;
+  label: string;
+  status: string;
+  documentId: string | null;
+  attributes: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function createEntity(type: string, label: string): Promise<BackendEntityRecord> {
+  const payload = await request<{ entity: BackendEntityRecord }>('/entities', {
+    method: 'POST',
+    body: JSON.stringify({ type, label })
+  });
+
+  return payload.entity;
+}
+
 export async function searchUsers(query: string): Promise<BackendUserSearchResult[]> {
   const params = new URLSearchParams({ q: query });
   const payload = await request<{ users: BackendUserSearchResult[] }>(`/users/search?${params.toString()}`);

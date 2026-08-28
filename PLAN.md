@@ -12,6 +12,8 @@ Completed so far:
 - document entities are mirrored into the entity registry backend model
 - `#` entity lookup and `@` user lookup are wired into the editor
 - `document_mentions` extracted from saved editor content; backlinks exposed on entity and user detail
+- leaf documents renamed to `experiment`; append-only revision history with restore
+- quick-create entities inline from the `#` popup (type picked in the popup)
 
 Still pending from this plan:
 
