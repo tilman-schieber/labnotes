@@ -185,7 +185,7 @@ function makeReferenceLabel(prefix: string, node: { attrs: Record<string, unknow
   return `${prefix}${label}`;
 }
 
-export const EntityMentionExtension = Mention.extend({
+const EntityMention = Mention.extend({
   name: 'entityMention',
 
   addAttributes() {
@@ -196,29 +196,34 @@ export const EntityMentionExtension = Mention.extend({
       refType: { default: 'entity' }
     };
   }
-}).configure({
-  HTMLAttributes: {
-    class: 'mention reference-token reference-entity'
-  },
-  suggestion: {
-    char: '#',
-    items: async ({ query }: { query: string }) => {
-      const entities = await searchEntities(query);
-      const options = entities.map((entity) => ({
-        id: entity.id,
-        label: entity.label,
-        description: entity.description,
-        refType: 'entity' as const,
-        entityType: entity.type
-      }));
-      return [...options, ...buildQuickCreateOptions(query, options)];
-    },
-    render: () => createSuggestionRenderer()
-  },
-  renderLabel({ node }) {
-    return makeReferenceLabel('#', node);
-  }
 });
+
+// `documentId` is the document being edited; it scopes the "recently used here" ranking.
+export function createEntityMentionExtension(documentId: string | null) {
+  return EntityMention.configure({
+    HTMLAttributes: {
+      class: 'mention reference-token reference-entity'
+    },
+    suggestion: {
+      char: '#',
+      items: async ({ query }: { query: string }) => {
+        const entities = await searchEntities(query, { documentId });
+        const options = entities.map((entity) => ({
+          id: entity.id,
+          label: entity.label,
+          description: entity.description,
+          refType: 'entity' as const,
+          entityType: entity.type
+        }));
+        return [...options, ...buildQuickCreateOptions(query, options)];
+      },
+      render: () => createSuggestionRenderer()
+    },
+    renderLabel({ node }) {
+      return makeReferenceLabel('#', node);
+    }
+  });
+}
 
 export const UserMentionExtension = Mention.extend({
   name: 'userMention',

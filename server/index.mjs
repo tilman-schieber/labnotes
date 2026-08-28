@@ -336,8 +336,26 @@ app.delete('/api/documents/:id', async (request, response) => {
   response.status(204).end();
 });
 
+// Ids of the documents that share a project with `documentId` (the project itself and its
+// experiments); for a group, all documents in the group. Used to boost recently used entities.
+function getContextDocumentIds(documents, documentId) {
+  const document = documentId ? getDocumentWithAncestors(documents, documentId) : null;
+  if (!document) {
+    return [];
+  }
+
+  const scopeId = document.projectId ?? document.groupId;
+  return documents
+    .filter((item) => item.id === scopeId || getDocumentWithAncestors(documents, item.id)?.[document.projectId ? 'projectId' : 'groupId'] === scopeId)
+    .map((item) => item.id);
+}
+
 app.get('/api/entities/search', async (request, response) => {
   const queryText = String(request.query.q ?? '').trim().toLowerCase();
+  const typeFilter = String(request.query.type ?? '').trim();
+  const contextDocumentId = String(request.query.documentId ?? '').trim();
+  const contextIds = contextDocumentId ? getContextDocumentIds(await loadDocuments(), contextDocumentId) : [];
+
   const result = await query(
     `
       select
@@ -347,37 +365,53 @@ app.get('/api/entities/search', async (request, response) => {
         e.subtype,
         e.status,
         e.document_id as "documentId",
-        e.document_id is not null as "isDocument"
+        e.document_id is not null as "isDocument",
+        ctx.last_used is not null as "usedInContext"
       from entities e
+      left join lateral (
+        select max(m.created_at) as last_used
+        from document_mentions m
+        where m.ref_type = 'entity' and m.target_id = e.id and m.document_id = any($2::text[])
+      ) ctx on true
       where
-        $1 = ''
-        or lower(e.label) like '%' || $1 || '%'
-        or lower(e.type) like '%' || $1 || '%'
-        or exists (
-          select 1
-          from entity_aliases a
-          where a.entity_id = e.id and lower(a.alias) like '%' || $1 || '%'
+        e.status <> 'archived'
+        and ($3 = '' or e.type = $3)
+        and (
+          $1 = ''
+          or lower(e.label) like '%' || $1 || '%'
+          or lower(e.type) like '%' || $1 || '%'
+          or exists (
+            select 1
+            from entity_aliases a
+            where a.entity_id = e.id and lower(a.alias) like '%' || $1 || '%'
+          )
         )
       order by
+        ctx.last_used is not null desc,
         ($1 <> '' and lower(e.label) like $1 || '%') desc,
         case when $1 = '' then 0 else similarity(lower(e.label), $1) end desc,
+        ctx.last_used desc nulls last,
         e.document_id is not null desc,
         e.updated_at desc
       limit 20
     `,
-    [queryText]
+    [queryText, contextIds, typeFilter]
   );
 
   response.json({
-    entities: result.rows.map((entity) => ({
-      id: entity.id,
-      label: entity.label,
-      type: entity.type,
-      subtype: entity.subtype,
-      status: entity.status,
-      documentId: entity.documentId,
-      description: entity.isDocument ? `${entity.subtype ?? entity.type} document` : entity.subtype ?? entity.type
-    }))
+    entities: result.rows.map((entity) => {
+      const base = entity.isDocument ? `${entity.subtype ?? entity.type} document` : entity.subtype ?? entity.type;
+      return {
+        id: entity.id,
+        label: entity.label,
+        type: entity.type,
+        subtype: entity.subtype,
+        status: entity.status,
+        documentId: entity.documentId,
+        usedInContext: entity.usedInContext,
+        description: entity.usedInContext ? `${base} · used in this project` : base
+      };
+    })
   });
 });
 

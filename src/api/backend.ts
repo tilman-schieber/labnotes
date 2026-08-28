@@ -35,6 +35,7 @@ export type BackendEntitySearchResult = {
   subtype: string | null;
   status: string;
   documentId: string | null;
+  usedInContext: boolean;
   description: string;
 };
 
@@ -115,8 +116,20 @@ export async function restoreDocumentRevision(id: string, revision: number): Pro
   return payload.document;
 }
 
-export async function searchEntities(query: string): Promise<BackendEntitySearchResult[]> {
+export type EntitySearchOptions = {
+  // Document being edited; entities recently referenced in its project rank first.
+  documentId?: string | null;
+  type?: string;
+};
+
+export async function searchEntities(query: string, options: EntitySearchOptions = {}): Promise<BackendEntitySearchResult[]> {
   const params = new URLSearchParams({ q: query });
+  if (options.documentId) {
+    params.set('documentId', options.documentId);
+  }
+  if (options.type) {
+    params.set('type', options.type);
+  }
   const payload = await request<{ entities: BackendEntitySearchResult[] }>(`/entities/search?${params.toString()}`);
   return payload.entities;
 }
