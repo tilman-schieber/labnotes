@@ -5,19 +5,27 @@ import { expiryState } from './attributeSchema';
 
 type Props = {
   onOpenDocument: (documentId: string) => void;
+  // Entity to show on open (e.g. from a linked-entity chip in the editor).
+  initialSelectedId?: string | null;
 };
 
 const STATUSES = ['draft', 'verified', 'archived'];
 // Offered when creating from the registry; the type select also lists whatever already exists.
 const BASE_TYPES = ['sample', 'specimen', 'reagent', 'compound', 'instrument', 'container', 'location'];
 
-export default function EntityRegistry({ onOpenDocument }: Props) {
+export default function EntityRegistry({ onOpenDocument, initialSelectedId = null }: Props) {
   const [queryText, setQueryText] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [entities, setEntities] = useState<BackendEntityListItem[]>([]);
   const [types, setTypes] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
+
+  useEffect(() => {
+    if (initialSelectedId) {
+      setSelectedId(initialSelectedId);
+    }
+  }, [initialSelectedId]);
   const [error, setError] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState(BASE_TYPES[0]);

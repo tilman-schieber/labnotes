@@ -203,6 +203,23 @@ export async function searchDocuments(query: string): Promise<BackendDocumentSea
   return payload.documents;
 }
 
+export type BackendDocumentMention = {
+  id: string;
+  refType: 'entity' | 'user';
+  targetId: string;
+  labelSnapshot: string | null;
+  source: string;
+  createdAt: string;
+  currentLabel: string | null;
+  entityType: string | null;
+  entityDocumentId: string | null;
+};
+
+export async function fetchDocumentMentions(documentId: string): Promise<BackendDocumentMention[]> {
+  const payload = await request<{ mentions: BackendDocumentMention[] }>(`/documents/${documentId}/mentions`);
+  return payload.mentions;
+}
+
 export type BackendAttachment = {
   id: string;
   documentId: string;

@@ -37,6 +37,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - New Project (inside selected group)
   - New Experiment (inside selected project)
 - Templates: "Save as template" on an experiment; "New from template…" in the sidebar (delete from the same menu)
+- Linked entities strip under the editor: everything the document references (from the mention index), grouped by type; click opens the entity in the registry or the referenced document
 - Attachments: any file can be attached to a document (panel above the editor); images pasted or dropped into the text are uploaded and placed inline, and appear in the PDF export. Bytes live under `ATTACHMENTS_DIR` (default `data/attachments`, git-ignored) with sha256 recorded; deleting a document removes its files.
 - PDF export ("Export PDF" in the editor): the document is converted to Typst and compiled with the local `typst` binary. Header carries the tree path, status/date/tags and the latest revision (with signature). Math goes through the `mitex` package (fetched from the Typst package registry on first use); compound structures are embedded as SVG. `GET …/export.typ` returns the source.
 - Full-text search across titles, content (including mentions, quantities, reaction rows, math) and tags — sidebar search box; `#tag` lists everything with that tag

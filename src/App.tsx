@@ -22,6 +22,7 @@ import {
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
 import SearchResults from './sidebar/SearchResults';
 import AttachmentsPanel from './editor/AttachmentsPanel';
+import LinkedEntities from './editor/LinkedEntities';
 import { attachmentUrl, type BackendAttachment } from './api/backend';
 import {
   createBlankDocument,
@@ -65,6 +66,14 @@ export default function App() {
   const [templates, setTemplates] = useState<BackendTemplate[]>([]);
   const [searchText, setSearchText] = useState('');
   const [attachmentsToken, setAttachmentsToken] = useState(0);
+  // Counts completed saves so panels driven by the server-side mention index can refresh.
+  const [saveCount, setSaveCount] = useState(0);
+  const [registryEntityId, setRegistryEntityId] = useState<string | null>(null);
+
+  const openEntityInRegistry = (entityId: string) => {
+    setRegistryEntityId(entityId);
+    setView('entities');
+  };
 
   const insertImage = (attachment: BackendAttachment) => {
     editor?.chain().focus().setImage({ src: attachmentUrl(attachment.id), alt: attachment.filename }).run();
@@ -119,6 +128,7 @@ export default function App() {
         .then(() => {
           setPendingSave((current) => (current === pendingSave ? null : current));
           setSaveState('idle');
+          setSaveCount((previous) => previous + 1);
         })
         .catch(() => {
           setSaveState('error');
@@ -681,7 +691,7 @@ export default function App() {
 
         <section className="main-panel">
           {view === 'entities' ? (
-            <EntityRegistry onOpenDocument={openDocumentById} />
+            <EntityRegistry onOpenDocument={openDocumentById} initialSelectedId={registryEntityId} />
           ) : (
             <>
               <div className="toolbar">
@@ -734,6 +744,16 @@ export default function App() {
                 onAttachmentUploaded={() => setAttachmentsToken((previous) => previous + 1)}
                 onDocumentRestored={() => void handleDocumentRestored()}
               />
+
+              {selectedDocument && (
+                <LinkedEntities
+                  key={selectedDocument.id}
+                  documentId={selectedDocument.id}
+                  refreshToken={saveCount}
+                  onOpenEntity={openEntityInRegistry}
+                  onOpenDocument={openDocumentById}
+                />
+              )}
             </>
           )}
         </section>

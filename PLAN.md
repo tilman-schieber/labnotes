@@ -22,11 +22,14 @@ Completed so far:
 - chemistry: SMILES/structures/properties on compounds, PubChem lookup, structure editor, hover cards
 - unit-aware quantity tokens; reaction block with stoichiometry
 - experiment templates
+- experiment metadata (status/date/tags), task lists, full-text search, revision signing
+- Typst PDF export, attachments with inline images
+- typed attribute forms, reagent expiry, linked-entities strip per document
 
 Still pending from this plan:
 
 - import and draft reconciliation pipeline
-- graph navigation beyond one hop; linked-entity view per experiment
+- graph navigation beyond one hop
 
 ## Goal
 
