@@ -8,6 +8,7 @@ import { runMigrations } from './lib/migrations.mjs';
 import { SignError, getRevision, listRevisions, recordRevision, signRevision } from './lib/revisions.mjs';
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { extractText } from './lib/text.mjs';
+import { exportDocumentPdf, exportDocumentTypst } from './lib/export.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
 
 const PORT = Number(process.env.PORT ?? 5174);
@@ -406,6 +407,43 @@ app.patch('/api/documents/:id', async (request, response) => {
 
   const nextDocuments = await loadDocuments();
   response.json({ document: getDocumentWithAncestors(nextDocuments, updated) });
+});
+
+function exportFilename(title, extension) {
+  const base = String(title).replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'document';
+  return `${base}.${extension}`;
+}
+
+app.get('/api/documents/:id/export.typ', async (request, response) => {
+  const result = await exportDocumentTypst(request.params.id);
+  if (!result) {
+    response.status(404).json({ error: 'Document not found' });
+    return;
+  }
+
+  response.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  response.setHeader('Content-Disposition', `inline; filename="${exportFilename(result.title, 'typ')}"`);
+  response.send(result.source);
+});
+
+app.get('/api/documents/:id/export.pdf', async (request, response) => {
+  try {
+    const result = await exportDocumentPdf(request.params.id);
+    if (!result) {
+      response.status(404).json({ error: 'Document not found' });
+      return;
+    }
+
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader('Content-Disposition', `inline; filename="${exportFilename(result.title, 'pdf')}"`);
+    response.send(result.pdf);
+  } catch (error) {
+    if (error?.detail !== undefined) {
+      response.status(500).json({ error: error.message, detail: error.detail });
+      return;
+    }
+    throw error;
+  }
 });
 
 app.get('/api/documents/:id/revisions', async (request, response) => {

@@ -37,6 +37,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - New Project (inside selected group)
   - New Experiment (inside selected project)
 - Templates: "Save as template" on an experiment; "New from template…" in the sidebar (delete from the same menu)
+- PDF export ("Export PDF" in the editor): the document is converted to Typst and compiled with the local `typst` binary. Header carries the tree path, status/date/tags and the latest revision (with signature). Math goes through the `mitex` package (fetched from the Typst package registry on first use); compound structures are embedded as SVG. `GET …/export.typ` returns the source.
 - Full-text search across titles, content (including mentions, quantities, reaction rows, math) and tags — sidebar search box; `#tag` lists everything with that tag
 - Experiment metadata bar: status (planned / in progress / done / failed / abandoned, shown as a dot in the tree), date, tags
 - Task lists (toolbar "Task list" or type `[ ] `)
@@ -139,6 +140,8 @@ server/
     revisions.mjs                  # append-only document revision snapshots
     entities.mjs                   # entity merge
     text.mjs                       # TipTap JSON -> plain text (search index, exports)
+    typst.mjs                      # TipTap JSON -> Typst markup (unit-tested)
+    export.mjs                     # PDF export: structures, typst compile
 db/
   migrations/
     0001_init.sql                  # Base schema
@@ -165,6 +168,7 @@ Prerequisites:
 
 - Docker with `docker compose`
 - PostgreSQL CLI tools if you want to use `db:dump`, `db:restore`, or `db:sync`
+- [Typst](https://typst.app) CLI for PDF export (`typst` on PATH)
 
 Optional tooling:
 
@@ -249,6 +253,7 @@ Important variables:
 - `AUTO_MIGRATE_ON_START`
 - `AUTO_SEED_ON_START`
 - `REVISION_COALESCE_SECONDS`
+- `TYPST_BIN` (default `typst`)
 
 Example:
 
@@ -345,6 +350,7 @@ Current backend endpoints:
 - `GET /api/documents/search?q=...` (`/` lookup, with tree path)
 - `GET /api/documents/:id`
 - `GET /api/documents/:id/mentions` (outbound `#`/`@` references)
+- `GET /api/documents/:id/export.typ`, `GET /api/documents/:id/export.pdf` (needs `typst` on PATH or `TYPST_BIN`)
 - `GET /api/documents/:id/revisions`
 - `GET /api/documents/:id/revisions/:revision`
 - `POST /api/documents/:id/revisions/:revision/restore`

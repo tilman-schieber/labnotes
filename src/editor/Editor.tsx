@@ -102,8 +102,14 @@ export default function NotebookEditor({
         >
           Save as template
         </button>
-        <button type="button" className="editor-action-button" disabled title="Not implemented yet">
-          Share
+        <button
+          type="button"
+          className="editor-action-button"
+          onClick={() => documentId && window.open(`/api/documents/${documentId}/export.pdf`, '_blank', 'noopener')}
+          disabled={!editable || !documentId}
+          title="Render this document to PDF with Typst"
+        >
+          Export PDF
         </button>
         <button
           type="button"
