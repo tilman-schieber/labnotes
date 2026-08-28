@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { listAttachments, readAttachmentBytes } from './attachments.mjs';
 import { query } from './database.mjs';
 import { listRevisions } from './revisions.mjs';
 import { documentToTypst } from './typst.mjs';
@@ -64,9 +65,32 @@ async function loadExportContext(documentId) {
     current = current.parentId ? byId.get(current.parentId) : null;
   }
 
-  const [revisions, entities] = await Promise.all([listRevisions({ query }, documentId), loadReferencedCompounds(documentId)]);
+  const [revisions, entities, attachments] = await Promise.all([
+    listRevisions({ query }, documentId),
+    loadReferencedCompounds(documentId),
+    listAttachments({ query }, documentId)
+  ]);
   const assets = new Map();
-  const source = documentToTypst(document, { path: pathTitles, entities, revision: revisions[0] ?? null, assets });
+
+  // Image nodes point at /api/attachments/<id>; only formats Typst can embed are included.
+  const attachmentById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
+  const imageFiles = new Map();
+  const resolveImage = (src) => {
+    const match = /\/api\/attachments\/([^/?#]+)/.exec(src);
+    const attachment = match ? attachmentById.get(match[1]) : null;
+    if (!attachment || !/^image\/(png|jpeg|gif|svg\+xml)$/.test(attachment.mimeType)) {
+      return null;
+    }
+    const extension = attachment.mimeType === 'image/svg+xml' ? 'svg' : attachment.mimeType.split('/')[1];
+    const file = `attachment-${attachment.id}.${extension}`;
+    imageFiles.set(file, attachment.id);
+    return file;
+  };
+
+  const source = documentToTypst(document, { path: pathTitles, entities, revision: revisions[0] ?? null, assets, resolveImage });
+  for (const [file, attachmentId] of imageFiles) {
+    assets.set(file, await readAttachmentBytes(attachmentId));
+  }
 
   return { document, source, assets };
 }
@@ -92,8 +116,8 @@ export async function exportDocumentPdf(documentId) {
   const workDir = await mkdtemp(path.join(tmpdir(), 'labnotes-export-'));
   try {
     await writeFile(path.join(workDir, 'document.typ'), context.source, 'utf8');
-    for (const [file, svg] of context.assets) {
-      await writeFile(path.join(workDir, file), svg, 'utf8');
+    for (const [file, data] of context.assets) {
+      await writeFile(path.join(workDir, file), data);
     }
 
     try {

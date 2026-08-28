@@ -21,6 +21,8 @@ import {
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
 import SearchResults from './sidebar/SearchResults';
+import AttachmentsPanel from './editor/AttachmentsPanel';
+import { attachmentUrl, type BackendAttachment } from './api/backend';
 import {
   createBlankDocument,
   createNotebookDocument,
@@ -62,6 +64,11 @@ export default function App() {
   const [view, setView] = useState<'notebook' | 'entities'>('notebook');
   const [templates, setTemplates] = useState<BackendTemplate[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [attachmentsToken, setAttachmentsToken] = useState(0);
+
+  const insertImage = (attachment: BackendAttachment) => {
+    editor?.chain().focus().setImage({ src: attachmentUrl(attachment.id), alt: attachment.filename }).run();
+  };
 
   const reloadTemplates = useCallback(async () => {
     try {
@@ -704,6 +711,15 @@ export default function App() {
                   onChange={(metadata) => void handleMetadataChange(metadata)}
                 />
               )}
+
+              {selectedDocument && (
+                <AttachmentsPanel
+                  key={selectedDocument.id}
+                  documentId={selectedDocument.id}
+                  onInsertImage={insertImage}
+                  refreshToken={attachmentsToken}
+                />
+              )}
     
               <NotebookEditor
                 key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}-${editorEpoch}` : 'no-document'}
@@ -715,6 +731,7 @@ export default function App() {
                 onDocumentChange={handleDocumentChange}
                 onDeleteDocument={() => void handleDeleteSelectedDocument()}
                 onSaveAsTemplate={selectedDocument?.kind === 'experiment' ? () => void handleSaveAsTemplate() : null}
+                onAttachmentUploaded={() => setAttachmentsToken((previous) => previous + 1)}
                 onDocumentRestored={() => void handleDocumentRestored()}
               />
             </>

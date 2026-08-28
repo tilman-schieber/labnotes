@@ -203,6 +203,46 @@ export async function searchDocuments(query: string): Promise<BackendDocumentSea
   return payload.documents;
 }
 
+export type BackendAttachment = {
+  id: string;
+  documentId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  createdAt: string;
+};
+
+export function attachmentUrl(id: string, download = false): string {
+  return `${API_ROOT}/attachments/${id}${download ? '?download' : ''}`;
+}
+
+export async function fetchAttachments(documentId: string): Promise<BackendAttachment[]> {
+  const payload = await request<{ attachments: BackendAttachment[] }>(`/documents/${documentId}/attachments`);
+  return payload.attachments;
+}
+
+export async function uploadAttachment(documentId: string, file: File): Promise<BackendAttachment> {
+  const response = await fetch(`${API_ROOT}/documents/${documentId}/attachments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-Filename': encodeURIComponent(file.name)
+    },
+    body: file
+  });
+
+  if (!response.ok) {
+    throw new Error((await response.text()) || `Upload failed with status ${response.status}`);
+  }
+
+  return ((await response.json()) as { attachment: BackendAttachment }).attachment;
+}
+
+export async function deleteAttachment(id: string): Promise<void> {
+  await request(`/attachments/${id}`, { method: 'DELETE' });
+}
+
 export async function fetchDocumentRevisions(id: string): Promise<BackendRevisionSummary[]> {
   const payload = await request<{ revisions: BackendRevisionSummary[] }>(`/documents/${id}/revisions`);
   return payload.revisions;

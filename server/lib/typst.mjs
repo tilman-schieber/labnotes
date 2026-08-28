@@ -115,7 +115,12 @@ function statusLabel(status) {
 
 // Converts TipTap JSON to Typst markup. `assets` collects compound SVGs (file name -> svg text)
 // that the caller must write next to the .typ file before compiling.
-export function documentToTypst(document, { path = [], entities = new Map(), revision = null, assets = new Map() } = {}) {
+// `resolveImage(src)` maps an image node's src to an asset file name (registered in `assets` by
+// the caller) or null to skip it.
+export function documentToTypst(
+  document,
+  { path = [], entities = new Map(), revision = null, assets = new Map(), resolveImage = () => null } = {}
+) {
   const structureImage = (entityId, height) => {
     const entity = entities.get(entityId);
     if (!entity?.svg) {
@@ -234,6 +239,14 @@ export function documentToTypst(document, { path = [], entities = new Map(), rev
             return table(node);
           case 'reaction':
             return reaction(node);
+          case 'image': {
+            const file = resolveImage(String(node.attrs?.src ?? ''));
+            if (!file) {
+              return '';
+            }
+            const caption = node.attrs?.alt ? `\n#text(size: 8pt, fill: luma(110))[${escapeText(node.attrs.alt)}]` : '';
+            return `#align(center)[#image("${file}", width: 80%)${caption}]`;
+          }
           default:
             return inline(node.content);
         }

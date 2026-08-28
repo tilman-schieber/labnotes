@@ -9,6 +9,16 @@ import { SignError, getRevision, listRevisions, recordRevision, signRevision } f
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { extractText } from './lib/text.mjs';
 import { exportDocumentPdf, exportDocumentTypst } from './lib/export.mjs';
+import {
+  MAX_ATTACHMENT_BYTES,
+  deleteAttachment,
+  deleteAttachmentFilesForDocument,
+  getAttachment,
+  listAttachments,
+  readAttachmentBytes,
+  safeFilename,
+  storeAttachment
+} from './lib/attachments.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
 
 const PORT = Number(process.env.PORT ?? 5174);
@@ -527,8 +537,69 @@ app.post('/api/documents/:id/revisions/:revision/restore', async (request, respo
   response.json({ document: getDocumentWithAncestors(nextDocuments, request.params.id) });
 });
 
+app.get('/api/documents/:id/attachments', async (request, response) => {
+  const exists = await query('select 1 from documents where id = $1', [request.params.id]);
+  if (exists.rowCount === 0) {
+    response.status(404).json({ error: 'Document not found' });
+    return;
+  }
+  response.json({ attachments: await listAttachments({ query }, request.params.id) });
+});
+
+// Raw upload: body is the file, name comes from X-Filename (URL-encoded) or ?filename=.
+app.post(
+  '/api/documents/:id/attachments',
+  express.raw({ type: () => true, limit: MAX_ATTACHMENT_BYTES }),
+  async (request, response) => {
+    const exists = await query('select 1 from documents where id = $1', [request.params.id]);
+    if (exists.rowCount === 0) {
+      response.status(404).json({ error: 'Document not found' });
+      return;
+    }
+
+    const bytes = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
+    if (bytes.length === 0) {
+      response.status(400).json({ error: 'Empty upload' });
+      return;
+    }
+
+    const headerName = request.get('x-filename');
+    const filename = safeFilename(headerName ? decodeURIComponent(headerName) : String(request.query.filename ?? 'file'));
+    const attachment = await withTransaction((client) =>
+      storeAttachment(client, request.params.id, { filename, mimeType: request.get('content-type'), bytes })
+    );
+    response.status(201).json({ attachment });
+  }
+);
+
+app.get('/api/attachments/:id', async (request, response) => {
+  const attachment = await getAttachment({ query }, request.params.id);
+  if (!attachment) {
+    response.status(404).json({ error: 'Attachment not found' });
+    return;
+  }
+
+  const bytes = await readAttachmentBytes(attachment.id);
+  const disposition = request.query.download !== undefined ? 'attachment' : 'inline';
+  response.setHeader('Content-Type', attachment.mimeType);
+  response.setHeader('Content-Length', String(bytes.length));
+  response.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encodeURIComponent(attachment.filename)}`);
+  response.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+  response.send(bytes);
+});
+
+app.delete('/api/attachments/:id', async (request, response) => {
+  const deleted = await withTransaction((client) => deleteAttachment(client, request.params.id));
+  if (!deleted) {
+    response.status(404).json({ error: 'Attachment not found' });
+    return;
+  }
+  response.status(204).end();
+});
+
 app.delete('/api/documents/:id', async (request, response) => {
   const deleted = await withTransaction(async (client) => {
+    await deleteAttachmentFilesForDocument(client, request.params.id);
     const result = await client.query('delete from documents where id = $1', [request.params.id]);
     return result.rowCount > 0;
   });

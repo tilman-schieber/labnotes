@@ -859,6 +859,71 @@ body {
   padding: 0.5rem 0;
 }
 
+.attachments {
+  border: 1px dashed #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  font-size: 0.85rem;
+}
+
+.attachments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.attachments-title {
+  font-weight: 600;
+  color: #475569;
+}
+
+.attachments-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.attachments-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.attachments-thumb {
+  width: 2rem;
+  height: 2rem;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  border: 1px solid #e2e8f0;
+}
+
+.attachments .link-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #1d4ed8;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ProseMirror img.notebook-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+}
+
+.ProseMirror img.notebook-image.ProseMirror-selectednode {
+  outline: 2px solid #93c5fd;
+}
+
 .experiment-meta {
   display: flex;
   flex-wrap: wrap;
