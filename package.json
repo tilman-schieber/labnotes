@@ -18,6 +18,7 @@
     "db:dump": "node scripts/db/dump.mjs",
     "db:restore": "node scripts/db/restore.mjs",
     "db:sync": "node scripts/db/sync.mjs",
+    "test": "node --test server/",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },

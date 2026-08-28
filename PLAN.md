@@ -11,10 +11,10 @@ Completed so far:
 - groups, projects, and protocols now persist in the backend
 - document entities are mirrored into the entity registry backend model
 - `#` entity lookup and `@` user lookup are wired into the editor
+- `document_mentions` extracted from saved editor content; backlinks exposed on entity and user detail
 
 Still pending from this plan:
 
-- persisted `document_mentions` extraction/indexing from editor documents
 - entity registry and detail UI
 - import and draft reconciliation pipeline
 - relation authoring and graph features

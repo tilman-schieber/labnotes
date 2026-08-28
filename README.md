@@ -44,10 +44,10 @@ Implemented now:
 - backend entity search for `#` references
 - backend user search for `@` references
 - document entities mirrored from groups, projects, and protocols
+- `document_mentions` indexed from saved editor content (backlinks per entity/user)
 
 Not implemented yet:
 
-- persisted `document_mentions` indexing from editor content
 - entity registry UI
 - import and draft reconciliation flow
 - `/` hierarchy reference trigger
@@ -103,6 +103,7 @@ server/
     database.mjs                   # pg pool and transactions
     migrations.mjs                 # SQL migration runner
     seed.mjs                       # bootstrap seed + document entity sync
+    mentions.mjs                   # extract #/@ references from TipTap JSON into document_mentions
 db/
   migrations/
     0001_init.sql                  # Base schema
@@ -297,16 +298,25 @@ Current backend endpoints:
 - `GET /api/health`
 - `GET /api/documents/tree`
 - `GET /api/documents/:id`
+- `GET /api/documents/:id/mentions` (outbound `#`/`@` references)
 - `POST /api/documents`
 - `PATCH /api/documents/:id`
 - `DELETE /api/documents/:id`
 - `GET /api/entities/search?q=...`
-- `GET /api/entities/:id`
+- `GET /api/entities/:id` (includes aliases and document backlinks)
 - `POST /api/entities`
 - `PATCH /api/entities/:id`
 - `POST /api/entities/:id/aliases`
 - `GET /api/users/search?q=...`
-- `GET /api/users/:id`
+- `GET /api/users/:id` (includes document backlinks)
+
+Mentions are re-indexed on every document create/update and backfilled for all documents at server start.
+
+Run the backend unit tests with:
+
+```bash
+npm test
+```
 
 These are the endpoints the current frontend uses for tree loading, autosave, and `#`/`@` lookup.
 
@@ -324,5 +334,4 @@ For a brand-new deployment:
 - No authentication
 - No collaboration
 - No drag/drop tree reordering
-- `document_mentions` rows are not yet derived from saved TipTap content
 - Math rendering uses MathJax from CDN at runtime (with `mhchem` for `\ce{...}`)

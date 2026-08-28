@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { closePool, query, withTransaction } from './lib/database.mjs';
 import { createId } from './lib/ids.mjs';
+import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
 import { seedDatabase, syncDocumentEntities } from './lib/seed.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
@@ -97,6 +98,31 @@ async function loadDocuments() {
   return result.rows;
 }
 
+// Mentions joined with their document so callers can render backlinks without a second lookup.
+async function loadBacklinks(refType, targetId) {
+  const result = await query(
+    `
+      select
+        m.id,
+        m.document_id as "documentId",
+        d.title as "documentTitle",
+        d.kind as "documentKind",
+        m.ref_type as "refType",
+        m.target_id as "targetId",
+        m.label_snapshot as "labelSnapshot",
+        m.source,
+        m.created_at as "createdAt"
+      from document_mentions m
+      join documents d on d.id = m.document_id
+      where m.ref_type = $1 and m.target_id = $2
+      order by d.updated_at desc
+    `,
+    [refType, targetId]
+  );
+
+  return result.rows;
+}
+
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true });
 });
@@ -116,6 +142,39 @@ app.get('/api/documents/:id', async (request, response) => {
   }
 
   response.json({ document });
+});
+
+app.get('/api/documents/:id/mentions', async (request, response) => {
+  const result = await query(
+    `
+      select
+        m.id,
+        m.ref_type as "refType",
+        m.target_id as "targetId",
+        m.label_snapshot as "labelSnapshot",
+        m.source,
+        m.created_at as "createdAt",
+        coalesce(e.label, u.display_name) as "currentLabel",
+        e.type as "entityType",
+        e.document_id as "entityDocumentId"
+      from document_mentions m
+      left join entities e on m.ref_type = 'entity' and e.id = m.target_id
+      left join users u on m.ref_type = 'user' and u.id = m.target_id
+      where m.document_id = $1
+      order by m.created_at asc
+    `,
+    [request.params.id]
+  );
+
+  if (result.rowCount === 0) {
+    const exists = await query('select 1 from documents where id = $1', [request.params.id]);
+    if (exists.rowCount === 0) {
+      response.status(404).json({ error: 'Document not found' });
+      return;
+    }
+  }
+
+  response.json({ mentions: result.rows });
 });
 
 app.post('/api/documents', async (request, response) => {
@@ -147,6 +206,7 @@ app.post('/api/documents', async (request, response) => {
       [nextDocument.id, nextDocument.kind, nextDocument.parentId, nextDocument.title, JSON.stringify(nextDocument.content)]
     );
     await syncDocumentEntities(client);
+    await syncDocumentMentions(client, nextDocument.id, nextDocument.content);
     return nextDocument;
   });
 
@@ -176,6 +236,7 @@ app.patch('/api/documents/:id', async (request, response) => {
     }
 
     await syncDocumentEntities(client);
+    await syncDocumentMentions(client, request.params.id, nextContent);
     return result.rows[0].id;
   });
 
@@ -268,7 +329,7 @@ app.get('/api/entities/:id', async (request, response) => {
     return;
   }
 
-  const [aliasesResult, backlinksResult] = await Promise.all([
+  const [aliasesResult, backlinks] = await Promise.all([
     query(
       `
         select id, entity_id as "entityId", alias, kind, created_at as "createdAt"
@@ -278,18 +339,10 @@ app.get('/api/entities/:id', async (request, response) => {
       `,
       [entity.id]
     ),
-    query(
-      `
-        select id, document_id as "documentId", ref_type as "refType", target_id as "targetId", label_snapshot as "labelSnapshot", source, created_at as "createdAt"
-        from document_mentions
-        where target_id = $1
-        order by created_at desc
-      `,
-      [entity.id]
-    )
+    loadBacklinks('entity', entity.id)
   ]);
 
-  response.json({ entity, aliases: aliasesResult.rows, backlinks: backlinksResult.rows });
+  response.json({ entity, aliases: aliasesResult.rows, backlinks });
 });
 
 app.post('/api/entities', async (request, response) => {
@@ -405,7 +458,8 @@ app.get('/api/users/:id', async (request, response) => {
     return;
   }
 
-  response.json({ user: result.rows[0] });
+  const backlinks = await loadBacklinks('user', result.rows[0].id);
+  response.json({ user: result.rows[0], backlinks });
 });
 
 async function bootstrap() {
@@ -414,7 +468,11 @@ async function bootstrap() {
   }
 
   if (AUTO_SEED_ON_START) {
-    await withTransaction((client) => seedDatabase(client));
+    await withTransaction(async (client) => {
+      await seedDatabase(client);
+      // Backfills mentions for content saved before indexing existed and repairs any drift.
+      await syncAllDocumentMentions(client);
+    });
   }
 }
 
