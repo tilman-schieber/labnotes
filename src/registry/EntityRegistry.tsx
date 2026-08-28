@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createEntity, fetchEntities, type BackendEntityListItem } from '../api/backend';
 import EntityDetail from './EntityDetail';
+import { expiryState } from './attributeSchema';
 
 type Props = {
   onOpenDocument: (documentId: string) => void;
@@ -20,6 +21,9 @@ export default function EntityRegistry({ onOpenDocument }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState(BASE_TYPES[0]);
+  const [onlyExpiring, setOnlyExpiring] = useState(false);
+
+  const visibleEntities = onlyExpiring ? entities.filter((entity) => expiryState(entity.attributes) !== null) : entities;
 
   const reload = useCallback(async () => {
     try {
@@ -80,6 +84,10 @@ export default function EntityRegistry({ onOpenDocument }: Props) {
               </option>
             ))}
           </select>
+          <label className="registry-toggle">
+            <input type="checkbox" checked={onlyExpiring} onChange={(event) => setOnlyExpiring(event.target.checked)} />
+            Expiring
+          </label>
         </div>
 
         <form className="registry-create" onSubmit={(event) => void handleCreate(event)}>
@@ -113,20 +121,27 @@ export default function EntityRegistry({ onOpenDocument }: Props) {
             </tr>
           </thead>
           <tbody>
-            {entities.length === 0 && (
+            {visibleEntities.length === 0 && (
               <tr>
                 <td colSpan={4} className="registry-empty">
                   No entities match
                 </td>
               </tr>
             )}
-            {entities.map((entity) => (
+            {visibleEntities.map((entity) => (
               <tr
                 key={entity.id}
                 className={`registry-row${entity.id === selectedId ? ' is-active' : ''}${entity.status === 'archived' ? ' is-archived' : ''}`}
                 onClick={() => setSelectedId(entity.id)}
               >
-                <td>{entity.label}</td>
+                <td>
+                  {entity.label}
+                  {expiryState(entity.attributes) && (
+                    <span className={`entity-expiry-badge entity-expiry-${expiryState(entity.attributes)}`}>
+                      {expiryState(entity.attributes) === 'expired' ? 'expired' : 'expiring'}
+                    </span>
+                  )}
+                </td>
                 <td>{entity.subtype ? `${entity.type} / ${entity.subtype}` : entity.type}</td>
                 <td>{entity.status}</td>
                 <td className="is-numeric">{entity.mentionCount}</td>

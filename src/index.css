@@ -1119,6 +1119,59 @@ body {
   font-size: 0.85rem;
 }
 
+.attribute-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.5rem;
+}
+
+.attribute-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.attribute-extra {
+  grid-column: 1 / -1;
+  font-size: 0.78rem;
+}
+
+.registry-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.entity-expiry,
+.entity-expiry-badge {
+  border-radius: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.entity-expiry {
+  padding: 0.35rem 0.6rem;
+}
+
+.entity-expiry-badge {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.4rem;
+}
+
+.entity-expiry-expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.entity-expiry-soon {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .entity-hint {
   font-size: 0.85rem;
   color: #475569;

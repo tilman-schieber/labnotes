@@ -58,6 +58,7 @@ Implemented now:
 - append-only document revision history with restore (History button in the editor)
 - revision signing: a revision can be signed by a user (with an optional note); signed revisions are frozen — later saves always start a new revision
 - entity registry view (sidebar "Entities"): search/filter, create, edit label/type/status/attributes, aliases, backlinks
+- typed attribute forms per entity type (reagent vendor/catalog/lot/expiry, sample organism/storage, instrument calibration, …) on top of the raw JSON; reagents show expired / expiring-within-30-days badges and the list can be filtered to them
 - duplicate merge: references in documents are rewritten to the surviving entity (as a new revision), aliases move over, the duplicate is deleted
 - entity relations (`uses`, `derived_from`, `stored_in`, `references`, `belongs_to`) authored in the registry, shown in both directions
 - chemistry on `compound` entities (OpenChemLib, loaded on demand):
@@ -123,6 +124,7 @@ src/
     EntityRegistry.tsx             # Entity list, filters, create
     EntityDetail.tsx               # Edit fields/attributes, aliases, relations, backlinks, merge
     CompoundPanel.tsx              # Structure, properties, draw, PubChem, duplicate hint
+    AttributeFields.tsx            # typed attribute inputs per entity type (schema in attributeSchema.ts)
     StructureEditorDialog.tsx      # OpenChemLib CanvasEditor in a modal
     extensions/
       Mention.ts                   # async #/@// mention extensions

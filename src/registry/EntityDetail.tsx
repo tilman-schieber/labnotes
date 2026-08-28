@@ -15,7 +15,18 @@ import {
   type EntityUpdate
 } from '../api/backend';
 import { isCompoundAttributes } from '../chemistry/molecule';
+import AttributeFields from './AttributeFields';
+import { expiryState } from './attributeSchema';
 import CompoundPanel from './CompoundPanel';
+
+function parseAttributesText(text: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = text.trim() ? JSON.parse(text) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
 
 // Debounced entity search used by the relation and merge pickers.
 function useEntityPicker(queryText: string, excludeId: string, excludeDocuments: boolean) {
@@ -296,6 +307,28 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
             </select>
           </label>
         </div>
+
+        {(() => {
+          const parsed = parseAttributesText(form.attributesText);
+          const expiry = expiryState(parsed);
+          return (
+            <>
+              {expiry && (
+                <div className={`entity-expiry entity-expiry-${expiry}`}>
+                  {expiry === 'expired' ? 'Expired' : 'Expires within 30 days'} ({String(parsed?.expiry)})
+                </div>
+              )}
+              {parsed && (
+                <AttributeFields
+                  type={form.type}
+                  attributes={parsed}
+                  disabled={isDocument}
+                  onChange={(next) => updateField('attributesText', JSON.stringify(next, null, 2))}
+                />
+              )}
+            </>
+          );
+        })()}
 
         <label>
           Attributes (JSON)
