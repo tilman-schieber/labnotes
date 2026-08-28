@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { attachmentUrl, deleteAttachment, fetchAttachments, uploadAttachment, type BackendAttachment } from '../api/backend';
 import { IconPaperclip, IconPlus } from '../ui/icons';
+import { confirmDialog } from '../ui/dialogs';
 
 type Props = {
   documentId: string;
@@ -60,7 +61,13 @@ export default function AttachmentsPanel({ documentId, onInsertImage, refreshTok
   };
 
   const handleDelete = async (attachment: BackendAttachment) => {
-    if (!window.confirm(`Delete "${attachment.filename}"? Images already placed in the text will stop loading.`)) {
+    const confirmed = await confirmDialog({
+      title: `Delete “${attachment.filename}”?`,
+      message: 'Images already placed in the text will stop loading.',
+      confirmLabel: 'Delete',
+      danger: true
+    });
+    if (!confirmed) {
       return;
     }
     try {

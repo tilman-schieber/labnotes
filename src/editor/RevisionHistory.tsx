@@ -8,6 +8,7 @@ import {
   type BackendUserSearchResult
 } from '../api/backend';
 import { IconHistory } from '../ui/icons';
+import { confirmDialog, promptDialog } from '../ui/dialogs';
 
 type Props = {
   documentId: string | null;
@@ -51,7 +52,15 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
   }, [isOpen, documentId]);
 
   const handleRestore = async (revision: number) => {
-    if (!documentId || !window.confirm(`Restore revision ${revision}? The current content is kept in history.`)) {
+    if (!documentId) {
+      return;
+    }
+    const confirmed = await confirmDialog({
+      title: `Restore revision ${revision}?`,
+      message: 'The current content is kept in history as a new revision.',
+      confirmLabel: 'Restore'
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -72,7 +81,14 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
       return;
     }
     const signer = users.find((user) => user.id === signerId);
-    const note = window.prompt(`Sign revision ${revision} as ${signer?.label ?? signerId}?\n\nOptional note:`, '');
+    const note = await promptDialog({
+      title: `Sign revision ${revision}`,
+      message: `Signing as ${signer?.label ?? signerId}. A signed revision is frozen; later edits start a new one.`,
+      label: 'Note (optional)',
+      placeholder: 'e.g. reviewed against raw data',
+      confirmLabel: 'Sign',
+      multiline: true
+    });
     if (note === null) {
       return;
     }

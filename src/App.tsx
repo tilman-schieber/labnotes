@@ -48,6 +48,7 @@ import {
   IconX
 } from './ui/icons';
 import { attachmentUrl, type BackendAttachment } from './api/backend';
+import { confirmDialog, promptDialog } from './ui/dialogs';
 import {
   createBlankDocument,
   createNotebookDocument,
@@ -275,18 +276,26 @@ export default function App() {
           }
 
           const currentHref = String(editor.getAttributes('link').href ?? '');
-          const nextHref = window.prompt('Enter URL (leave empty to remove link)', currentHref || 'https://');
-          if (nextHref === null) {
-            return;
-          }
+          void promptDialog({
+            title: currentHref ? 'Edit link' : 'Add link',
+            label: 'URL',
+            placeholder: 'https://…',
+            defaultValue: currentHref,
+            confirmLabel: currentHref ? 'Update' : 'Add link',
+            message: currentHref ? 'Leave the URL empty to remove the link.' : undefined
+          }).then((nextHref) => {
+            if (nextHref === null) {
+              return;
+            }
 
-          const trimmedHref = nextHref.trim();
-          if (!trimmedHref) {
-            editor.chain().focus().extendMarkRange('link').unsetLink().run();
-            return;
-          }
+            const trimmedHref = nextHref.trim();
+            if (!trimmedHref) {
+              editor.chain().focus().extendMarkRange('link').unsetLink().run();
+              return;
+            }
 
-          editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedHref }).run();
+            editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedHref }).run();
+          });
         },
         isActive: Boolean(editor?.isActive('link'))
       },
@@ -449,7 +458,14 @@ export default function App() {
       return;
     }
 
-    const name = window.prompt('Template name', selectedDocument.title);
+    const name = await promptDialog({
+      title: 'Save as template',
+      message: 'The current content becomes a reusable starting point for new experiments.',
+      label: 'Template name',
+      defaultValue: selectedDocument.title,
+      confirmLabel: 'Save template',
+      validate: (value) => (value.trim() ? null : 'Give the template a name')
+    });
     if (!name?.trim()) {
       return;
     }
@@ -459,7 +475,13 @@ export default function App() {
   };
 
   const handleDeleteTemplate = async (template: BackendTemplate) => {
-    if (!window.confirm(`Delete template "${template.name}"?`)) {
+    const confirmed = await confirmDialog({
+      title: `Delete template “${template.name}”?`,
+      message: 'Experiments already created from it are not affected.',
+      confirmLabel: 'Delete',
+      danger: true
+    });
+    if (!confirmed) {
       return;
     }
     await deleteTemplate(template.id);
@@ -496,8 +518,16 @@ export default function App() {
       return;
     }
 
-    const label = selectedDocument.kind === 'experiment' ? 'experiment' : selectedDocument.kind;
-    const confirmed = window.confirm(`Delete this ${label}?`);
+    const label = selectedDocument.kind;
+    const confirmed = await confirmDialog({
+      title: `Delete this ${label}?`,
+      message:
+        label === 'experiment'
+          ? `“${selectedDocument.title}” and its revision history and attachments will be removed.`
+          : `“${selectedDocument.title}” and everything inside it will be removed.`,
+      confirmLabel: 'Delete',
+      danger: true
+    });
     if (!confirmed) {
       return;
     }

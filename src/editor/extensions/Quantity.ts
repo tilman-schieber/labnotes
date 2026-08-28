@@ -1,5 +1,6 @@
 import { InputRule, Node, mergeAttributes } from '@tiptap/core';
 import { QUANTITY_SOURCE, conversionsFor, findUnit, formatQuantity, parseQuantity } from '../../units/quantity';
+import { promptDialog } from '../../ui/dialogs';
 
 type QuantityAttrs = {
   value: number;
@@ -76,23 +77,30 @@ export const QuantityNode = Node.create({
         }
         event.preventDefault();
         const current = formatQuantity(node.attrs as QuantityAttrs);
-        const next = window.prompt('Edit quantity', current);
-        if (next === null) {
-          return;
-        }
+        void promptDialog({
+          title: 'Edit quantity',
+          label: 'Value and unit',
+          defaultValue: current,
+          confirmLabel: 'Apply',
+          message: 'Anything that is not a quantity becomes plain text.'
+        }).then((next) => {
+          if (next === null) {
+            return;
+          }
 
-        const parsed = parseQuantity(next);
-        const position = typeof getPos === 'function' ? getPos() : null;
-        if (position === null || position === undefined) {
-          return;
-        }
+          const parsed = parseQuantity(next);
+          const position = typeof getPos === 'function' ? getPos() : null;
+          if (position === null || position === undefined) {
+            return;
+          }
 
-        if (!parsed) {
-          // Not a quantity any more: turn it back into plain text.
-          editor.view.dispatch(editor.state.tr.replaceWith(position, position + node.nodeSize, editor.schema.text(next)));
-          return;
-        }
-        editor.view.dispatch(editor.state.tr.setNodeMarkup(position, undefined, parsed));
+          if (!parsed) {
+            // Not a quantity any more: turn it back into plain text.
+            editor.view.dispatch(editor.state.tr.replaceWith(position, position + node.nodeSize, editor.schema.text(next)));
+            return;
+          }
+          editor.view.dispatch(editor.state.tr.setNodeMarkup(position, undefined, parsed));
+        });
       });
 
       return {

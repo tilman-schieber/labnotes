@@ -18,6 +18,7 @@ import { isCompoundAttributes } from '../chemistry/molecule';
 import AttributeFields from './AttributeFields';
 import { expiryState } from './attributeSchema';
 import CompoundPanel from './CompoundPanel';
+import { confirmDialog } from '../ui/dialogs';
 
 function parseAttributesText(text: string): Record<string, unknown> | null {
   try {
@@ -218,9 +219,12 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
   };
 
   const handleMerge = async (target: Pick<BackendEntitySearchResult | BackendEntityListItem, 'id' | 'label'>) => {
-    const confirmed = window.confirm(
-      `Merge "${detail.entity.label}" into "${target.label}"?\n\nReferences in documents are rewritten to "${target.label}", aliases move over, and "${detail.entity.label}" is deleted.`
-    );
+    const confirmed = await confirmDialog({
+      title: `Merge “${detail.entity.label}” into “${target.label}”?`,
+      message: `References in documents are rewritten to “${target.label}”, aliases move over, and “${detail.entity.label}” is deleted.`,
+      confirmLabel: 'Merge',
+      danger: true
+    });
     if (!confirmed) {
       return;
     }
