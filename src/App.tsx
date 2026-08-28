@@ -715,7 +715,7 @@ export default function App() {
 
               {selectedExperiment && (
                 <ExperimentMeta
-                  key={selectedExperiment.id}
+                  key={`meta-${selectedExperiment.id}`}
                   metadata={selectedExperiment.metadata}
                   createdAt={selectedExperiment.createdAt}
                   onChange={(metadata) => void handleMetadataChange(metadata)}
@@ -724,7 +724,7 @@ export default function App() {
 
               {selectedDocument && (
                 <AttachmentsPanel
-                  key={selectedDocument.id}
+                  key={`attachments-${selectedDocument.id}`}
                   documentId={selectedDocument.id}
                   onInsertImage={insertImage}
                   refreshToken={attachmentsToken}
@@ -747,7 +747,7 @@ export default function App() {
 
               {selectedDocument && (
                 <LinkedEntities
-                  key={selectedDocument.id}
+                  key={`linked-${selectedDocument.id}`}
                   documentId={selectedDocument.id}
                   refreshToken={saveCount}
                   onOpenEntity={openEntityInRegistry}

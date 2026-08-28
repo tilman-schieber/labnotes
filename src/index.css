@@ -363,15 +363,16 @@ body {
   padding-left: 1.5rem;
 }
 
-.ProseMirror table {
+/* Content tables only; the reaction block carries its own table styling. */
+.ProseMirror table:not(.reaction-table) {
   border-collapse: collapse;
   table-layout: fixed;
   width: 100%;
   margin: 1rem 0;
 }
 
-.ProseMirror th,
-.ProseMirror td {
+.ProseMirror table:not(.reaction-table) th,
+.ProseMirror table:not(.reaction-table) td {
   border: 1px solid #cbd5e1;
   padding: 0.5rem;
   vertical-align: top;
@@ -430,9 +431,13 @@ body {
   overflow-x: auto;
 }
 
+/* Columns take their natural width; the wrapper scrolls instead of squeezing inputs. */
 .reaction-table {
   border-collapse: collapse;
-  width: 100%;
+  table-layout: auto;
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
   font-size: 0.82rem;
 }
 
@@ -466,9 +471,12 @@ body {
   padding: 0.2rem 0.35rem;
   font: inherit;
   font-size: 0.82rem;
-  width: 100%;
-  min-width: 5rem;
+  width: 6rem;
   background: #fff;
+}
+
+.reaction-compound-picker .reaction-input {
+  width: 100%;
 }
 
 .reaction-input.is-invalid {
@@ -481,7 +489,7 @@ body {
 }
 
 .reaction-input-number {
-  min-width: 4.5rem;
+  width: 4.5rem;
 }
 
 .reaction-limiting {
@@ -515,7 +523,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  min-width: 12rem;
+  width: 13rem;
 }
 
 .reaction-compound-svg svg {
