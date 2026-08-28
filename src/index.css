@@ -1833,6 +1833,39 @@ button:disabled {
   background: #ffedd5;
   color: #9a3412;
 }
+.type-badge.type-unclassified {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-3);
+}
+
+.draft-nudge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-m);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.draft-nudge.is-active {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+}
+
+.registry-row.is-draft td:first-child::after {
+  content: 'draft';
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--warn-text);
+  background: var(--warn-soft);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
 
 .entity-detail {
   display: flex;

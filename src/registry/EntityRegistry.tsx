@@ -30,8 +30,22 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState(BASE_TYPES[0]);
   const [onlyExpiring, setOnlyExpiring] = useState(false);
+  const [draftCount, setDraftCount] = useState(0);
 
   const visibleEntities = onlyExpiring ? entities.filter((entity) => expiryState(entity.attributes) !== null) : entities;
+
+  // Drafts come from inline `#` creation; the registry is where they get classified.
+  const reloadDraftCount = useCallback(async () => {
+    try {
+      setDraftCount((await fetchEntities({ status: 'draft' })).entities.length);
+    } catch {
+      setDraftCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadDraftCount();
+  }, [reloadDraftCount, entities]);
 
   const reload = useCallback(async () => {
     try {
@@ -98,6 +112,16 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
           </label>
         </div>
 
+        {draftCount > 0 && (
+          <button
+            type="button"
+            className={`draft-nudge${statusFilter === 'draft' ? ' is-active' : ''}`}
+            onClick={() => setStatusFilter((current) => (current === 'draft' ? '' : 'draft'))}
+          >
+            <strong>{draftCount}</strong> {draftCount === 1 ? 'draft' : 'drafts'} created while writing — classify {draftCount === 1 ? 'it' : 'them'}
+          </button>
+        )}
+
         <form className="registry-create" onSubmit={(event) => void handleCreate(event)}>
           <input
             type="text"
@@ -139,7 +163,7 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
             {visibleEntities.map((entity) => (
               <tr
                 key={entity.id}
-                className={`registry-row${entity.id === selectedId ? ' is-active' : ''}${entity.status === 'archived' ? ' is-archived' : ''}`}
+                className={`registry-row${entity.id === selectedId ? ' is-active' : ''}${entity.status === 'archived' ? ' is-archived' : ''}${entity.status === 'draft' ? ' is-draft' : ''}`}
                 onClick={() => setSelectedId(entity.id)}
               >
                 <td>

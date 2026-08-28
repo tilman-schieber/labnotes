@@ -15,8 +15,9 @@ type SuggestionOption = {
   create?: boolean;
 };
 
-// Types offered by quick-create, in display order. 'document' is excluded: those are mirrored from the tree.
-const QUICK_CREATE_TYPES = ['sample', 'specimen', 'reagent', 'compound', 'instrument', 'container', 'location'];
+// Type given to entities created inline. Writing must never wait for a classification decision;
+// drafts are typed later in the registry.
+export const DRAFT_ENTITY_TYPE = 'unclassified';
 
 function buildQuickCreateOptions(query: string, existing: SuggestionOption[]): SuggestionOption[] {
   const label = query.trim();
@@ -29,14 +30,16 @@ function buildQuickCreateOptions(query: string, existing: SuggestionOption[]): S
     return [];
   }
 
-  return QUICK_CREATE_TYPES.map((entityType) => ({
-    id: '',
-    label,
-    description: `Create as ${entityType}`,
-    refType: 'entity' as const,
-    entityType,
-    create: true
-  }));
+  return [
+    {
+      id: '',
+      label,
+      description: 'Create as draft · classify later in the registry',
+      refType: 'entity' as const,
+      entityType: DRAFT_ENTITY_TYPE,
+      create: true
+    }
+  ];
 }
 
 // Resolves a quick-create row into a real entity before the mention node is inserted.
@@ -45,8 +48,8 @@ async function resolveOption(option: SuggestionOption): Promise<SuggestionOption
     return option;
   }
 
-  const entity = await createEntity(option.entityType ?? 'sample', option.label);
-  return { ...option, id: entity.id, label: entity.label, create: false };
+  const entity = await createEntity(option.entityType ?? DRAFT_ENTITY_TYPE, option.label, 'draft');
+  return { ...option, id: entity.id, label: entity.label, entityType: entity.type, create: false };
 }
 
 type SuggestionListState = {
@@ -102,11 +105,35 @@ function selectOption(state: SuggestionListState): void {
   }
 }
 
-function createSuggestionRenderer() {
+type RendererProps = { items: SuggestionOption[]; command: (attrs: SuggestionOption) => void; editor: Editor; query: string };
+
+// The suggestion plugin awaits async `items()` before calling onStart/onUpdate, so a result can
+// arrive after the trigger text is gone (e.g. the user kept typing). Such calls must be ignored
+// or they leave a popup behind that swallows Enter/Tab.
+function isStale(char: string, props: RendererProps): boolean {
+  const { from } = props.editor.state.selection;
+  const textBefore = props.editor.state.doc.textBetween(Math.max(0, from - 300), from, '\n', ' ');
+  return !textBefore.endsWith(`${char}${props.query}`);
+}
+
+// With spaces allowed the query only ends on Enter/Tab/Escape; once it plainly reads as prose
+// again (sentence punctuation, or many words with nothing matching) the popup gets out of the way.
+function shouldHide(props: RendererProps): boolean {
+  if (props.items.length > 0 && !props.items.every((item) => item.create)) {
+    return false;
+  }
+  return /[.,;:!?]$/.test(props.query) || props.query.trim().split(/\s+/).length > 4;
+}
+
+function createSuggestionRenderer(char: string) {
   let state: SuggestionListState | null = null;
 
   return {
-    onStart: (props: { items: SuggestionOption[]; command: (attrs: SuggestionOption) => void; editor: Editor }) => {
+    onStart: (props: RendererProps) => {
+      if (isStale(char, props) || shouldHide(props)) {
+        return;
+      }
+
       const element = document.createElement('div');
       element.className = 'mention-list';
       element.style.position = 'absolute';
@@ -123,8 +150,27 @@ function createSuggestionRenderer() {
       positionElement(element, props.editor);
       document.body.appendChild(element);
     },
-    onUpdate: (props: { items: SuggestionOption[]; command: (attrs: SuggestionOption) => void; editor: Editor }) => {
+    onUpdate: (props: RendererProps) => {
+      if (isStale(char, props)) {
+        return;
+      }
+
+      if (shouldHide(props)) {
+        state?.element.remove();
+        state = null;
+        return;
+      }
+
       if (!state) {
+        // The popup was hidden (or a stale start was skipped) and the query is useful again.
+        const element = document.createElement('div');
+        element.className = 'mention-list';
+        element.style.position = 'absolute';
+        element.style.zIndex = '1000';
+        state = { element, selectedIndex: 0, options: props.items, command: (option) => void resolveOption(option).then(props.command) };
+        createList(state);
+        positionElement(element, props.editor);
+        document.body.appendChild(element);
         return;
       }
 
@@ -157,7 +203,8 @@ function createSuggestionRenderer() {
         return true;
       }
 
-      if (props.event.key === 'Enter') {
+      // Enter and Tab both accept; Escape leaves the typed text as plain prose.
+      if (props.event.key === 'Enter' || props.event.key === 'Tab') {
         props.event.preventDefault();
         selectOption(state);
         return true;
@@ -220,6 +267,7 @@ export function createEntityMentionExtension(documentId: string | null) {
     },
     suggestion: {
       char: '#',
+      allowSpaces: true,
       items: async ({ query }: { query: string }) => {
         const entities = await searchEntities(query, { documentId });
         const options = entities.map((entity) => ({
@@ -231,7 +279,7 @@ export function createEntityMentionExtension(documentId: string | null) {
         }));
         return [...options, ...buildQuickCreateOptions(query, options)];
       },
-      render: () => createSuggestionRenderer()
+      render: () => createSuggestionRenderer('#')
     },
     renderLabel({ node }) {
       return makeReferenceLabel(entityPrefix(node), node);
@@ -260,7 +308,7 @@ export const DocumentSlashExtension = Extension.create({
             entityType: 'document'
           }));
         },
-        render: () => createSuggestionRenderer(),
+        render: () => createSuggestionRenderer('/'),
         command: ({ editor, range, props }) => {
           const { id, label, entityType, refType } = props;
           editor
@@ -293,6 +341,7 @@ export const UserMentionExtension = Mention.extend({
   },
   suggestion: {
     char: '@',
+    allowSpaces: true,
     items: async ({ query }: { query: string }) => {
       const users = await searchUsers(query);
       return users.map((user) => ({
@@ -302,7 +351,7 @@ export const UserMentionExtension = Mention.extend({
         refType: 'user' as const
       }));
     },
-    render: () => createSuggestionRenderer()
+    render: () => createSuggestionRenderer('@')
   },
   renderLabel({ node }) {
     return makeReferenceLabel('@', node);

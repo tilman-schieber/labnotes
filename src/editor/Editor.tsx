@@ -19,6 +19,7 @@ import type { NotebookDocumentKind } from '../documents/templates';
 import { LinkExtension } from './extensions/Link';
 import { QuantityNode } from './extensions/Quantity';
 import { ReactionNode } from './extensions/Reaction';
+import { TrailingParagraph } from './extensions/TrailingParagraph';
 
 type Props = {
   documentId: string | null;
@@ -93,6 +94,7 @@ export default function NotebookEditor({
       DocumentSlashExtension,
       QuantityNode,
       ReactionNode,
+      TrailingParagraph,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),
@@ -125,7 +127,16 @@ export default function NotebookEditor({
   return (
     <div className="editor-frame">
       {toolbar}
-      <div className="editor-shell">
+      {/* Clicking the blank area below the content puts the caret at the end, like a page. */}
+      <div
+        className="editor-shell"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget && editor) {
+            event.preventDefault();
+            editor.commands.focus('end');
+          }
+        }}
+      >
         <EditorContent editor={editor} />
       </div>
     </div>

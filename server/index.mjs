@@ -751,7 +751,9 @@ app.get('/api/entities/search', async (request, response) => {
         documentId: entity.documentId,
         smiles: entity.smiles,
         usedInContext: entity.usedInContext,
-        description: entity.usedInContext ? `${base} · used in this project` : base
+        description: [base, entity.status === 'draft' ? 'draft' : null, entity.usedInContext ? 'used in this project' : null]
+          .filter(Boolean)
+          .join(' · ')
       };
     })
   });

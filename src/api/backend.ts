@@ -414,10 +414,10 @@ export async function deleteEntityAlias(id: string, aliasId: string): Promise<vo
   await request(`/entities/${id}/aliases/${aliasId}`, { method: 'DELETE' });
 }
 
-export async function createEntity(type: string, label: string): Promise<BackendEntityRecord> {
+export async function createEntity(type: string, label: string, status: 'draft' | 'verified' = 'verified'): Promise<BackendEntityRecord> {
   const payload = await request<{ entity: BackendEntityRecord }>('/entities', {
     method: 'POST',
-    body: JSON.stringify({ type, label })
+    body: JSON.stringify({ type, label, status })
   });
 
   return payload.entity;

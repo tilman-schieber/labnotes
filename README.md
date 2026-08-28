@@ -23,10 +23,11 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - `$...$` inline math and `$$...$$` block math
 - Basic tables (insert and edit)
 - Reaction block (toolbar "Reaction"): stoichiometry table with reactant/reagent/solvent/product rows. Compounds are picked from the registry (MW auto-filled, structure shown); enter mass, or volume + concentration, or volume + density, or just equivalents. Computes mmol, equivalents vs. the limiting reagent, required masses, theoretical yield and % yield from the isolated mass. Component compounds count as references (backlinks).
+- The document always ends with an empty paragraph, and clicking below the content places the caret at the end
 - Quantities: typing `12.5 mL `, `-20 °C `, `2 eq ` turns into a unit-aware token (hover shows conversions, double-click edits, Backspace right after undoes). Units: g/L/mol/M with n/µ/m/k prefixes, °C/K, s/min/h/d, eq, %
 - Rich references:
   - `#` entity references backed by the server entity registry
-  - quick-create from the `#` popup: `Create "Foo" as sample / reagent / …` when nothing matches exactly
+  - writing never waits for the registry: `#` matches multi-word names (`#Lysis buff` → Lysis Buffer), Tab or Enter accepts, Escape leaves plain text, and Enter on no match creates an *unclassified draft* on the spot. Drafts are typed later in the registry (a nudge shows how many are waiting; picking a type promotes the draft to verified)
   - `@` user references backed by the server user registry
   - `/` hierarchy-first document references (rendered as `/Title`, stored as document entity mentions)
   - `#` suggestions rank entities recently used in the current project first

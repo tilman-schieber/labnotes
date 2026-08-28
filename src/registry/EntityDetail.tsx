@@ -135,7 +135,17 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
   const isDocument = detail.entity.documentId !== null;
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((previous) => (previous ? { ...previous, [key]: value } : previous));
+    setForm((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      const next = { ...previous, [key]: value };
+      // Giving an inline draft a real type is what "classifying" means; promote it in the same step.
+      if (key === 'type' && previous.type === 'unclassified' && value !== 'unclassified' && previous.status === 'draft') {
+        next.status = 'verified';
+      }
+      return next;
+    });
     setNotice(null);
   };
 
