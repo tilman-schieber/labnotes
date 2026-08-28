@@ -620,8 +620,13 @@ body {
   font-size: 0.95rem;
 }
 
+.entity-merge-list {
+  margin-top: 0.5rem;
+}
+
 .entity-alias-list,
-.entity-backlink-list {
+.entity-backlink-list,
+.entity-merge-list {
   list-style: none;
   margin: 0 0 0.5rem;
   padding: 0;
@@ -631,7 +636,8 @@ body {
 }
 
 .entity-alias-list li,
-.entity-backlink-list li {
+.entity-backlink-list li,
+.entity-merge-list li {
   display: flex;
   gap: 0.6rem;
   align-items: baseline;

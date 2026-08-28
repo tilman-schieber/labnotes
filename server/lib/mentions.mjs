@@ -43,6 +43,35 @@ export function extractMentions(content) {
   return [...mentions.values()];
 }
 
+// Returns a copy of `content` with entity mention nodes retargeted from `fromId` to `toId`
+// (label updated to `label`), plus whether anything changed. Used when merging entities.
+export function retargetEntityMentions(content, fromId, toId, label) {
+  let changed = false;
+
+  const visit = (node) => {
+    if (!node || typeof node !== 'object') {
+      return node;
+    }
+
+    let next = node;
+    if (node.type === 'entityMention' && String(node.attrs?.id) === fromId) {
+      changed = true;
+      next = { ...node, attrs: { ...node.attrs, id: toId, label } };
+    }
+
+    if (Array.isArray(next.content)) {
+      const children = next.content.map(visit);
+      if (children.some((child, index) => child !== next.content[index])) {
+        next = { ...next, content: children };
+      }
+    }
+
+    return next;
+  };
+
+  return { content: visit(content), changed };
+}
+
 // Reconciles editor-sourced document_mentions rows with the references present in `content`.
 // Rows are diffed rather than replaced so created_at keeps meaning "first referenced at".
 export async function syncDocumentMentions(client, documentId, content) {

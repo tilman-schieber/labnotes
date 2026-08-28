@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { closePool, getPool, query, withTransaction } from './lib/database.mjs';
+import { MergeError, mergeEntities } from './lib/entities.mjs';
 import { createId } from './lib/ids.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
@@ -613,6 +614,25 @@ app.post('/api/entities/:id/aliases', async (request, response) => {
   );
 
   response.status(201).json({ alias: result.rows[0] });
+});
+
+app.post('/api/entities/:id/merge', async (request, response) => {
+  const sourceId = String(request.body.sourceId ?? '').trim();
+  if (!sourceId) {
+    response.status(400).json({ error: 'sourceId is required' });
+    return;
+  }
+
+  try {
+    const result = await withTransaction((client) => mergeEntities(client, request.params.id, sourceId));
+    response.json(result);
+  } catch (error) {
+    if (error instanceof MergeError) {
+      response.status(error.status).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
 });
 
 app.delete('/api/entities/:id/aliases/:aliasId', async (request, response) => {

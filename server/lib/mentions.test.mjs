@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { extractMentions } from './mentions.mjs';
+import { extractMentions, retargetEntityMentions } from './mentions.mjs';
 
 const entity = (id, label) => ({ type: 'entityMention', attrs: { id, label, refType: 'entity', entityType: 'sample' } });
 const user = (id, label) => ({ type: 'userMention', attrs: { id, label, refType: 'user' } });
@@ -44,6 +44,29 @@ test('ignores mention nodes without an id and non-document input', () => {
   assert.deepEqual(extractMentions(doc), []);
   assert.deepEqual(extractMentions(null), []);
   assert.deepEqual(extractMentions('not a doc'), []);
+});
+
+test('retargets matching entity mentions and leaves everything else untouched', () => {
+  const doc = {
+    type: 'doc',
+    content: [paragraph(entity('old', 'Old'), user('old', 'User'), { type: 'text', text: 'x' }), paragraph(entity('other', 'Other'))]
+  };
+
+  const { content, changed } = retargetEntityMentions(doc, 'old', 'new', 'New');
+
+  assert.equal(changed, true);
+  assert.deepEqual(content.content[0].content[0].attrs, { id: 'new', label: 'New', refType: 'entity', entityType: 'sample' });
+  assert.deepEqual(content.content[0].content[1], user('old', 'User'));
+  assert.deepEqual(content.content[1], paragraph(entity('other', 'Other')));
+  assert.deepEqual(doc.content[0].content[0].attrs.id, 'old', 'input is not mutated');
+});
+
+test('retarget reports no change when nothing matches', () => {
+  const doc = { type: 'doc', content: [paragraph(entity('a', 'A'))] };
+  const result = retargetEntityMentions(doc, 'zzz', 'new', 'New');
+
+  assert.equal(result.changed, false);
+  assert.equal(result.content, doc, 'same object returned when unchanged');
 });
 
 test('tolerates a missing label', () => {

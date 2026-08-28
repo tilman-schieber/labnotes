@@ -17,12 +17,12 @@ Completed so far:
 - `#` suggestions ranked by recent use in the current project
 - `/` document hierarchy trigger
 - entity registry and detail UI (list/filter, create, edit, aliases, backlinks)
+- duplicate merge (rewrites inline references, moves aliases, deletes the duplicate)
 
 Still pending from this plan:
 
 - import and draft reconciliation pipeline
 - relation authoring and graph features
-- duplicate merge flow
 
 ## Goal
 

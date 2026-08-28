@@ -3,8 +3,11 @@ import {
   addEntityAlias,
   deleteEntityAlias,
   fetchEntity,
+  mergeEntities,
+  searchEntities,
   updateEntity,
   type BackendEntityDetail,
+  type BackendEntitySearchResult,
   type EntityUpdate
 } from '../api/backend';
 
@@ -13,6 +16,8 @@ type Props = {
   types: string[];
   onChanged: () => void;
   onOpenDocument: (documentId: string) => void;
+  // Called with the surviving entity id after this entity was merged away.
+  onMerged: (targetId: string) => void;
 };
 
 const STATUSES = ['draft', 'verified', 'archived'];
@@ -35,13 +40,44 @@ function toForm(detail: BackendEntityDetail): FormState {
   };
 }
 
-export default function EntityDetail({ entityId, types, onChanged, onOpenDocument }: Props) {
+export default function EntityDetail({ entityId, types, onChanged, onOpenDocument, onMerged }: Props) {
   const [detail, setDetail] = useState<BackendEntityDetail | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [newAlias, setNewAlias] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [mergeQuery, setMergeQuery] = useState('');
+  const [mergeCandidates, setMergeCandidates] = useState<BackendEntitySearchResult[]>([]);
+  const [isMerging, setIsMerging] = useState(false);
+
+  useEffect(() => {
+    const queryText = mergeQuery.trim();
+    if (!queryText) {
+      setMergeCandidates([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      searchEntities(queryText)
+        .then((results) => {
+          if (!cancelled) {
+            setMergeCandidates(results.filter((item) => item.id !== entityId && !item.documentId));
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setMergeCandidates([]);
+          }
+        });
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [mergeQuery, entityId]);
 
   const load = async () => {
     try {
@@ -124,6 +160,24 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
       await load();
     } catch (aliasError) {
       setError(aliasError instanceof Error ? aliasError.message : 'Failed to add alias');
+    }
+  };
+
+  const handleMerge = async (target: BackendEntitySearchResult) => {
+    const confirmed = window.confirm(
+      `Merge "${detail.entity.label}" into "${target.label}"?\n\nReferences in documents are rewritten to "${target.label}", aliases move over, and "${detail.entity.label}" is deleted.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsMerging(true);
+    try {
+      await mergeEntities(target.id, entityId);
+      onMerged(target.id);
+    } catch (mergeError) {
+      setError(mergeError instanceof Error ? mergeError.message : 'Failed to merge entity');
+      setIsMerging(false);
     }
   };
 
@@ -252,6 +306,33 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
           ))}
         </ul>
       </section>
+
+      {!isDocument && (
+        <section className="entity-section">
+          <h3>Merge into another entity</h3>
+          <input
+            type="search"
+            placeholder="Search the entity to keep"
+            value={mergeQuery}
+            onChange={(event) => setMergeQuery(event.target.value)}
+            disabled={isMerging}
+          />
+          {mergeCandidates.length > 0 && (
+            <ul className="entity-merge-list">
+              {mergeCandidates.map((candidate) => (
+                <li key={candidate.id}>
+                  <span>{candidate.label}</span>
+                  <span className="entity-muted">{candidate.description}</span>
+                  <button type="button" className="link-button" onClick={() => void handleMerge(candidate)} disabled={isMerging}>
+                    merge into this
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {mergeQuery.trim() && mergeCandidates.length === 0 && <div className="entity-muted">No other entities match</div>}
+        </section>
+      )}
 
       <div className="entity-meta">
         <span>id {detail.entity.id}</span>

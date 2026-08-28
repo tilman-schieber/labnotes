@@ -144,6 +144,10 @@ export default function EntityRegistry({ onOpenDocument }: Props) {
             types={types}
             onChanged={() => void reload()}
             onOpenDocument={onOpenDocument}
+            onMerged={(targetId) => {
+              setSelectedId(targetId);
+              void reload();
+            }}
           />
         ) : (
           <div className="registry-placeholder">Select an entity to view details, aliases, and backlinks.</div>

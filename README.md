@@ -50,12 +50,12 @@ Implemented now:
 - `document_mentions` indexed from saved editor content (backlinks per entity/user)
 - append-only document revision history with restore (History button in the editor)
 - entity registry view (sidebar "Entities"): search/filter, create, edit label/type/status/attributes, aliases, backlinks
+- duplicate merge: references in documents are rewritten to the surviving entity (as a new revision), aliases move over, the duplicate is deleted
 
 Not implemented yet:
 
 - import and draft reconciliation flow
 - entity relations / graph features
-- duplicate merge
 - authentication and collaboration
 
 ## Backend Data Model
@@ -111,6 +111,7 @@ server/
     seed.mjs                       # bootstrap seed + document entity sync
     mentions.mjs                   # extract #/@ references from TipTap JSON into document_mentions
     revisions.mjs                  # append-only document revision snapshots
+    entities.mjs                   # entity merge
 db/
   migrations/
     0001_init.sql                  # Base schema
@@ -324,6 +325,7 @@ Current backend endpoints:
 - `PATCH /api/entities/:id`
 - `POST /api/entities/:id/aliases`
 - `DELETE /api/entities/:id/aliases/:aliasId`
+- `POST /api/entities/:id/merge` (`{ sourceId }` — folds the source into `:id`)
 - `GET /api/users/search?q=...`
 - `GET /api/users/:id` (includes document backlinks)
 

@@ -229,6 +229,13 @@ export async function addEntityAlias(id: string, alias: string, kind = 'synonym'
   return payload.alias;
 }
 
+export async function mergeEntities(targetId: string, sourceId: string): Promise<{ rewrittenDocumentIds: string[] }> {
+  return request(`/entities/${targetId}/merge`, {
+    method: 'POST',
+    body: JSON.stringify({ sourceId })
+  });
+}
+
 export async function deleteEntityAlias(id: string, aliasId: string): Promise<void> {
   await request(`/entities/${id}/aliases/${aliasId}`, { method: 'DELETE' });
 }
