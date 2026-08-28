@@ -55,6 +55,7 @@ Implemented now:
 - document entities mirrored from groups, projects, and experiments
 - `document_mentions` indexed from saved editor content (backlinks per entity/user)
 - append-only document revision history with restore (History button in the editor)
+- revision signing: a revision can be signed by a user (with an optional note); signed revisions are frozen — later saves always start a new revision
 - entity registry view (sidebar "Entities"): search/filter, create, edit label/type/status/attributes, aliases, backlinks
 - duplicate merge: references in documents are rewritten to the surviving entity (as a new revision), aliases move over, the duplicate is deleted
 - entity relations (`uses`, `derived_from`, `stored_in`, `references`, `belongs_to`) authored in the registry, shown in both directions
@@ -148,6 +149,7 @@ db/
     0006_templates.sql             # experiment templates
     0007_document_metadata.sql     # documents.metadata (status, date, tags)
     0008_fulltext_search.sql       # search_text + generated tsvector + GIN index
+    0009_revision_signatures.sql   # signed_by / signed_at / note on revisions
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -346,6 +348,7 @@ Current backend endpoints:
 - `GET /api/documents/:id/revisions`
 - `GET /api/documents/:id/revisions/:revision`
 - `POST /api/documents/:id/revisions/:revision/restore`
+- `POST /api/documents/:id/revisions/:revision/sign` (`{ userId, note? }`)
 - `POST /api/documents`
 - `PATCH /api/documents/:id` (`{ title, content }` records a revision; `{ metadata }` alone updates status/date/tags without one)
 - `DELETE /api/documents/:id`

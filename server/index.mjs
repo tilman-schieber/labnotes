@@ -5,7 +5,7 @@ import { MergeError, mergeEntities } from './lib/entities.mjs';
 import { createId } from './lib/ids.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
-import { getRevision, listRevisions, recordRevision } from './lib/revisions.mjs';
+import { SignError, getRevision, listRevisions, recordRevision, signRevision } from './lib/revisions.mjs';
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { extractText } from './lib/text.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
@@ -427,6 +427,30 @@ app.get('/api/documents/:id/revisions/:revision', async (request, response) => {
   }
 
   response.json({ revision });
+});
+
+app.post('/api/documents/:id/revisions/:revision/sign', async (request, response) => {
+  const userId = String(request.body.userId ?? '').trim();
+  if (!userId) {
+    response.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  try {
+    const revision = await withTransaction((client) =>
+      signRevision(client, request.params.id, Number(request.params.revision), {
+        userId,
+        note: request.body.note ? String(request.body.note) : null
+      })
+    );
+    response.json({ revision });
+  } catch (error) {
+    if (error instanceof SignError) {
+      response.status(error.status).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
 });
 
 // Restoring writes the old snapshot as the current content and records it as a new revision,

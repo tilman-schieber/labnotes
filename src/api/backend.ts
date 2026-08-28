@@ -38,7 +38,19 @@ export type BackendRevisionSummary = {
   title: string;
   createdAt: string;
   updatedAt: string;
+  signedBy: string | null;
+  signedByName: string | null;
+  signedAt: string | null;
+  signatureNote: string | null;
 };
+
+export async function signDocumentRevision(id: string, revision: number, userId: string, note?: string): Promise<BackendRevisionSummary> {
+  const payload = await request<{ revision: BackendRevisionSummary }>(`/documents/${id}/revisions/${revision}/sign`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, note })
+  });
+  return payload.revision;
+}
 
 export type BackendEntitySearchResult = {
   id: string;
