@@ -292,6 +292,18 @@ export async function restoreDocumentRevision(id: string, revision: number): Pro
   return payload.document;
 }
 
+export type BackendEntityLabel = {
+  id: string;
+  type: string;
+  label: string;
+  aliases: string[];
+};
+
+export async function fetchEntityLabels(): Promise<BackendEntityLabel[]> {
+  const payload = await request<{ entities: BackendEntityLabel[] }>('/entities/labels');
+  return payload.entities;
+}
+
 export type EntitySearchOptions = {
   // Document being edited; entities recently referenced in its project rank first.
   documentId?: string | null;

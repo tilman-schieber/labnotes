@@ -25,11 +25,13 @@ Completed so far:
 - experiment metadata (status/date/tags), task lists, full-text search, revision signing
 - Typst PDF export, attachments with inline images
 - typed attribute forms, reagent expiry, linked-entities strip per document
+- typing-first pass: frictionless `#` (drafts, Tab, multi-word), `/` command palette, timestamps, usages derived from prose, reaction tables pre-filled from text, passive recognition of known names
 
 Still pending from this plan:
 
-- import and draft reconciliation pipeline
+- import and draft reconciliation pipeline (passive recognition + "link all" is the deterministic seed of it)
 - graph navigation beyond one hop
+- AI-assisted improvements to protocols (deliberately deferred; everything so far is deterministic)
 
 ## Goal
 

@@ -617,6 +617,8 @@ export default function App() {
     return parts;
   })();
 
+  const recognizedCount = Number(editor?.storage.recognition?.count ?? 0);
+
   const toolbar = (
     <div className="toolbar" role="toolbar" aria-label="Formatting">
       {['text', 'blocks', 'insert'].map((group) => (
@@ -639,6 +641,19 @@ export default function App() {
             ))}
         </span>
       ))}
+      {recognizedCount > 0 && (
+        <button
+          type="button"
+          className="toolbar-wide toolbar-hint-action"
+          onClick={() => editor?.chain().focus().linkAllRecognized().run()}
+          title="Turn every underlined known name into a reference"
+        >
+          <IconAtom />
+          <span>
+            Link {recognizedCount} known {recognizedCount === 1 ? 'name' : 'names'}
+          </span>
+        </button>
+      )}
     </div>
   );
 

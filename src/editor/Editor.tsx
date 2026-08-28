@@ -22,6 +22,7 @@ import { LinkExtension } from './extensions/Link';
 import { QuantityNode } from './extensions/Quantity';
 import { ReactionNode } from './extensions/Reaction';
 import { TrailingParagraph } from './extensions/TrailingParagraph';
+import { Recognition } from './extensions/Recognition';
 
 type Props = {
   documentId: string | null;
@@ -98,6 +99,7 @@ export default function NotebookEditor({
       QuantityNode,
       ReactionNode,
       TrailingParagraph,
+      Recognition,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),

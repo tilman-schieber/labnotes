@@ -758,6 +758,22 @@ app.delete('/api/templates/:id', async (request, response) => {
   response.status(204).end();
 });
 
+// Names the editor should recognise in plain text: labels and aliases of live, non-document entities.
+app.get('/api/entities/labels', async (_request, response) => {
+  const result = await query(
+    `
+      select e.id, e.type, e.label,
+        coalesce(array_agg(a.alias) filter (where a.alias is not null), '{}') as aliases
+      from entities e
+      left join entity_aliases a on a.entity_id = e.id and a.kind <> 'title'
+      where e.status <> 'archived' and e.document_id is null
+      group by e.id
+      order by e.label
+    `
+  );
+  response.json({ entities: result.rows });
+});
+
 app.get('/api/entities/search', async (request, response) => {
   const queryText = String(request.query.q ?? '').trim().toLowerCase();
   const typeFilter = String(request.query.type ?? '').trim();

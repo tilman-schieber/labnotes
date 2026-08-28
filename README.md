@@ -24,6 +24,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
 - Basic tables (insert and edit)
 - Usages are read from the prose: an entity token with amounts next to it (`#Salicylic acid (2.0 g, 14.5 mmol)`, `12.5 mL of #Compound X`, `2 eq #Base`) records *entity × amounts × role* at save time. Roles come from a few keywords (`dissolved in` → solvent, `afforded/gave/yield` → product); time and temperature are conditions, not amounts. The linked strip shows amounts per entity, the registry shows every usage with totals per dimension.
 - Reaction block (`/reaction` or toolbar): stoichiometry table with reactant/reagent/solvent/product rows, **pre-filled from the current section's prose** and refreshable with "↻ from text" (adds entities and fills empty fields, never overwrites manual edits). Compounds are picked from the registry (MW auto-filled, structure shown); enter mass, or volume + concentration, or volume + density, or just equivalents. Computes mmol, equivalents vs. the limiting reagent, required masses, theoretical yield and % yield from the isolated mass. Component compounds count as references (backlinks).
+- Passive recognition: registry names (labels and aliases, ≥ 3 characters, non-document entities) typed as plain text get a dotted underline. Click one to turn it into a reference, or use "Link n known names" in the toolbar to do them all; ignoring them costs nothing. Names right after `#`/`@` are left to the popup.
 - The document always ends with an empty paragraph, and clicking below the content places the caret at the end
 - Quantities: typing `12.5 mL `, `-20 °C `, `2 eq ` turns into a unit-aware token (hover shows conversions, double-click edits, Backspace right after undoes). Units: g/L/mol/M with n/µ/m/k prefixes, °C/K, s/min/h/d, eq, %
 - Rich references:
@@ -379,6 +380,7 @@ Current backend endpoints:
 - `DELETE /api/documents/:id`
 - `GET /api/templates?kind=`, `GET /api/templates/:id`, `POST /api/templates` (`{ name, documentId }` or `{ name, kind, content }`), `DELETE /api/templates/:id`
 - `GET /api/entities?q=&type=&status=` (registry listing with mention counts)
+- `GET /api/entities/labels` (labels + aliases for passive recognition)
 - `GET /api/entities/search?q=&documentId=&type=` (`#` lookup; `documentId` boosts entities used in that project)
 - `GET /api/entities/:id` (includes aliases, relations, and document backlinks)
 - `POST /api/entities`

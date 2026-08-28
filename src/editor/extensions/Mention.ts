@@ -47,6 +47,8 @@ async function resolveOption(option: SuggestionOption): Promise<SuggestionOption
   }
 
   const entity = await createEntity(option.entityType ?? DRAFT_ENTITY_TYPE, option.label, 'draft');
+  // The new name should be recognised elsewhere in the text right away.
+  window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
   return { ...option, id: entity.id, label: entity.label, entityType: entity.type, create: false };
 }
 
