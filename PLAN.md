@@ -14,13 +14,15 @@ Completed so far:
 - `document_mentions` extracted from saved editor content; backlinks exposed on entity and user detail
 - leaf documents renamed to `experiment`; append-only revision history with restore
 - quick-create entities inline from the `#` popup (type picked in the popup)
+- `#` suggestions ranked by recent use in the current project
+- `/` document hierarchy trigger
+- entity registry and detail UI (list/filter, create, edit, aliases, backlinks)
 
 Still pending from this plan:
 
-- entity registry and detail UI
 - import and draft reconciliation pipeline
 - relation authoring and graph features
-- `/` document hierarchy trigger
+- duplicate merge flow
 
 ## Goal
 

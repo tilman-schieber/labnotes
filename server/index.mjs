@@ -451,6 +451,50 @@ app.get('/api/entities/search', async (request, response) => {
   });
 });
 
+// Registry listing: broader than /search (includes archived, no limit-20 ranking) with mention counts.
+app.get('/api/entities', async (request, response) => {
+  const queryText = String(request.query.q ?? '').trim().toLowerCase();
+  const typeFilter = String(request.query.type ?? '').trim();
+  const statusFilter = String(request.query.status ?? '').trim();
+
+  const result = await query(
+    `
+      select
+        e.id,
+        e.type,
+        e.subtype,
+        e.label,
+        e.status,
+        e.document_id as "documentId",
+        e.attributes,
+        e.created_at as "createdAt",
+        e.updated_at as "updatedAt",
+        (select count(*)::int from document_mentions m where m.ref_type = 'entity' and m.target_id = e.id) as "mentionCount"
+      from entities e
+      where
+        ($2 = '' or e.type = $2)
+        and ($3 = '' or e.status = $3)
+        and (
+          $1 = ''
+          or lower(e.label) like '%' || $1 || '%'
+          or exists (
+            select 1 from entity_aliases a
+            where a.entity_id = e.id and lower(a.alias) like '%' || $1 || '%'
+          )
+        )
+      order by
+        ($1 <> '' and lower(e.label) like $1 || '%') desc,
+        e.document_id is null desc,
+        lower(e.label) asc
+      limit 200
+    `,
+    [queryText, typeFilter, statusFilter]
+  );
+
+  const typesResult = await query('select distinct type from entities order by type');
+  response.json({ entities: result.rows, types: typesResult.rows.map((row) => row.type) });
+});
+
 app.get('/api/entities/:id', async (request, response) => {
   const entityResult = await query(
     `
@@ -569,6 +613,20 @@ app.post('/api/entities/:id/aliases', async (request, response) => {
   );
 
   response.status(201).json({ alias: result.rows[0] });
+});
+
+app.delete('/api/entities/:id/aliases/:aliasId', async (request, response) => {
+  const result = await query('delete from entity_aliases where id = $1 and entity_id = $2', [
+    request.params.aliasId,
+    request.params.id
+  ]);
+
+  if (result.rowCount === 0) {
+    response.status(404).json({ error: 'Alias not found' });
+    return;
+  }
+
+  response.status(204).end();
 });
 
 app.get('/api/users/search', async (request, response) => {

@@ -49,12 +49,13 @@ Implemented now:
 - document entities mirrored from groups, projects, and experiments
 - `document_mentions` indexed from saved editor content (backlinks per entity/user)
 - append-only document revision history with restore (History button in the editor)
+- entity registry view (sidebar "Entities"): search/filter, create, edit label/type/status/attributes, aliases, backlinks
 
 Not implemented yet:
 
-- entity registry UI
 - import and draft reconciliation flow
-- `/` hierarchy reference trigger
+- entity relations / graph features
+- duplicate merge
 - authentication and collaboration
 
 ## Backend Data Model
@@ -96,6 +97,9 @@ src/
   editor/
     Editor.tsx                     # TipTap setup and editor rendering
     RevisionHistory.tsx            # History panel: list and restore revisions
+  registry/
+    EntityRegistry.tsx             # Entity list, filters, create
+    EntityDetail.tsx               # Edit fields/attributes, aliases, backlinks
     extensions/
       Mention.ts                   # async #/@ mention extensions
       MarkdownShortcuts.ts         # markdown input rules
@@ -313,11 +317,13 @@ Current backend endpoints:
 - `POST /api/documents`
 - `PATCH /api/documents/:id`
 - `DELETE /api/documents/:id`
-- `GET /api/entities/search?q=...`
+- `GET /api/entities?q=&type=&status=` (registry listing with mention counts)
+- `GET /api/entities/search?q=&documentId=&type=` (`#` lookup; `documentId` boosts entities used in that project)
 - `GET /api/entities/:id` (includes aliases and document backlinks)
 - `POST /api/entities`
 - `PATCH /api/entities/:id`
 - `POST /api/entities/:id/aliases`
+- `DELETE /api/entities/:id/aliases/:aliasId`
 - `GET /api/users/search?q=...`
 - `GET /api/users/:id` (includes document backlinks)
 

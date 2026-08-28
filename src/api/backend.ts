@@ -160,6 +160,79 @@ export type BackendEntityRecord = {
   updatedAt: string;
 };
 
+export type BackendEntityListItem = BackendEntityRecord & { mentionCount: number };
+
+export type BackendEntityAlias = {
+  id: string;
+  entityId: string;
+  alias: string;
+  kind: string;
+  createdAt: string;
+};
+
+export type BackendBacklink = {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  documentKind: NotebookDocumentKind;
+  refType: 'entity' | 'user';
+  targetId: string;
+  labelSnapshot: string | null;
+  source: string;
+  createdAt: string;
+};
+
+export type BackendEntityDetail = {
+  entity: BackendEntityRecord;
+  aliases: BackendEntityAlias[];
+  backlinks: BackendBacklink[];
+};
+
+export type EntityListFilters = {
+  q?: string;
+  type?: string;
+  status?: string;
+};
+
+export type EntityUpdate = Pick<BackendEntityRecord, 'type' | 'subtype' | 'label' | 'status' | 'attributes'>;
+
+export async function fetchEntities(filters: EntityListFilters = {}): Promise<{ entities: BackendEntityListItem[]; types: string[] }> {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, value);
+    }
+  });
+
+  return request(`/entities?${params.toString()}`);
+}
+
+export async function fetchEntity(id: string): Promise<BackendEntityDetail> {
+  return request(`/entities/${id}`);
+}
+
+export async function updateEntity(id: string, update: EntityUpdate): Promise<BackendEntityRecord> {
+  const payload = await request<{ entity: BackendEntityRecord }>(`/entities/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(update)
+  });
+
+  return payload.entity;
+}
+
+export async function addEntityAlias(id: string, alias: string, kind = 'synonym'): Promise<BackendEntityAlias> {
+  const payload = await request<{ alias: BackendEntityAlias }>(`/entities/${id}/aliases`, {
+    method: 'POST',
+    body: JSON.stringify({ alias, kind })
+  });
+
+  return payload.alias;
+}
+
+export async function deleteEntityAlias(id: string, aliasId: string): Promise<void> {
+  await request(`/entities/${id}/aliases/${aliasId}`, { method: 'DELETE' });
+}
+
 export async function createEntity(type: string, label: string): Promise<BackendEntityRecord> {
   const payload = await request<{ entity: BackendEntityRecord }>('/entities', {
     method: 'POST',

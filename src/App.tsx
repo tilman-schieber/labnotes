@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Editor, JSONContent } from '@tiptap/core';
 import NotebookEditor from './editor/Editor';
+import EntityRegistry from './registry/EntityRegistry';
 import { type NotebookDocumentKind, createTemplateDocument, extractDocumentTitle, getDefaultTitle } from './documents/templates';
 import { sanitizeLatex } from './editor/extensions/Math';
 import {
@@ -41,6 +42,7 @@ export default function App() {
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
   // Bumped when content is replaced outside the editor (e.g. restore) to remount it with fresh content.
   const [editorEpoch, setEditorEpoch] = useState(0);
+  const [view, setView] = useState<'notebook' | 'entities'>('notebook');
 
   const reloadDb = useCallback(async (preferredActive?: NotebookActiveState | null) => {
     setIsLoading(true);
@@ -355,6 +357,35 @@ export default function App() {
     await reloadDb();
   };
 
+  // Jump to a document by id (from registry backlinks); switches back to the notebook view.
+  const openDocumentById = (documentId: string) => {
+    if (!db) {
+      return;
+    }
+
+    const experiment = db.experiments.find((item) => item.id === documentId);
+    const project = experiment
+      ? db.projects.find((item) => item.id === experiment.projectId)
+      : db.projects.find((item) => item.id === documentId);
+    const group = db.groups.find((item) => item.id === (project?.groupId ?? documentId));
+
+    if (!group) {
+      return;
+    }
+
+    setCollapsedGroups((previous) => ({ ...previous, [group.id]: false }));
+    if (project) {
+      setCollapsedProjects((previous) => ({ ...previous, [project.id]: false }));
+    }
+
+    setActiveSelection({
+      groupId: group.id,
+      projectId: project?.id ?? null,
+      experimentId: experiment?.id ?? null
+    });
+    setView('notebook');
+  };
+
   const handleDocumentRestored = async () => {
     if (!selectedDocument) {
       return;
@@ -404,6 +435,13 @@ export default function App() {
             </button>
             <button type="button" onClick={() => void handleNewExperiment()} disabled={!db.active.projectId}>
               New Experiment
+            </button>
+            <button
+              type="button"
+              className={view === 'entities' ? 'is-active' : ''}
+              onClick={() => setView((current) => (current === 'entities' ? 'notebook' : 'entities'))}
+            >
+              {view === 'entities' ? 'Back to notebook' : 'Entities'}
             </button>
           </div>
 
@@ -488,36 +526,42 @@ export default function App() {
         </aside>
 
         <section className="main-panel">
-          <div className="toolbar">
-            {actions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className={action.isActive ? 'is-active' : ''}
-                onClick={action.onClick}
-                disabled={!editor || !selectedDocument}
-              >
-                {action.label}
-              </button>
-            ))}
-            <span className="toolbar-status" aria-live="polite">
-              {saveState === 'saving' ? 'Saving...' : saveState === 'error' ? 'Save failed' : 'Connected'}
-            </span>
-          </div>
-
-          {loadError && <div className="status-inline">{loadError}</div>}
-
-          <NotebookEditor
-            key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}-${editorEpoch}` : 'no-document'}
-            documentId={selectedDocument?.id ?? null}
-            initialContent={selectedDocument?.content ?? createBlankDocument()}
-            editable={Boolean(selectedDocument)}
-            documentKind={selectedDocument?.kind ?? 'experiment'}
-            onEditorReady={setEditor}
-            onDocumentChange={handleDocumentChange}
-            onDeleteDocument={() => void handleDeleteSelectedDocument()}
-            onDocumentRestored={() => void handleDocumentRestored()}
-          />
+          {view === 'entities' ? (
+            <EntityRegistry onOpenDocument={openDocumentById} />
+          ) : (
+            <>
+              <div className="toolbar">
+                {actions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className={action.isActive ? 'is-active' : ''}
+                    onClick={action.onClick}
+                    disabled={!editor || !selectedDocument}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+                <span className="toolbar-status" aria-live="polite">
+                  {saveState === 'saving' ? 'Saving...' : saveState === 'error' ? 'Save failed' : 'Connected'}
+                </span>
+              </div>
+    
+              {loadError && <div className="status-inline">{loadError}</div>}
+    
+              <NotebookEditor
+                key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}-${editorEpoch}` : 'no-document'}
+                documentId={selectedDocument?.id ?? null}
+                initialContent={selectedDocument?.content ?? createBlankDocument()}
+                editable={Boolean(selectedDocument)}
+                documentKind={selectedDocument?.kind ?? 'experiment'}
+                onEditorReady={setEditor}
+                onDocumentChange={handleDocumentChange}
+                onDeleteDocument={() => void handleDeleteSelectedDocument()}
+                onDocumentRestored={() => void handleDocumentRestored()}
+              />
+            </>
+          )}
         </section>
       </div>
     </main>
