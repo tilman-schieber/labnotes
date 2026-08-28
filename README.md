@@ -22,6 +22,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - `- ` / `+ ` / `* ` for bullet lists
   - `$...$` inline math and `$$...$$` block math
 - Basic tables (insert and edit)
+- Quantities: typing `12.5 mL `, `-20 °C `, `2 eq ` turns into a unit-aware token (hover shows conversions, double-click edits, Backspace right after undoes). Units: g/L/mol/M with n/µ/m/k prefixes, °C/K, s/min/h/d, eq, %
 - Rich references:
   - `#` entity references backed by the server entity registry
   - quick-create from the `#` popup: `Create "Foo" as sample / reagent / …` when nothing matches exactly
@@ -105,6 +106,8 @@ src/
   editor/
     Editor.tsx                     # TipTap setup and editor rendering
     RevisionHistory.tsx            # History panel: list and restore revisions
+  units/
+    quantity.ts                    # unit table, parsing, conversion (unit-tested)
   chemistry/
     molecule.ts                    # OpenChemLib wrapper: SMILES parsing, properties, SVG
     pubchem.ts                     # PubChem PUG REST lookup
@@ -116,6 +119,7 @@ src/
     extensions/
       Mention.ts                   # async #/@// mention extensions
       CompoundToken.ts             # entity token node view with structure hover/inline
+      Quantity.ts                  # inline quantity node + input rule
       MarkdownShortcuts.ts         # markdown input rules
 server/
   index.mjs                        # Express API server
@@ -350,7 +354,7 @@ Mentions are re-indexed on every document create/update and backfilled for all d
 
 Every content or title change records a revision. Changes within `REVISION_COALESCE_SECONDS` (default 120) of the latest revision's start are folded into it, so a revision is a writing-session chunk rather than one row per autosave. Restoring an old revision appends a new revision; history is never rewritten.
 
-Run the backend unit tests with:
+Run the unit tests (server `.mjs` and frontend `.test.ts`, via Node's built-in runner) with:
 
 ```bash
 npm test

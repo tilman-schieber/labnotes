@@ -14,6 +14,7 @@ import { BlockMath, InlineMath } from './extensions/Math';
 import type { NotebookDocumentKind } from '../documents/templates';
 import { LinkExtension } from './extensions/Link';
 import RevisionHistory from './RevisionHistory';
+import { QuantityNode } from './extensions/Quantity';
 
 type Props = {
   documentId: string | null;
@@ -53,6 +54,7 @@ export default function NotebookEditor({
       createEntityMentionExtension(documentId),
       UserMentionExtension,
       DocumentSlashExtension,
+      QuantityNode,
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,

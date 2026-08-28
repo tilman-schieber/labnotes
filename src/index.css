@@ -353,6 +353,18 @@ body {
   background: #dcfce7;
 }
 
+.ProseMirror .quantity-token {
+  background: #fef3c7;
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.ProseMirror .quantity-token.ProseMirror-selectednode {
+  outline: 2px solid #fbbf24;
+}
+
 .ProseMirror .reference-token.reference-compound {
   cursor: pointer;
 }
