@@ -13,23 +13,28 @@ import { NotebookDocument, NotebookDocumentStructure, NotebookTitlePlaceholder }
 import { BlockMath, InlineMath } from './extensions/Math';
 import type { NotebookDocumentKind } from '../documents/templates';
 import { LinkExtension } from './extensions/Link';
+import RevisionHistory from './RevisionHistory';
 
 type Props = {
+  documentId: string | null;
   initialContent: JSONContent | null;
   editable: boolean;
   documentKind: NotebookDocumentKind;
   onEditorReady: (editor: Editor | null) => void;
   onDocumentChange: (document: JSONContent) => void;
   onDeleteDocument: () => void;
+  onDocumentRestored: () => void;
 };
 
 export default function NotebookEditor({
+  documentId,
   initialContent,
   editable,
   documentKind,
   onEditorReady,
   onDocumentChange,
-  onDeleteDocument
+  onDeleteDocument,
+  onDocumentRestored
 }: Props) {
   const editor = useEditor({
     extensions: [
@@ -75,6 +80,7 @@ export default function NotebookEditor({
   return (
     <div className="editor-shell">
       <div className="editor-actions">
+        <RevisionHistory documentId={editable ? documentId : null} onRestored={onDocumentRestored} />
         <button type="button" className="editor-action-button" disabled title="Not implemented yet">
           Reprocess
         </button>

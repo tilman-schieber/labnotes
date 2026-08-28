@@ -226,6 +226,68 @@ body {
   background: #ffe4e6;
 }
 
+.editor-action-button.is-active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.revision-panel {
+  position: absolute;
+  top: 2.2rem;
+  right: 0;
+  width: min(26rem, 90vw);
+  max-height: 20rem;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  padding: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.revision-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.35rem;
+}
+
+.revision-row:hover {
+  background: #f8fafc;
+}
+
+.revision-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.revision-number {
+  font-weight: 600;
+  color: #334155;
+}
+
+.revision-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.revision-time,
+.revision-current,
+.revision-empty {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.revision-error {
+  color: #991b1b;
+  padding: 0.35rem 0.5rem;
+}
+
 .ProseMirror {
   min-height: 460px;
   outline: none;

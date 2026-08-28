@@ -19,6 +19,15 @@ export type BackendDocumentRecord = Omit<BackendDocumentNode, 'children'> & {
   projectId: string | null;
 };
 
+export type BackendRevisionSummary = {
+  id: string;
+  documentId: string;
+  revision: number;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type BackendEntitySearchResult = {
   id: string;
   label: string;
@@ -91,6 +100,19 @@ export async function updateDocument(
 
 export async function deleteDocument(id: string): Promise<void> {
   await request(`/documents/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchDocumentRevisions(id: string): Promise<BackendRevisionSummary[]> {
+  const payload = await request<{ revisions: BackendRevisionSummary[] }>(`/documents/${id}/revisions`);
+  return payload.revisions;
+}
+
+export async function restoreDocumentRevision(id: string, revision: number): Promise<BackendDocumentRecord> {
+  const payload = await request<{ document: BackendDocumentRecord }>(`/documents/${id}/revisions/${revision}/restore`, {
+    method: 'POST'
+  });
+
+  return payload.document;
 }
 
 export async function searchEntities(query: string): Promise<BackendEntitySearchResult[]> {

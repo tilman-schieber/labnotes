@@ -39,6 +39,8 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
+  // Bumped when content is replaced outside the editor (e.g. restore) to remount it with fresh content.
+  const [editorEpoch, setEditorEpoch] = useState(0);
 
   const reloadDb = useCallback(async (preferredActive?: NotebookActiveState | null) => {
     setIsLoading(true);
@@ -353,6 +355,16 @@ export default function App() {
     await reloadDb();
   };
 
+  const handleDocumentRestored = async () => {
+    if (!selectedDocument) {
+      return;
+    }
+
+    setPendingSave((current) => (current?.id === selectedDocument.id ? null : current));
+    await reloadDb(db?.active ?? null);
+    setEditorEpoch((previous) => previous + 1);
+  };
+
   if (isLoading && !db) {
     return (
       <main className="page">
@@ -496,13 +508,15 @@ export default function App() {
           {loadError && <div className="status-inline">{loadError}</div>}
 
           <NotebookEditor
-            key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}` : 'no-document'}
+            key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}-${editorEpoch}` : 'no-document'}
+            documentId={selectedDocument?.id ?? null}
             initialContent={selectedDocument?.content ?? createBlankDocument()}
             editable={Boolean(selectedDocument)}
             documentKind={selectedDocument?.kind ?? 'experiment'}
             onEditorReady={setEditor}
             onDocumentChange={handleDocumentChange}
             onDeleteDocument={() => void handleDeleteSelectedDocument()}
+            onDocumentRestored={() => void handleDocumentRestored()}
           />
         </section>
       </div>

@@ -45,6 +45,7 @@ Implemented now:
 - backend user search for `@` references
 - document entities mirrored from groups, projects, and experiments
 - `document_mentions` indexed from saved editor content (backlinks per entity/user)
+- append-only document revision history with restore (History button in the editor)
 
 Not implemented yet:
 
@@ -91,6 +92,7 @@ src/
     documentStore.ts               # Backend-backed document storage adapter
   editor/
     Editor.tsx                     # TipTap setup and editor rendering
+    RevisionHistory.tsx            # History panel: list and restore revisions
     extensions/
       Mention.ts                   # async #/@ mention extensions
       MarkdownShortcuts.ts         # markdown input rules
@@ -101,10 +103,13 @@ server/
     migrations.mjs                 # SQL migration runner
     seed.mjs                       # bootstrap seed + document entity sync
     mentions.mjs                   # extract #/@ references from TipTap JSON into document_mentions
+    revisions.mjs                  # append-only document revision snapshots
 db/
   migrations/
     0001_init.sql                  # Base schema
     0002_trigram_search.sql        # pg_trgm indexes for #/@ lookup
+    0003_rename_protocol_to_experiment.sql
+    0004_document_revisions.sql    # revision history table + backfill
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -203,6 +208,7 @@ Important variables:
 - `PORT`
 - `AUTO_MIGRATE_ON_START`
 - `AUTO_SEED_ON_START`
+- `REVISION_COALESCE_SECONDS`
 
 Example:
 
@@ -297,6 +303,9 @@ Current backend endpoints:
 - `GET /api/documents/tree`
 - `GET /api/documents/:id`
 - `GET /api/documents/:id/mentions` (outbound `#`/`@` references)
+- `GET /api/documents/:id/revisions`
+- `GET /api/documents/:id/revisions/:revision`
+- `POST /api/documents/:id/revisions/:revision/restore`
 - `POST /api/documents`
 - `PATCH /api/documents/:id`
 - `DELETE /api/documents/:id`
@@ -309,6 +318,8 @@ Current backend endpoints:
 - `GET /api/users/:id` (includes document backlinks)
 
 Mentions are re-indexed on every document create/update and backfilled for all documents at server start.
+
+Every content or title change records a revision. Changes within `REVISION_COALESCE_SECONDS` (default 120) of the latest revision's start are folded into it, so a revision is a writing-session chunk rather than one row per autosave. Restoring an old revision appends a new revision; history is never rewritten.
 
 Run the backend unit tests with:
 

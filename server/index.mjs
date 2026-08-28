@@ -1,9 +1,10 @@
 import cors from 'cors';
 import express from 'express';
-import { closePool, query, withTransaction } from './lib/database.mjs';
+import { closePool, getPool, query, withTransaction } from './lib/database.mjs';
 import { createId } from './lib/ids.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
+import { getRevision, listRevisions, recordRevision } from './lib/revisions.mjs';
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
 
@@ -207,6 +208,7 @@ app.post('/api/documents', async (request, response) => {
     );
     await syncDocumentEntity(client, nextDocument.id);
     await syncDocumentMentions(client, nextDocument.id, nextDocument.content);
+    await recordRevision(client, nextDocument.id, { title: nextDocument.title, content: nextDocument.content, coalesce: false });
     return nextDocument;
   });
 
@@ -219,25 +221,40 @@ app.patch('/api/documents/:id', async (request, response) => {
   const nextContent = request.body.content ?? null;
 
   const updated = await withTransaction(async (client) => {
-    const result = await client.query(
+    // Compare in SQL so jsonb key-order normalisation does not produce spurious revisions.
+    const currentResult = await client.query(
+      `
+        select title = $2 and content = $3::jsonb as unchanged
+        from documents
+        where id = $1
+        for update
+      `,
+      [request.params.id, nextTitle, JSON.stringify(nextContent)]
+    );
+
+    if (currentResult.rowCount === 0) {
+      return null;
+    }
+
+    if (currentResult.rows[0].unchanged) {
+      return request.params.id;
+    }
+
+    await client.query(
       `
         update documents
         set title = $2,
             content = $3::jsonb,
             updated_at = now()
         where id = $1
-        returning id
       `,
       [request.params.id, nextTitle, JSON.stringify(nextContent)]
     );
 
-    if (result.rowCount === 0) {
-      return null;
-    }
-
     await syncDocumentEntity(client, request.params.id);
     await syncDocumentMentions(client, request.params.id, nextContent);
-    return result.rows[0].id;
+    await recordRevision(client, request.params.id, { title: nextTitle, content: nextContent });
+    return request.params.id;
   });
 
   if (!updated) {
@@ -247,6 +264,62 @@ app.patch('/api/documents/:id', async (request, response) => {
 
   const nextDocuments = await loadDocuments();
   response.json({ document: getDocumentWithAncestors(nextDocuments, updated) });
+});
+
+app.get('/api/documents/:id/revisions', async (request, response) => {
+  const exists = await query('select 1 from documents where id = $1', [request.params.id]);
+  if (exists.rowCount === 0) {
+    response.status(404).json({ error: 'Document not found' });
+    return;
+  }
+
+  const revisions = await listRevisions(getPool(), request.params.id);
+  response.json({ revisions });
+});
+
+app.get('/api/documents/:id/revisions/:revision', async (request, response) => {
+  const revision = await getRevision(getPool(), request.params.id, Number(request.params.revision));
+  if (!revision) {
+    response.status(404).json({ error: 'Revision not found' });
+    return;
+  }
+
+  response.json({ revision });
+});
+
+// Restoring writes the old snapshot as the current content and records it as a new revision,
+// so history stays append-only.
+app.post('/api/documents/:id/revisions/:revision/restore', async (request, response) => {
+  const restored = await withTransaction(async (client) => {
+    const revision = await getRevision(client, request.params.id, Number(request.params.revision));
+    if (!revision) {
+      return null;
+    }
+
+    await client.query(
+      `
+        update documents
+        set title = $2,
+            content = $3::jsonb,
+            updated_at = now()
+        where id = $1
+      `,
+      [request.params.id, revision.title, JSON.stringify(revision.content)]
+    );
+
+    await syncDocumentEntity(client, request.params.id);
+    await syncDocumentMentions(client, request.params.id, revision.content);
+    await recordRevision(client, request.params.id, { title: revision.title, content: revision.content, coalesce: false });
+    return revision;
+  });
+
+  if (!restored) {
+    response.status(404).json({ error: 'Revision not found' });
+    return;
+  }
+
+  const nextDocuments = await loadDocuments();
+  response.json({ document: getDocumentWithAncestors(nextDocuments, request.params.id) });
 });
 
 app.delete('/api/documents/:id', async (request, response) => {

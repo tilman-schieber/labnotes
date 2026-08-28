@@ -47,6 +47,8 @@ export async function runMigrations() {
   const files = await getMigrationFiles();
 
   await withTransaction(async (client) => {
+    // Serialise concurrent starters (e.g. two server processes) so only one applies a migration.
+    await client.query('select pg_advisory_xact_lock(hashtext($1))', ['labnotes:migrations']);
     await ensureMigrationsTable(client);
     const appliedResult = await client.query('select version from schema_migrations');
     const applied = new Set(appliedResult.rows.map((row) => row.version));
