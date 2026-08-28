@@ -10,7 +10,16 @@ import {
   withDocumentTitle
 } from './documents/templates';
 import { sanitizeLatex } from './editor/extensions/Math';
-import { createTemplateFromDocument, deleteTemplate, fetchTemplate, fetchTemplates, type BackendTemplate } from './api/backend';
+import {
+  createTemplateFromDocument,
+  deleteTemplate,
+  fetchTemplate,
+  fetchTemplates,
+  updateDocumentMetadata,
+  type BackendTemplate,
+  type DocumentMetadata
+} from './api/backend';
+import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
 import {
   createBlankDocument,
   createNotebookDocument,
@@ -181,6 +190,11 @@ export default function App() {
         label: 'Bullet list',
         onClick: () => editor?.chain().focus().toggleBulletList().run(),
         isActive: Boolean(editor?.isActive('bulletList'))
+      },
+      {
+        label: 'Task list',
+        onClick: () => editor?.chain().focus().toggleTaskList().run(),
+        isActive: Boolean(editor?.isActive('taskList'))
       },
       {
         label: 'Insert table',
@@ -389,6 +403,31 @@ export default function App() {
     await reloadTemplates();
   };
 
+  const selectedExperiment =
+    selectedDocument?.kind === 'experiment' ? db?.experiments.find((item) => item.id === selectedDocument.id) ?? null : null;
+
+  const handleMetadataChange = async (metadata: DocumentMetadata) => {
+    if (!selectedExperiment) {
+      return;
+    }
+
+    // Optimistic local update; the server normalises and the next reload confirms.
+    setDb((previous) =>
+      previous
+        ? {
+            ...previous,
+            experiments: previous.experiments.map((item) => (item.id === selectedExperiment.id ? { ...item, metadata } : item))
+          }
+        : previous
+    );
+
+    try {
+      await updateDocumentMetadata(selectedExperiment.id, metadata);
+    } catch {
+      setSaveState('error');
+    }
+  };
+
   const handleDeleteSelectedDocument = async () => {
     if (!selectedDocument) {
       return;
@@ -590,6 +629,12 @@ export default function App() {
                                     }`}
                                     onClick={() => handleExperimentSelect(group, project, experiment)}
                                   >
+                                    {experiment.metadata.status && (
+                                      <span
+                                        className={`status-dot status-${experiment.metadata.status}`}
+                                        title={STATUS_LABELS[experiment.metadata.status]}
+                                      />
+                                    )}
                                     {experiment.title}
                                   </button>
                                 ))}
@@ -629,6 +674,15 @@ export default function App() {
               </div>
     
               {loadError && <div className="status-inline">{loadError}</div>}
+
+              {selectedExperiment && (
+                <ExperimentMeta
+                  key={selectedExperiment.id}
+                  metadata={selectedExperiment.metadata}
+                  createdAt={selectedExperiment.createdAt}
+                  onChange={(metadata) => void handleMetadataChange(metadata)}
+                />
+              )}
     
               <NotebookEditor
                 key={selectedDocument ? `${selectedDocument.kind}-${selectedDocument.id}-${editorEpoch}` : 'no-document'}

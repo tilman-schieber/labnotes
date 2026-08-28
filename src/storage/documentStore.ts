@@ -12,7 +12,8 @@ import {
   fetchDocumentTree,
   updateDocument,
   type BackendDocumentNode,
-  type BackendDocumentRecord
+  type BackendDocumentRecord,
+  type DocumentMetadata
 } from '../api/backend';
 
 export const LAB_ACTIVE_STORAGE_KEY = 'lab-notebook-active';
@@ -36,6 +37,8 @@ export type NotebookExperiment = {
   projectId: string;
   title: string;
   content: JSONContent;
+  metadata: DocumentMetadata;
+  createdAt: string;
 };
 
 export type NotebookDB = {
@@ -128,7 +131,9 @@ function normalizeExperiment(node: BackendDocumentNode, groupId: string, project
     groupId,
     projectId,
     title: extractDocumentTitle(content, fallbackTitle),
-    content
+    content,
+    metadata: node.metadata ?? {},
+    createdAt: node.createdAt
   };
 }
 

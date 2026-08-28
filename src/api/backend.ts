@@ -3,12 +3,24 @@ import type { NotebookDocumentKind } from '../documents/templates';
 
 const API_ROOT = '/api';
 
+export type DocumentStatus = 'planned' | 'in_progress' | 'done' | 'failed' | 'abandoned';
+
+export const DOCUMENT_STATUSES: DocumentStatus[] = ['planned', 'in_progress', 'done', 'failed', 'abandoned'];
+
+export type DocumentMetadata = {
+  status?: DocumentStatus;
+  // ISO date (YYYY-MM-DD)
+  date?: string;
+  tags?: string[];
+};
+
 export type BackendDocumentNode = {
   id: string;
   kind: NotebookDocumentKind;
   parentId: string | null;
   title: string;
   content: JSONContent;
+  metadata: DocumentMetadata;
   createdAt: string;
   updatedAt: string;
   children: BackendDocumentNode[];
@@ -95,6 +107,15 @@ export async function updateDocument(
   const payload = await request<{ document: BackendDocumentRecord }>(`/documents/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ title, content })
+  });
+
+  return payload.document;
+}
+
+export async function updateDocumentMetadata(id: string, metadata: DocumentMetadata): Promise<BackendDocumentRecord> {
+  const payload = await request<{ document: BackendDocumentRecord }>(`/documents/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ metadata })
   });
 
   return payload.document;

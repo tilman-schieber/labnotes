@@ -92,7 +92,7 @@ function validateDocumentPayload(documents, kind, parentId) {
 async function loadDocuments() {
   const result = await query(
     `
-      select id, kind, parent_id as "parentId", title, content, created_at as "createdAt", updated_at as "updatedAt"
+      select id, kind, parent_id as "parentId", title, content, metadata, created_at as "createdAt", updated_at as "updatedAt"
       from documents
       order by created_at asc
     `
@@ -253,7 +253,45 @@ app.post('/api/documents', async (request, response) => {
   response.status(201).json({ document: getDocumentWithAncestors(nextDocuments, document.id) });
 });
 
+const DOCUMENT_STATUSES = ['planned', 'in_progress', 'done', 'failed', 'abandoned'];
+
+function normalizeMetadata(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return {};
+  }
+
+  const metadata = {};
+  if (DOCUMENT_STATUSES.includes(input.status)) {
+    metadata.status = input.status;
+  }
+  if (typeof input.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
+    metadata.date = input.date;
+  }
+  if (Array.isArray(input.tags)) {
+    const tags = [...new Set(input.tags.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean))];
+    if (tags.length > 0) {
+      metadata.tags = tags;
+    }
+  }
+  return metadata;
+}
+
 app.patch('/api/documents/:id', async (request, response) => {
+  // Metadata-only updates do not touch content and never create a revision.
+  if (request.body.content === undefined && request.body.metadata !== undefined) {
+    const result = await query('update documents set metadata = $2::jsonb where id = $1 returning id', [
+      request.params.id,
+      JSON.stringify(normalizeMetadata(request.body.metadata))
+    ]);
+    if (result.rowCount === 0) {
+      response.status(404).json({ error: 'Document not found' });
+      return;
+    }
+    const nextDocuments = await loadDocuments();
+    response.json({ document: getDocumentWithAncestors(nextDocuments, request.params.id) });
+    return;
+  }
+
   const nextTitle = String(request.body.title ?? '').trim();
   const nextContent = request.body.content ?? null;
 

@@ -37,6 +37,8 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
   - New Project (inside selected group)
   - New Experiment (inside selected project)
 - Templates: "Save as template" on an experiment; "New from template…" in the sidebar (delete from the same menu)
+- Experiment metadata bar: status (planned / in progress / done / failed / abandoned, shown as a dot in the tree), date, tags
+- Task lists (toolbar "Task list" or type `[ ] `)
 - Backend-backed autosave for documents
 - Last active selection restored locally on reload
 
@@ -142,6 +144,7 @@ db/
     0004_document_revisions.sql    # revision history table + backfill
     0005_relation_uniqueness.sql   # NULLS NOT DISTINCT uniqueness for relations
     0006_templates.sql             # experiment templates
+    0007_document_metadata.sql     # documents.metadata (status, date, tags)
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -340,7 +343,7 @@ Current backend endpoints:
 - `GET /api/documents/:id/revisions/:revision`
 - `POST /api/documents/:id/revisions/:revision/restore`
 - `POST /api/documents`
-- `PATCH /api/documents/:id`
+- `PATCH /api/documents/:id` (`{ title, content }` records a revision; `{ metadata }` alone updates status/date/tags without one)
 - `DELETE /api/documents/:id`
 - `GET /api/templates?kind=`, `GET /api/templates/:id`, `POST /api/templates` (`{ name, documentId }` or `{ name, kind, content }`), `DELETE /api/templates/:id`
 - `GET /api/entities?q=&type=&status=` (registry listing with mention counts)

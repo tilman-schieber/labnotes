@@ -4,6 +4,8 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableHeader from '@tiptap/extension-table-header';
 import TableCell from '@tiptap/extension-table-cell';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import type { Editor, JSONContent } from '@tiptap/core';
 import { createEntityMentionExtension, DocumentSlashExtension, UserMentionExtension } from './extensions/Mention';
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts';
@@ -60,6 +62,8 @@ export default function NotebookEditor({
       DocumentSlashExtension,
       QuantityNode,
       ReactionNode,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,

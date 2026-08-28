@@ -766,6 +766,95 @@ body {
   background: #dbeafe;
 }
 
+.experiment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 0.85rem;
+}
+
+.experiment-meta label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: #475569;
+}
+
+.experiment-meta input,
+.experiment-meta select {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  background: #fff;
+}
+
+.experiment-meta-tags {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  background: #cbd5e1;
+  vertical-align: middle;
+}
+
+.status-dot.status-planned,
+.status-select.status-planned {
+  background-color: #e0e7ff;
+}
+.status-dot.status-in_progress,
+.status-select.status-in_progress {
+  background-color: #fde68a;
+}
+.status-dot.status-done,
+.status-select.status-done {
+  background-color: #86efac;
+}
+.status-dot.status-failed,
+.status-select.status-failed {
+  background-color: #fca5a5;
+}
+.status-dot.status-abandoned,
+.status-select.status-abandoned {
+  background-color: #d1d5db;
+}
+
+.ProseMirror ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+
+.ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.ProseMirror ul[data-type='taskList'] li > label {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+}
+
+.ProseMirror ul[data-type='taskList'] li > div {
+  flex: 1;
+}
+
+.ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
 .template-picker select {
   width: 100%;
   border: 1px solid #cbd5e1;
