@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
+  createShareLink,
   fetchDocumentRevisions,
   restoreDocumentRevision,
   searchUsers,
   signDocumentRevision,
+  verifyRevisionChain,
+  type BackendChainVerification,
   type BackendRevisionSummary,
   type BackendUserSearchResult
 } from '../api/backend';
@@ -24,9 +27,11 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
   const [signerId, setSignerId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busyRevision, setBusyRevision] = useState<number | null>(null);
+  const [verification, setVerification] = useState<BackendChainVerification | null>(null);
 
   useEffect(() => {
     setIsOpen(false);
+    setVerification(null);
   }, [documentId]);
 
   const load = async () => {
@@ -104,6 +109,43 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
     }
   };
 
+  const handleVerify = async () => {
+    if (!documentId) {
+      return;
+    }
+    try {
+      setVerification(await verifyRevisionChain(documentId));
+    } catch (verifyError) {
+      setError(verifyError instanceof Error ? verifyError.message : 'Failed to verify signatures');
+    }
+  };
+
+  const handleShare = async (revision: number) => {
+    if (!documentId) {
+      return;
+    }
+    try {
+      const share = await createShareLink(documentId, revision);
+      const url = `${window.location.origin}${share.url}`;
+      await promptDialog({
+        title: `Share revision ${revision}`,
+        message: 'Anyone with this link can view the signed snapshot (and its PDF), but not edit or browse the notebook.',
+        label: 'Read-only link',
+        defaultValue: url,
+        confirmLabel: 'Open link'
+      }).then((value) => {
+        if (value !== null) {
+          window.open(url, '_blank', 'noopener');
+        }
+      });
+    } catch (shareError) {
+      setError(shareError instanceof Error ? shareError.message : 'Failed to create share link');
+    }
+  };
+
+  const signedCount = revisions.filter((item) => item.signedAt).length;
+  const verdictFor = (revision: number) => verification?.revisions.find((item) => item.revision === revision) ?? null;
+
   return (
     <>
       <button
@@ -131,6 +173,19 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
               </select>
             </div>
           )}
+          {signedCount > 0 && (
+            <div className="revision-chain">
+              <button type="button" className="btn btn-sm" onClick={() => void handleVerify()}>
+                Verify {signedCount === 1 ? 'signature' : `${signedCount} signatures`}
+              </button>
+              {verification && (
+                <span className={`revision-chain-verdict${verification.ok ? ' is-ok' : ' is-broken'}`}>
+                  {verification.ok ? 'Chain intact' : 'Chain broken'}
+                  {verification.head && <code title="Chain head">{verification.head.slice(0, 12)}</code>}
+                </span>
+              )}
+            </div>
+          )}
           {error && <div className="revision-error">{error}</div>}
           {!error && revisions.length === 0 && <div className="revision-empty">No revisions yet</div>}
           {revisions.map((item, index) => (
@@ -139,6 +194,14 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
                 <span className="revision-number">
                   #{item.revision}
                   {item.signedAt && <span className="revision-signed-badge">signed</span>}
+                  {verdictFor(item.revision) && (
+                    <span
+                      className={`revision-signed-badge ${verdictFor(item.revision)!.ok ? 'is-ok' : 'is-broken'}`}
+                      title={verdictFor(item.revision)!.problems.join('; ') || 'Content and signature match the chain'}
+                    >
+                      {verdictFor(item.revision)!.ok ? 'verified' : 'tampered'}
+                    </span>
+                  )}
                 </span>
                 <span className="revision-title">{item.title}</span>
                 <span className="revision-time">{timeFormatter.format(new Date(item.updatedAt))}</span>
@@ -148,11 +211,21 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
                     {item.signatureNote && ` · “${item.signatureNote}”`}
                   </span>
                 )}
+                {item.chainHash && (
+                  <code className="revision-hash" title={`Chain hash ${item.chainHash}`}>
+                    {item.chainHash.slice(0, 12)}
+                  </code>
+                )}
               </div>
               <div className="revision-actions">
                 {!item.signedAt && signerId && (
                   <button type="button" className="btn btn-sm" onClick={() => void handleSign(item.revision)} disabled={busyRevision !== null}>
                     Sign
+                  </button>
+                )}
+                {item.signedAt && (
+                  <button type="button" className="btn btn-sm" onClick={() => void handleShare(item.revision)} title="Read-only link to this signed snapshot">
+                    Share
                   </button>
                 )}
                 {index === 0 ? (

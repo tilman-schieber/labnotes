@@ -266,7 +266,13 @@ export function documentToTypst(
     path.length > 0 ? escapeText(path.join(' › ')) : null,
     [statusLabel(metadata.status), metadata.date, ...(metadata.tags ?? []).map((tag) => `#${tag}`)].filter(Boolean).map(escapeText).join(' · ') || null,
     revision
-      ? `Revision ${revision.revision}${revision.signedAt ? ` — signed by ${escapeText(revision.signedByName ?? revision.signedBy)} on ${new Date(revision.signedAt).toISOString().slice(0, 10)}` : ''}`
+      ? `Revision ${revision.revision}${
+          revision.signedAt
+            ? ` — signed by ${escapeText(revision.signedByName ?? revision.signedBy)} on ${new Date(revision.signedAt).toISOString().slice(0, 10)}${
+                revision.chainHash ? ` · chain #raw("${String(revision.chainHash).slice(0, 16)}")` : ''
+              }`
+            : ''
+        }`
       : null
   ].filter(Boolean);
 

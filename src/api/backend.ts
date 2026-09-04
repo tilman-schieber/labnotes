@@ -42,7 +42,36 @@ export type BackendRevisionSummary = {
   signedByName: string | null;
   signedAt: string | null;
   signatureNote: string | null;
+  contentHash: string | null;
+  previousChainHash: string | null;
+  chainHash: string | null;
 };
+
+export type BackendChainVerification = {
+  ok: boolean;
+  head: string | null;
+  revisions: { revision: number; signedAt: string; signedByName: string | null; chainHash: string; ok: boolean; problems: string[] }[];
+};
+
+export async function verifyRevisionChain(id: string): Promise<BackendChainVerification> {
+  return request(`/documents/${id}/revisions/verify`);
+}
+
+export type BackendShareLink = { token: string; revision: number; createdAt: string; url: string };
+
+export async function createShareLink(id: string, revision: number): Promise<BackendShareLink> {
+  const payload = await request<{ share: BackendShareLink }>(`/documents/${id}/revisions/${revision}/share`, { method: 'POST' });
+  return payload.share;
+}
+
+export async function fetchShareLinks(id: string): Promise<BackendShareLink[]> {
+  const payload = await request<{ shares: Omit<BackendShareLink, 'url'>[] }>(`/documents/${id}/shares`);
+  return payload.shares.map((share) => ({ ...share, url: `/share/${share.token}` }));
+}
+
+export async function revokeShareLink(token: string): Promise<void> {
+  await request(`/share/${token}`, { method: 'DELETE' });
+}
 
 export async function signDocumentRevision(id: string, revision: number, userId: string, note?: string): Promise<BackendRevisionSummary> {
   const payload = await request<{ revision: BackendRevisionSummary }>(`/documents/${id}/revisions/${revision}/sign`, {

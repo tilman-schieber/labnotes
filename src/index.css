@@ -1761,6 +1761,47 @@ button:disabled {
   padding: 0.35rem 0.5rem;
 }
 
+.revision-signed-badge.is-broken {
+  color: var(--danger);
+  background: #fee2e2;
+}
+
+.revision-hash {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.revision-chain {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.revision-chain-verdict {
+  font-size: 0.78rem;
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.revision-chain-verdict code {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.revision-chain-verdict.is-ok {
+  color: var(--ok-text);
+}
+
+.revision-chain-verdict.is-broken {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 /* ---------- Registry ---------- */
 .registry {
   display: grid;

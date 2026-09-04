@@ -5,7 +5,8 @@ import { MergeError, mergeEntities } from './lib/entities.mjs';
 import { createId } from './lib/ids.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
-import { SignError, getRevision, listRevisions, recordRevision, signRevision } from './lib/revisions.mjs';
+import { SignError, getRevision, listRevisions, recordRevision, signRevision, verifyRevisionChain } from './lib/revisions.mjs';
+import { ShareError, createShareLink, listShareLinks, renderSharePage, resolveShareLink, revokeShareLink } from './lib/share.mjs';
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { extractText } from './lib/text.mjs';
 import { convert, findUnit, toBase } from '../src/units/quantity.ts';
@@ -591,6 +592,78 @@ app.get('/api/documents/:id/revisions', async (request, response) => {
 
   const revisions = await listRevisions(getPool(), request.params.id);
   response.json({ revisions });
+});
+
+// Recomputes the signature chain; anything edited behind the signatures shows up here.
+app.get('/api/documents/:id/revisions/verify', async (request, response) => {
+  const exists = await query('select 1 from documents where id = $1', [request.params.id]);
+  if (exists.rowCount === 0) {
+    response.status(404).json({ error: 'Document not found' });
+    return;
+  }
+  response.json(await verifyRevisionChain({ query }, request.params.id));
+});
+
+app.get('/api/documents/:id/shares', async (request, response) => {
+  response.json({ shares: await listShareLinks({ query }, request.params.id) });
+});
+
+app.post('/api/documents/:id/revisions/:revision/share', async (request, response) => {
+  try {
+    const share = await withTransaction((client) => createShareLink(client, request.params.id, Number(request.params.revision)));
+    response.status(201).json({ share: { ...share, url: `/share/${share.token}` } });
+  } catch (error) {
+    if (error instanceof ShareError) {
+      response.status(error.status).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
+});
+
+app.delete('/api/share/:token', async (request, response) => {
+  const revoked = await revokeShareLink({ query }, request.params.token);
+  response.status(revoked ? 204 : 404).end();
+});
+
+// Public read-only view of a signed revision: /share/<token> (page), .pdf, .typ.
+app.get('/share/:token', async (request, response) => {
+  const [token, extension = ''] = String(request.params.token).split('.');
+  const link = await resolveShareLink({ query }, token);
+  if (!link) {
+    response.status(404).type('text/plain').send('This share link does not exist or was revoked.');
+    return;
+  }
+
+  if (extension === 'pdf') {
+    try {
+      const result = await exportDocumentPdf(link.documentId, { revision: link.revision });
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', `inline; filename="${exportFilename(result.title, 'pdf')}"`);
+      response.send(result.pdf);
+    } catch (error) {
+      response.status(500).type('text/plain').send(`PDF rendering failed: ${error.message}`);
+    }
+    return;
+  }
+
+  if (extension === 'typ') {
+    const result = await exportDocumentTypst(link.documentId, { revision: link.revision });
+    response.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    response.send(result.source);
+    return;
+  }
+
+  const documents = await loadDocuments();
+  const document = getDocumentWithAncestors(documents, link.documentId);
+  const revision = await getRevision({ query }, link.documentId, link.revision);
+  const path = [];
+  let current = document?.parentId ? documents.find((item) => item.id === document.parentId) : null;
+  while (current) {
+    path.unshift(current.title);
+    current = current.parentId ? documents.find((item) => item.id === current.parentId) : null;
+  }
+  response.type('html').send(renderSharePage({ token, title: revision.title, path, revision }));
 });
 
 app.get('/api/documents/:id/revisions/:revision', async (request, response) => {

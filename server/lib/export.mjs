@@ -5,7 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { listAttachments, readAttachmentBytes } from './attachments.mjs';
 import { query } from './database.mjs';
-import { listRevisions } from './revisions.mjs';
+import { getRevision, listRevisions } from './revisions.mjs';
 import { documentToTypst } from './typst.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -48,12 +48,13 @@ async function loadReferencedCompounds(documentId) {
   return entities;
 }
 
-async function loadExportContext(documentId) {
+// With `revision`, the export is that frozen snapshot instead of the current content.
+async function loadExportContext(documentId, { revision = null } = {}) {
   const documents = await query(
     'select id, kind, parent_id as "parentId", title, content, metadata from documents order by created_at asc'
   );
   const byId = new Map(documents.rows.map((row) => [row.id, row]));
-  const document = byId.get(documentId);
+  let document = byId.get(documentId);
   if (!document) {
     return null;
   }
@@ -65,8 +66,17 @@ async function loadExportContext(documentId) {
     current = current.parentId ? byId.get(current.parentId) : null;
   }
 
+  let revisionInfo = null;
+  if (revision !== null) {
+    revisionInfo = await getRevision({ query }, documentId, revision);
+    if (!revisionInfo) {
+      return null;
+    }
+    document = { ...document, title: revisionInfo.title, content: revisionInfo.content };
+  }
+
   const [revisions, entities, attachments] = await Promise.all([
-    listRevisions({ query }, documentId),
+    revisionInfo ? [revisionInfo] : listRevisions({ query }, documentId),
     loadReferencedCompounds(documentId),
     listAttachments({ query }, documentId)
   ]);
@@ -95,8 +105,8 @@ async function loadExportContext(documentId) {
   return { document, source, assets };
 }
 
-export async function exportDocumentTypst(documentId) {
-  const context = await loadExportContext(documentId);
+export async function exportDocumentTypst(documentId, options = {}) {
+  const context = await loadExportContext(documentId, options);
   return context ? { title: context.document.title, source: context.source } : null;
 }
 
@@ -107,16 +117,12 @@ export class ExportError extends Error {
   }
 }
 
-export async function exportDocumentPdf(documentId) {
-  const context = await loadExportContext(documentId);
-  if (!context) {
-    return null;
-  }
-
+// Compiles a Typst source plus its asset files into a PDF buffer.
+export async function compileTypst(source, assets = new Map()) {
   const workDir = await mkdtemp(path.join(tmpdir(), 'labnotes-export-'));
   try {
-    await writeFile(path.join(workDir, 'document.typ'), context.source, 'utf8');
-    for (const [file, data] of context.assets) {
+    await writeFile(path.join(workDir, 'document.typ'), source, 'utf8');
+    for (const [file, data] of assets) {
       await writeFile(path.join(workDir, file), data);
     }
 
@@ -129,8 +135,16 @@ export async function exportDocumentPdf(documentId) {
       throw new ExportError('Typst compilation failed', String(error.stderr ?? error.message));
     }
 
-    return { title: context.document.title, pdf: await readFile(path.join(workDir, 'document.pdf')) };
+    return readFile(path.join(workDir, 'document.pdf'));
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
+}
+
+export async function exportDocumentPdf(documentId, options = {}) {
+  const context = await loadExportContext(documentId, options);
+  if (!context) {
+    return null;
+  }
+  return { title: context.document.title, pdf: await compileTypst(context.source, context.assets) };
 }
