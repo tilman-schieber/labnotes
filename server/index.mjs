@@ -1,6 +1,6 @@
 import cors from 'cors';
 import express from 'express';
-import { closePool, getPool, query, withTransaction } from './lib/database.mjs';
+import { closePool, getDialect, getPool, query, sql, withTransaction } from './lib/database.mjs';
 import { MergeError, mergeEntities } from './lib/entities.mjs';
 import { createId } from './lib/ids.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
@@ -193,14 +193,60 @@ app.get('/api/documents/tree', async (_request, response) => {
   response.json({ documents: buildTree(documents) });
 });
 
-// Full-text search across titles, content and tags. Optional `tag` narrows to documents tagged with it.
-app.get('/api/search', async (request, response) => {
-  const queryText = String(request.query.q ?? '').trim();
-  const tag = String(request.query.tag ?? '').trim().toLowerCase();
+// LIKE-based fallback ranking/highlighting for backends without full-text indexing.
+function countTermOccurrences(text, terms) {
+  const haystack = text.toLowerCase();
+  return terms.reduce((total, term) => {
+    let count = 0;
+    for (let at = haystack.indexOf(term); at !== -1; at = haystack.indexOf(term, at + term.length)) {
+      count += 1;
+    }
+    return total + count;
+  }, 0);
+}
 
-  if (!queryText && !tag) {
-    response.json({ results: [] });
-    return;
+function makeSnippet(text, terms) {
+  const source = String(text ?? '');
+  if (terms.length === 0) {
+    return source.slice(0, 160);
+  }
+
+  const haystack = source.toLowerCase();
+  const first = Math.min(...terms.map((term) => haystack.indexOf(term)).filter((at) => at !== -1).concat([Infinity]));
+  const start = first === Infinity ? 0 : Math.max(0, first - 60);
+  const window = source.slice(start, start + 180);
+  const highlighted = terms.reduce(
+    (snippet, term) => snippet.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), (match) => `[[${match}]]`),
+    window
+  );
+  return `${start > 0 ? '… ' : ''}${highlighted}${start + 180 < source.length ? ' …' : ''}`;
+}
+
+// Search across titles, content and tags. Optional `tag` narrows to documents tagged with
+// it. Postgres uses the tsvector index; SQLite matches every term as a substring.
+async function searchDocuments(queryText, tag) {
+  if (getDialect() === 'sqlite') {
+    const terms = queryText.toLowerCase().split(/\s+/).filter(Boolean);
+    const termClauses = terms.map((_term, index) => `instr(lower(d.title || ' ' || d.search_text), $${index + 3}) > 0`);
+    const result = await query(
+      `
+        select d.id, d.kind, d.title, d.metadata, d.updated_at as "updatedAt", d.search_text as "searchText"
+        from documents d
+        where (${termClauses.length > 0 ? termClauses.join(' and ') : `$1 = $1`})
+          and ($2 = '' or exists (select 1 from json_each(d.metadata, '$.tags') where value = $2))
+        order by d.updated_at desc
+        limit 50
+      `,
+      [queryText, tag, ...terms]
+    );
+
+    return result.rows
+      .map((row) => ({ ...row, snippet: makeSnippet(row.searchText, terms) }))
+      .sort(
+        (left, right) =>
+          countTermOccurrences(`${right.title} ${right.searchText}`, terms) -
+          countTermOccurrences(`${left.title} ${left.searchText}`, terms)
+      );
   }
 
   const result = await query(
@@ -224,6 +270,19 @@ app.get('/api/search', async (request, response) => {
     `,
     [queryText, tag]
   );
+  return result.rows;
+}
+
+app.get('/api/search', async (request, response) => {
+  const queryText = String(request.query.q ?? '').trim();
+  const tag = String(request.query.tag ?? '').trim().toLowerCase();
+
+  if (!queryText && !tag) {
+    response.json({ results: [] });
+    return;
+  }
+
+  const rows = await searchDocuments(queryText, tag);
 
   const documents = await loadDocuments();
   const byId = new Map(documents.map((document) => [document.id, document]));
@@ -238,7 +297,7 @@ app.get('/api/search', async (request, response) => {
   };
 
   response.json({
-    results: result.rows.map((row) => ({
+    results: rows.map((row) => ({
       id: row.id,
       kind: row.kind,
       title: row.title,
@@ -311,10 +370,7 @@ app.get('/api/documents/:id/mentions', async (request, response) => {
         coalesce(e.label, u.display_name) as "currentLabel",
         e.type as "entityType",
         e.document_id as "entityDocumentId",
-        coalesce(
-          (select jsonb_agg(q) from document_usages du, jsonb_array_elements(du.quantities) q where du.document_id = m.document_id and du.target_id = m.target_id),
-          '[]'::jsonb
-        ) as quantities,
+        ${sql.mentionQuantities()} as quantities,
         (select du.role from document_usages du where du.document_id = m.document_id and du.target_id = m.target_id and du.role is not null limit 1) as role
       from document_mentions m
       left join entities e on m.ref_type = 'entity' and e.id = m.target_id
@@ -763,7 +819,7 @@ app.get('/api/entities/labels', async (_request, response) => {
   const result = await query(
     `
       select e.id, e.type, e.label,
-        coalesce(array_agg(a.alias) filter (where a.alias is not null), '{}') as aliases
+        ${sql.aliasList()} as aliases
       from entities e
       left join entity_aliases a on a.entity_id = e.id and a.kind <> 'title'
       where e.status <> 'archived' and e.document_id is null
@@ -791,13 +847,15 @@ app.get('/api/entities/search', async (request, response) => {
         e.document_id as "documentId",
         e.document_id is not null as "isDocument",
         e.attributes->>'smiles' as smiles,
-        ctx.last_used is not null as "usedInContext"
-      from entities e
-      left join lateral (
-        select max(m.created_at) as last_used
-        from document_mentions m
-        where m.ref_type = 'entity' and m.target_id = e.id and m.document_id = any($2::text[])
-      ) ctx on true
+        e.last_used is not null as "usedInContext"
+      from (
+        select e.*, (
+          select max(m.created_at)
+          from document_mentions m
+          where m.ref_type = 'entity' and m.target_id = e.id and m.document_id = any($2::text[])
+        ) as last_used
+        from entities e
+      ) e
       where
         e.status <> 'archived'
         and ($3 = '' or e.type = $3)
@@ -814,10 +872,10 @@ app.get('/api/entities/search', async (request, response) => {
           or lower(e.attributes->>'formula') = $1
         )
       order by
-        ctx.last_used is not null desc,
+        e.last_used is not null desc,
         ($1 <> '' and lower(e.label) like $1 || '%') desc,
-        case when $1 = '' then 0 else similarity(lower(e.label), $1) end desc,
-        ctx.last_used desc nulls last,
+        case when $1 = '' then 0 else ${sql.similarity('lower(e.label)', '$1')} end desc,
+        e.last_used desc nulls last,
         e.document_id is not null desc,
         e.updated_at desc
       limit 20
@@ -991,7 +1049,7 @@ app.post('/api/entities/:id/relations', async (request, response) => {
     `
       insert into entity_relations (id, subject_entity_id, predicate, object_entity_id, confidence, source_document_id)
       values ($1, $2, $3, $4, $5, $6)
-      on conflict (subject_entity_id, predicate, object_entity_id, source_document_id) do nothing
+      on conflict ${sql.relationConflictTarget()} do nothing
       returning id
     `,
     [createId('relation'), request.params.id, predicate, objectEntityId, request.body.confidence ?? null, sourceDocumentId]
@@ -1144,7 +1202,7 @@ app.get('/api/users/search', async (request, response) => {
         or lower(coalesce(email, '')) like '%' || $1 || '%'
       order by
         ($1 <> '' and lower(display_name) like $1 || '%') desc,
-        case when $1 = '' then 0 else similarity(lower(display_name), $1) end desc,
+        case when $1 = '' then 0 else ${sql.similarity('lower(display_name)', '$1')} end desc,
         updated_at desc
       limit 20
     `,

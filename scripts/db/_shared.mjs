@@ -37,6 +37,16 @@ export function requireDatabaseUrl(kind = getTargetEnvironment()) {
   return value;
 }
 
+// For the pg_dump/pg_restore based scripts, which cannot operate on SQLite.
+export function requirePostgresUrl(kind = getTargetEnvironment()) {
+  const value = requireDatabaseUrl(kind);
+  if (value.startsWith('sqlite:') || value === ':memory:' || /\.(db|sqlite3?)$/i.test(value)) {
+    throw new Error('This command uses pg_dump/pg_restore and needs a postgres URL. A SQLite database is a single file - copy it instead.');
+  }
+
+  return value;
+}
+
 export async function runCommand(command, args, extraEnv = {}) {
   await new Promise((resolve, reject) => {
     const child = spawn(command, args, {

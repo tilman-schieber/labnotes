@@ -1,6 +1,6 @@
 # Lab Notebook Prototype
 
-Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postgres-backed API.
+Single-page lab notebook built with Vite, React, TypeScript, TipTap, and an API backed by Postgres or SQLite.
 
 ## Stack
 
@@ -8,7 +8,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and a Postg
 - React + TypeScript
 - TipTap (`StarterKit`, `Table`, `Mention`)
 - Express API
-- Postgres
+- Postgres (or SQLite via Node's built-in `node:sqlite` — see "Database Backends")
 - SQL migrations and database tooling
 
 ## MVP Features
@@ -91,7 +91,7 @@ Core persisted tables:
 - `document_mentions`
 - `entity_relations`
 
-Schema is defined in `db/migrations/0001_init.sql`.
+Schema is defined per backend in `db/migrations/postgres/` (incremental history) and `db/migrations/sqlite/0001_init.sql` (current schema in one file).
 
 Compound entities keep their chemistry in `attributes`: `smiles`, `idCode` (canonical, used for duplicate detection), `formula`, `molecularWeight`, `exactMass`, `logP`, `tpsa`, `hDonors`, `hAcceptors`, plus `casNumber`, `iupacName`, `pubchemCid` when known. Registry search matches `idCode`, `smiles`, and `casNumber` exactly.
 
@@ -147,8 +147,13 @@ src/
 server/
   index.mjs                        # Express API server
   lib/
-    database.mjs                   # pg pool and transactions
-    migrations.mjs                 # SQL migration runner
+    database.mjs                   # driver facade: picks postgres or sqlite from DATABASE_URL
+    db/
+      postgres.mjs                 # pg pool driver
+      sqlite.mjs                   # node:sqlite driver (write lock, row normalisation)
+      translate.mjs                # mechanical pg -> sqlite SQL translation (unit-tested)
+      fragments.mjs                # per-dialect SQL for the few non-portable queries
+    migrations.mjs                 # SQL migration runner (per-dialect directories)
     seed.mjs                       # bootstrap seed + document entity sync
     mentions.mjs                   # extract #/@ references from TipTap JSON into document_mentions
     revisions.mjs                  # append-only document revision snapshots
@@ -159,17 +164,20 @@ server/
     attachments.mjs                # attachment storage on disk + metadata rows
 db/
   migrations/
-    0001_init.sql                  # Base schema
-    0002_trigram_search.sql        # pg_trgm indexes for #/@ lookup
-    0003_rename_protocol_to_experiment.sql
-    0004_document_revisions.sql    # revision history table + backfill
-    0005_relation_uniqueness.sql   # NULLS NOT DISTINCT uniqueness for relations
-    0006_templates.sql             # experiment templates
-    0007_document_metadata.sql     # documents.metadata (status, date, tags)
-    0008_fulltext_search.sql       # search_text + generated tsvector + GIN index
-    0009_revision_signatures.sql   # signed_by / signed_at / note on revisions
-    0010_attachments.sql           # attachment metadata (bytes on disk)
-    0011_document_usages.sql       # entity × amounts × role rows derived from prose
+    postgres/
+      0001_init.sql                # Base schema
+      0002_trigram_search.sql      # pg_trgm indexes for #/@ lookup
+      0003_rename_protocol_to_experiment.sql
+      0004_document_revisions.sql  # revision history table + backfill
+      0005_relation_uniqueness.sql # NULLS NOT DISTINCT uniqueness for relations
+      0006_templates.sql           # experiment templates
+      0007_document_metadata.sql   # documents.metadata (status, date, tags)
+      0008_fulltext_search.sql     # search_text + generated tsvector + GIN index
+      0009_revision_signatures.sql # signed_by / signed_at / note on revisions
+      0010_attachments.sql         # attachment metadata (bytes on disk)
+      0011_document_usages.sql     # entity × amounts × role rows derived from prose
+    sqlite/
+      0001_init.sql                # Full current schema (SQLite support starts here)
 scripts/
   db/
     migrate.mjs                    # Apply migrations
@@ -284,6 +292,26 @@ export DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes
 export DEV_DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes_dev
 export PROD_DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes_prod
 ```
+
+## Database Backends
+
+The backend runs on Postgres or SQLite; the driver is picked from the shape of `DATABASE_URL`:
+
+- `postgres://...` (or anything else) → Postgres via `pg`
+- `sqlite:path/to/labnotes.db`, `sqlite::memory:`, or a bare path ending in `.db`/`.sqlite` → SQLite via Node's built-in `node:sqlite` (no extra dependencies, no database server)
+
+SQLite mode is the zero-setup option — no Docker, no daemon:
+
+```bash
+DATABASE_URL=sqlite:data/labnotes.db mise exec -- npm run dev:server
+```
+
+The server migrates and seeds the file on first start. Notes on parity:
+
+- Shared SQL is written in Postgres flavour and mechanically translated for SQLite (`server/lib/db/translate.mjs`); the few non-portable queries have per-dialect variants (`server/lib/db/fragments.mjs`).
+- Full-text search falls back from tsvector ranking/headlines to substring matching with JS-built snippets; `#`/`@` suggestion ranking falls back from trigram similarity to match position. Both are exact-match compatible, just ranked more simply.
+- Case-insensitive matching uses SQLite's `lower()`, which only folds ASCII — non-ASCII entity labels (e.g. umlauts) match case-sensitively in SQLite mode.
+- `db:dump`/`db:restore`/`db:sync` are pg_dump-based and refuse SQLite URLs; a SQLite database is a single file, copy it instead.
 
 ## Local Docker Postgres
 

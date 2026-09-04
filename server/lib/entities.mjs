@@ -55,7 +55,7 @@ export async function mergeEntities(client, targetId, sourceId) {
   // Relations: re-point, dropping any that would duplicate an existing target relation or self-loop.
   await client.query(
     `
-      delete from entity_relations r
+      delete from entity_relations as r
       where (r.subject_entity_id = $1 and r.object_entity_id = $2)
          or (r.subject_entity_id = $2 and r.object_entity_id = $1)
     `,
@@ -63,7 +63,7 @@ export async function mergeEntities(client, targetId, sourceId) {
   );
   await client.query(
     `
-      update entity_relations r
+      update entity_relations as r
       set subject_entity_id = $2
       where r.subject_entity_id = $1
         and not exists (
@@ -76,7 +76,7 @@ export async function mergeEntities(client, targetId, sourceId) {
   );
   await client.query(
     `
-      update entity_relations r
+      update entity_relations as r
       set object_entity_id = $2
       where r.object_entity_id = $1
         and not exists (
@@ -118,7 +118,7 @@ export async function mergeEntities(client, targetId, sourceId) {
   // Any remaining rows (e.g. import-sourced) are re-pointed directly.
   await client.query(
     `
-      delete from document_mentions s
+      delete from document_mentions as s
       where s.ref_type = 'entity' and s.target_id = $1
         and exists (select 1 from document_mentions t where t.document_id = s.document_id and t.ref_type = 'entity' and t.target_id = $2)
     `,

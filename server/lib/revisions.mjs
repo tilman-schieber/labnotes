@@ -1,3 +1,4 @@
+import { sql } from './database.mjs';
 import { createId } from './ids.mjs';
 
 // Autosave fires after every pause in typing. Changes that land within this window of the
@@ -26,7 +27,7 @@ const REVISION_FROM = 'from document_revisions r left join users u on u.id = r.s
 export async function recordRevision(client, documentId, { title, content, coalesce = true }) {
   const latestResult = await client.query(
     `
-      select id, revision, signed_at is not null as signed, extract(epoch from now() - created_at) as "ageSeconds"
+      select id, revision, signed_at is not null as signed, ${sql.ageSeconds('created_at')} as "ageSeconds"
       from document_revisions
       where document_id = $1
       order by revision desc

@@ -1,9 +1,9 @@
-import { getArgValue, makeTempDumpPath, requireDatabaseUrl, runCommand } from './_shared.mjs';
+import { getArgValue, makeTempDumpPath, requirePostgresUrl, runCommand } from './_shared.mjs';
 
 const sourceEnv = getArgValue('--source') ?? 'prod';
 const targetEnv = getArgValue('--target') ?? 'dev';
-const sourceUrl = requireDatabaseUrl(sourceEnv);
-const targetUrl = requireDatabaseUrl(targetEnv);
+const sourceUrl = requirePostgresUrl(sourceEnv);
+const targetUrl = requirePostgresUrl(targetEnv);
 const dumpPath = await makeTempDumpPath();
 
 await runCommand('pg_dump', ['--format=custom', '--no-owner', '--file', dumpPath, sourceUrl]);

@@ -1,44 +1,52 @@
-import { Pool } from 'pg';
+import { createFragments } from './db/fragments.mjs';
+import { createPostgresDriver } from './db/postgres.mjs';
+import { createSqliteDriver } from './db/sqlite.mjs';
 
-let pool;
+let driver;
 
 export function getDatabaseUrl() {
   return process.env.DATABASE_URL ?? 'postgres://localhost:5432/labnotes';
 }
 
+// sqlite is selected by URL shape: `sqlite:notes.db`, `sqlite::memory:`, `:memory:`,
+// or a bare path ending in .db/.sqlite/.sqlite3. Everything else is postgres.
+export function getDialect(url = getDatabaseUrl()) {
+  if (url.startsWith('sqlite:') || url === ':memory:' || /\.(db|sqlite3?)$/i.test(url)) {
+    return 'sqlite';
+  }
+  return 'postgres';
+}
+
+// Resolved lazily: the db scripts set DATABASE_URL after importing this module.
+function getDriver() {
+  if (!driver) {
+    const url = getDatabaseUrl();
+    driver = getDialect(url) === 'sqlite' ? createSqliteDriver(url) : createPostgresDriver(url);
+  }
+  return driver;
+}
+
+// Dialect-specific fragments for the few queries that cannot be written portably.
+export const sql = createFragments(getDialect);
+
 export function getPool() {
-  if (!pool) {
-    pool = new Pool({ connectionString: getDatabaseUrl() });
-  }
-
-  return pool;
+  return getDriver().getPool();
 }
 
-export async function query(text, params = []) {
-  return getPool().query(text, params);
+export function query(text, params = []) {
+  return getDriver().query(text, params);
 }
 
-export async function withTransaction(callback) {
-  const client = await getPool().connect();
-
-  try {
-    await client.query('begin');
-    const result = await callback(client);
-    await client.query('commit');
-    return result;
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    client.release();
-  }
+export function withTransaction(callback) {
+  return getDriver().withTransaction(callback);
 }
 
 export async function closePool() {
-  if (!pool) {
+  if (!driver) {
     return;
   }
 
-  await pool.end();
-  pool = undefined;
+  const current = driver;
+  driver = undefined;
+  await current.close();
 }

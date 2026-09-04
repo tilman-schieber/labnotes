@@ -1,23 +1,25 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closePool, getPool, withTransaction } from './database.mjs';
+import { closePool, getDialect, query, withTransaction } from './database.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const MIGRATIONS_DIR = path.resolve(__dirname, '../../db/migrations');
 
-async function ensureMigrationsTable(client) {
-  await client.query(`
-    create table if not exists schema_migrations (
-      version text primary key,
-      applied_at timestamptz not null default now()
-    )
-  `);
+// Each dialect keeps its own migration files; versions are the filenames.
+function migrationsDir() {
+  return path.resolve(__dirname, '../../db/migrations', getDialect());
 }
 
+const ENSURE_MIGRATIONS_TABLE = `
+  create table if not exists schema_migrations (
+    version text primary key,
+    applied_at timestamptz not null default now()
+  )
+`;
+
 async function getMigrationFiles() {
-  const entries = await readdir(MIGRATIONS_DIR, { withFileTypes: true });
+  const entries = await readdir(migrationsDir(), { withFileTypes: true });
   return entries
     .filter((entry) => entry.isFile() && entry.name.endsWith('.sql'))
     .map((entry) => entry.name)
@@ -25,31 +27,31 @@ async function getMigrationFiles() {
 }
 
 export async function getMigrationStatus() {
-  const pool = getPool();
-  const client = await pool.connect();
+  await query(ENSURE_MIGRATIONS_TABLE);
+  const files = await getMigrationFiles();
+  const appliedResult = await query('select version from schema_migrations order by version');
+  const applied = new Set(appliedResult.rows.map((row) => row.version));
 
-  try {
-    await ensureMigrationsTable(client);
-    const files = await getMigrationFiles();
-    const appliedResult = await client.query('select version from schema_migrations order by version');
-    const applied = new Set(appliedResult.rows.map((row) => row.version));
-
-    return files.map((file) => ({
-      version: file,
-      applied: applied.has(file)
-    }));
-  } finally {
-    client.release();
-  }
+  return files.map((file) => ({
+    version: file,
+    applied: applied.has(file)
+  }));
 }
 
 export async function runMigrations() {
   const files = await getMigrationFiles();
+  const contents = new Map();
+  for (const file of files) {
+    contents.set(file, await readFile(path.join(migrationsDir(), file), 'utf8'));
+  }
 
   await withTransaction(async (client) => {
-    // Serialise concurrent starters (e.g. two server processes) so only one applies a migration.
-    await client.query('select pg_advisory_xact_lock(hashtext($1))', ['labnotes:migrations']);
-    await ensureMigrationsTable(client);
+    if (getDialect() === 'postgres') {
+      // Serialise concurrent starters (e.g. two server processes) so only one applies a
+      // migration. SQLite's `begin immediate` write lock already does this.
+      await client.query('select pg_advisory_xact_lock(hashtext($1))', ['labnotes:migrations']);
+    }
+    await client.query(ENSURE_MIGRATIONS_TABLE);
     const appliedResult = await client.query('select version from schema_migrations');
     const applied = new Set(appliedResult.rows.map((row) => row.version));
 
@@ -58,8 +60,7 @@ export async function runMigrations() {
         continue;
       }
 
-      const sql = await readFile(path.join(MIGRATIONS_DIR, file), 'utf8');
-      await client.query(sql);
+      await client.exec(contents.get(file));
       await client.query('insert into schema_migrations (version) values ($1)', [file]);
     }
   });
