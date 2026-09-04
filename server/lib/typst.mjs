@@ -113,13 +113,27 @@ function statusLabel(status) {
   return status ? status.replace('_', ' ') : null;
 }
 
+export const TYPST_PREAMBLE = `#import "@preview/mitex:0.2.7": mi, mitex
+#set page(margin: 2cm, numbering: "1")
+#set text(font: "Libertinus Serif", size: 10.5pt)
+#set heading(numbering: none)
+#show heading.where(level: 1): set text(size: 18pt)
+#show table: set text(size: 9pt)`;
+
 // Converts TipTap JSON to Typst markup. `assets` collects compound SVGs (file name -> svg text)
 // that the caller must write next to the .typ file before compiling.
 // `resolveImage(src)` maps an image node's src to an asset file name (registered in `assets` by
 // the caller) or null to skip it.
-export function documentToTypst(
+export function documentToTypst(document, options = {}) {
+  return `${TYPST_PREAMBLE}\n\n${renderDocumentBody(document, options)}\n`;
+}
+
+// Header lines plus body, without the preamble, so a document can also be a book chapter.
+// `headingOffset` pushes the document's own headings down; `skipTitle` drops a leading level-1
+// heading (the chapter heading replaces it).
+export function renderDocumentBody(
   document,
-  { path = [], entities = new Map(), revision = null, assets = new Map(), resolveImage = () => null } = {}
+  { path = [], entities = new Map(), revision = null, assets = new Map(), resolveImage = () => null, headingOffset = 0, skipTitle = false } = {}
 ) {
   const structureImage = (entityId, height) => {
     const entity = entities.get(entityId);
@@ -224,7 +238,7 @@ export function documentToTypst(
       .map((node) => {
         switch (node.type) {
           case 'heading':
-            return `${'='.repeat(Number(node.attrs?.level ?? 1))} ${inline(node.content)}`;
+            return `${'='.repeat(Math.min(6, Number(node.attrs?.level ?? 1) + headingOffset))} ${inline(node.content)}`;
           case 'paragraph':
             return inline(node.content);
           case 'bulletList':
@@ -276,16 +290,55 @@ export function documentToTypst(
       : null
   ].filter(Boolean);
 
-  const body = blocks(document.content?.content ?? []);
+  const content = document.content?.content ?? [];
+  const bodyNodes = skipTitle && content[0]?.type === 'heading' && Number(content[0].attrs?.level ?? 1) === 1 ? content.slice(1) : content;
+  const body = blocks(bodyNodes);
 
-  return `#import "@preview/mitex:0.2.7": mi, mitex
-#set page(margin: 2cm, numbering: "1")
-#set text(font: "Libertinus Serif", size: 10.5pt)
-#set heading(numbering: none)
-#show heading.where(level: 1): set text(size: 18pt)
-#show table: set text(size: 9pt)
+  return `${headerLines.length > 0 ? `#text(size: 9pt, fill: luma(90))[${headerLines.join(' \\\n')}]\n#v(4pt)\n#line(length: 100%, stroke: 0.5pt + luma(180))\n` : ''}
+${body}`;
+}
 
-${headerLines.length > 0 ? `#text(size: 9pt, fill: luma(90))[${headerLines.join(' \\\n')}]\n#v(4pt)\n#line(length: 100%, stroke: 0.5pt + luma(180))\n` : ''}
-${body}
+// A whole project (or group) as one book: title page, contents, one chapter per document,
+// an index of the entities used, and structure pages for the compounds.
+// `chapters` are pre-rendered bodies: { title, level, body }. `index` rows are
+// { label, type, uses: string[] }; `structures` are { label, file, meta }.
+export function projectToTypst({ title, path = [], subtitle = null, chapters = [], index = [], structures = [] }) {
+  const chapterBlocks = chapters.map(
+    (chapter) => `#pagebreak(weak: true)\n${'='.repeat(chapter.level)} ${escapeText(chapter.title)}\n\n${chapter.body}`
+  );
+
+  const indexTable =
+    index.length > 0
+      ? `#pagebreak(weak: true)\n= Index of entities\n\n#table(columns: (1.4fr, 0.7fr, 3fr), stroke: 0.5pt + luma(180),\n  [*Entity*], [*Type*], [*Used in*],\n  ${index
+          .map((row) => `[${escapeText(row.label)}], [${escapeText(row.type)}], [${row.uses.map(escapeText).join(' \\\n')}]`)
+          .join(',\n  ')}\n)`
+      : '';
+
+  const structureGrid =
+    structures.length > 0
+      ? `#pagebreak(weak: true)\n= Structures\n\n#grid(columns: 3, gutter: 14pt,\n  ${structures
+          .map(
+            (item) =>
+              `[#align(center)[#image("${item.file}", width: 90%) \\\n *${escapeText(item.label)}* \\\n #text(size: 8pt, fill: luma(90))[${escapeText(item.meta)}]]]`
+          )
+          .join(',\n  ')}\n)`
+      : '';
+
+  return `${TYPST_PREAMBLE}
+
+#align(center + horizon)[
+  #text(size: 26pt, weight: "bold")[${escapeText(title)}]
+  ${path.length > 0 ? `\\\n #text(size: 11pt, fill: luma(90))[${escapeText(path.join(' › '))}]` : ''}
+  ${subtitle ? `\\\n #text(size: 11pt, fill: luma(90))[${escapeText(subtitle)}]` : ''}
+]
+
+#pagebreak()
+#outline(title: [Contents], depth: 2)
+
+${chapterBlocks.join('\n\n')}
+
+${indexTable}
+
+${structureGrid}
 `;
 }

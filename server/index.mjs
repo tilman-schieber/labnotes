@@ -10,7 +10,7 @@ import { ShareError, createShareLink, listShareLinks, renderSharePage, resolveSh
 import { seedDatabase, syncDocumentEntity } from './lib/seed.mjs';
 import { extractText } from './lib/text.mjs';
 import { convert, findUnit, toBase } from '../src/units/quantity.ts';
-import { exportDocumentPdf, exportDocumentTypst } from './lib/export.mjs';
+import { exportDocumentPdf, exportDocumentTypst, exportProjectPdf, exportProjectTypst } from './lib/export.mjs';
 import {
   MAX_ATTACHMENT_BYTES,
   deleteAttachment,
@@ -551,8 +551,14 @@ function exportFilename(title, extension) {
   return `${base}.${extension}`;
 }
 
+// Experiments export on their own; projects and groups export as a book of their experiments.
+async function isBookExport(documentId) {
+  const result = await query('select kind from documents where id = $1', [documentId]);
+  return result.rows[0] ? result.rows[0].kind !== 'experiment' : false;
+}
+
 app.get('/api/documents/:id/export.typ', async (request, response) => {
-  const result = await exportDocumentTypst(request.params.id);
+  const result = (await isBookExport(request.params.id)) ? await exportProjectTypst(request.params.id) : await exportDocumentTypst(request.params.id);
   if (!result) {
     response.status(404).json({ error: 'Document not found' });
     return;
@@ -565,7 +571,7 @@ app.get('/api/documents/:id/export.typ', async (request, response) => {
 
 app.get('/api/documents/:id/export.pdf', async (request, response) => {
   try {
-    const result = await exportDocumentPdf(request.params.id);
+    const result = (await isBookExport(request.params.id)) ? await exportProjectPdf(request.params.id) : await exportDocumentPdf(request.params.id);
     if (!result) {
       response.status(404).json({ error: 'Document not found' });
       return;

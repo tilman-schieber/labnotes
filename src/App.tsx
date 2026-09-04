@@ -919,10 +919,10 @@ export default function App() {
                       type="button"
                       className="btn btn-sm"
                       onClick={() => window.open(`/api/documents/${selectedDocument.id}/export.pdf`, '_blank', 'noopener')}
-                      title="Export as PDF (Typst)"
+                      title={selectedDocument.kind === 'experiment' ? 'Export as PDF (Typst)' : `Export the whole ${selectedDocument.kind} as one PDF book`}
                     >
                       <IconPdf size={14} />
-                      PDF
+                      {selectedDocument.kind === 'experiment' ? 'PDF' : 'PDF book'}
                     </button>
                     <button
                       type="button"
