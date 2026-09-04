@@ -6,10 +6,12 @@ import {
   deleteEntityAlias,
   deleteEntityRelation,
   fetchEntity,
+  fetchEntityGraph,
   mergeEntities,
   searchEntities,
   updateEntity,
   type BackendEntityDetail,
+  type BackendEntityGraph,
   type BackendEntityListItem,
   type BackendEntitySearchResult,
   type EntityUpdate
@@ -18,6 +20,7 @@ import { isCompoundAttributes } from '../chemistry/molecule';
 import AttributeFields from './AttributeFields';
 import { expiryState } from './attributeSchema';
 import CompoundPanel from './CompoundPanel';
+import { stockState, usageTimeline } from './stock';
 import { confirmDialog } from '../ui/dialogs';
 import { formatQuantity } from '../units/quantity';
 
@@ -70,6 +73,8 @@ type Props = {
   types: string[];
   onChanged: () => void;
   onOpenDocument: (documentId: string) => void;
+  // Navigate to another entity (graph neighbours).
+  onOpenEntity: (entityId: string) => void;
   // Called with the surviving entity id after this entity was merged away.
   onMerged: (targetId: string) => void;
 };
@@ -94,8 +99,9 @@ function toForm(detail: BackendEntityDetail): FormState {
   };
 }
 
-export default function EntityDetail({ entityId, types, onChanged, onOpenDocument, onMerged }: Props) {
+export default function EntityDetail({ entityId, types, onChanged, onOpenDocument, onOpenEntity, onMerged }: Props) {
   const [detail, setDetail] = useState<BackendEntityDetail | null>(null);
+  const [graph, setGraph] = useState<BackendEntityGraph | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -114,6 +120,9 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
       setDetail(next);
       setForm(toForm(next));
       setError(null);
+      fetchEntityGraph(entityId)
+        .then(setGraph)
+        .catch(() => setGraph(null));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load entity');
     }
@@ -471,9 +480,31 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
         )}
       </section>
 
+      {(() => {
+        const stock = stockState(detail.entity.attributes, detail.usageTotals);
+        if (!stock) {
+          return null;
+        }
+        return (
+          <section className="entity-section">
+            <h3>Stock</h3>
+            <div className={`stock-line stock-${stock.level}`}>
+              <div className="stock-bar" aria-hidden="true">
+                <span style={{ width: `${Math.round(stock.fraction * 100)}%` }} />
+              </div>
+              <span>
+                <strong>{formatQuantity(stock.remaining)}</strong> left of {formatQuantity(stock.initial)} recorded
+                {stock.used.value > 0 && ` · ${formatQuantity(stock.used)} used in ${detail.usages.length} ${detail.usages.length === 1 ? 'experiment' : 'experiments'}`}
+              </span>
+              {stock.level !== 'ok' && <span className="badge stock-badge">{stock.level === 'depleted' ? 'used up' : 'running low'}</span>}
+            </div>
+          </section>
+        );
+      })()}
+
       {detail.usages.length > 0 && (
         <section className="entity-section">
-          <h3>Used</h3>
+          <h3>Timeline</h3>
           {detail.usageTotals.length > 0 && (
             <div className="usage-totals">
               {detail.usageTotals.map((total) => (
@@ -483,19 +514,69 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
               ))}
             </div>
           )}
-          <ul className="entity-usage-list">
-            {detail.usages.map((usage) => (
+          <ul className="entity-usage-list entity-timeline">
+            {usageTimeline(detail.usages).map((usage) => (
               <li key={usage.id}>
+                <span className="timeline-date">{usage.date}</span>
                 <button type="button" className="link-button" onClick={() => onOpenDocument(usage.documentId)}>
                   {usage.documentTitle}
                 </button>
-                {usage.documentDate && <span className="entity-muted">{usage.documentDate}</span>}
                 <span className="usage-amounts">{usage.quantities.length > 0 ? usage.quantities.map(formatQuantity).join(', ') : '—'}</span>
                 {usage.role && <span className="badge">{usage.role}</span>}
+                {usage.cumulative.length > 0 && (
+                  <span className="entity-muted" title="Running total up to this experiment">
+                    Σ {usage.cumulative.map(formatQuantity).join(' · ')}
+                  </span>
+                )}
                 {usage.sentence && <span className="usage-sentence" title={usage.sentence}>“{usage.sentence}”</span>}
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {graph && (graph.coUsed.length > 0 || graph.ancestors.length > 0 || graph.descendants.length > 0) && (
+        <section className="entity-section">
+          <h3>Around this entity</h3>
+          {graph.ancestors.length > 0 && (
+            <div className="graph-row">
+              <span className="entity-muted">Derived from</span>
+              {graph.ancestors.map((node) => (
+                <button key={node.id} type="button" className={`linked-entity linked-entity-${node.type ?? 'entity'}`} onClick={() => onOpenEntity(node.id)} title={node.depth > 1 ? `${node.depth} hops away` : undefined}>
+                  {node.depth > 1 && <span className="entity-muted">{'› '.repeat(node.depth - 1)}</span>}
+                  {node.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {graph.descendants.length > 0 && (
+            <div className="graph-row">
+              <span className="entity-muted">Derived here</span>
+              {graph.descendants.map((node) => (
+                <button key={node.id} type="button" className={`linked-entity linked-entity-${node.type ?? 'entity'}`} onClick={() => onOpenEntity(node.id)} title={node.depth > 1 ? `${node.depth} hops away` : undefined}>
+                  {node.depth > 1 && <span className="entity-muted">{'› '.repeat(node.depth - 1)}</span>}
+                  {node.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {graph.coUsed.length > 0 && (
+            <div className="graph-row">
+              <span className="entity-muted">Used together with</span>
+              {graph.coUsed.map((node) => (
+                <button
+                  key={node.id}
+                  type="button"
+                  className={`linked-entity linked-entity-${node.type}`}
+                  onClick={() => onOpenEntity(node.id)}
+                  title={`Both in: ${node.sharedDocuments.map((item) => item.title).join(', ')}`}
+                >
+                  {node.label}
+                  <span className="linked-entity-amount">{node.sharedDocuments.length}×</span>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

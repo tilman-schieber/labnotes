@@ -24,7 +24,8 @@ export const ATTRIBUTE_SCHEMA: Record<string, AttributeField[]> = {
     { key: 'catalogNumber', label: 'Catalog no.', kind: 'text' },
     { key: 'lotNumber', label: 'Lot no.', kind: 'text' },
     { key: 'concentration', label: 'Concentration', kind: 'quantity', placeholder: 'e.g. 2 M' },
-    { key: 'amount', label: 'Amount on hand', kind: 'quantity', placeholder: 'e.g. 250 g' },
+    // Stock at the time of recording; usages written since are subtracted (see stock.ts).
+    { key: 'amount', label: 'Stock recorded', kind: 'quantity', placeholder: 'e.g. 250 g' },
     { key: 'storage', label: 'Storage', kind: 'text' },
     { key: 'openedAt', label: 'Opened', kind: 'date' },
     { key: 'expiry', label: 'Expiry', kind: 'date' }

@@ -194,6 +194,7 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
             types={types}
             onChanged={() => void reload()}
             onOpenDocument={onOpenDocument}
+            onOpenEntity={setSelectedId}
             onMerged={(targetId) => {
               setSelectedId(targetId);
               void reload();

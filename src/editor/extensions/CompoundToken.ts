@@ -1,23 +1,28 @@
 import type { NodeViewRenderer } from '@tiptap/core';
-import { fetchEntity, type BackendEntityRecord } from '../../api/backend';
+import { fetchEntity, type BackendEntityDetail, type BackendEntityRecord } from '../../api/backend';
 import { formatWeight, isCompoundAttributes, smilesToSvg, type CompoundAttributes } from '../../chemistry/molecule';
+import { expiryState } from '../../registry/attributeSchema';
+import { stockState } from '../../registry/stock';
+import { formatQuantity } from '../../units/quantity';
 
 // Entity details are fetched lazily on hover and cached per session, so tokens always show the
 // registry's current structure without storing SMILES in the document.
-const entityCache = new Map<string, Promise<BackendEntityRecord | null>>();
+const entityCache = new Map<string, Promise<BackendEntityDetail | null>>();
 
-export function loadEntity(id: string) {
+export function loadEntityDetail(id: string) {
   let pending = entityCache.get(id);
   if (!pending) {
-    pending = fetchEntity(id)
-      .then((detail) => detail.entity)
-      .catch(() => {
-        entityCache.delete(id);
-        return null;
-      });
+    pending = fetchEntity(id).catch(() => {
+      entityCache.delete(id);
+      return null;
+    });
     entityCache.set(id, pending);
   }
   return pending;
+}
+
+export function loadEntity(id: string): Promise<BackendEntityRecord | null> {
+  return loadEntityDetail(id).then((detail) => detail?.entity ?? null);
 }
 
 export function invalidateEntityCache(id?: string) {
@@ -48,14 +53,23 @@ function hideHoverCard() {
   }
 }
 
+function line(className: string, text: string) {
+  const element = document.createElement('div');
+  element.className = className;
+  element.textContent = text;
+  return element;
+}
+
+// What a writer needs to know about a reference without leaving the text: the structure for
+// compounds, and for anything with stock or an expiry, whether it is still usable.
 async function showHoverCard(anchor: HTMLElement, entityId: string) {
-  const entity = await loadEntity(entityId);
-  const attributes = entity && isCompoundAttributes(entity.attributes) ? (entity.attributes as CompoundAttributes) : null;
-  if (!entity || !attributes?.smiles || !anchor.matches(':hover')) {
+  const detail = await loadEntityDetail(entityId);
+  if (!detail || !anchor.matches(':hover')) {
     return;
   }
-
-  const svg = await smilesToSvg(attributes.smiles, 220, 140);
+  const { entity } = detail;
+  const attributes = isCompoundAttributes(entity.attributes) ? (entity.attributes as CompoundAttributes) : null;
+  const svg = attributes?.smiles ? await smilesToSvg(attributes.smiles, 220, 140) : null;
   if (!anchor.matches(':hover')) {
     return;
   }
@@ -63,15 +77,41 @@ async function showHoverCard(anchor: HTMLElement, entityId: string) {
   const card = getHoverCard();
   card.innerHTML = '';
 
-  const image = document.createElement('div');
-  image.className = 'compound-hover-svg';
-  image.innerHTML = svg ?? '';
+  const head = document.createElement('div');
+  head.className = 'compound-hover-head';
+  const badge = line(`badge type-badge type-${entity.type}`, entity.type);
+  head.append(badge, line('compound-hover-label', entity.label));
+  card.appendChild(head);
 
-  const meta = document.createElement('div');
-  meta.className = 'compound-hover-meta';
-  meta.textContent = [attributes.formula, formatWeight(attributes.molecularWeight)].filter(Boolean).join(' · ');
+  if (svg) {
+    const image = document.createElement('div');
+    image.className = 'compound-hover-svg';
+    image.innerHTML = svg;
+    card.appendChild(image);
+    const formula = [attributes?.formula, formatWeight(attributes?.molecularWeight)].filter(Boolean).join(' · ');
+    if (formula) {
+      card.appendChild(line('compound-hover-meta', formula));
+    }
+  }
 
-  card.append(image, meta);
+  const stock = stockState(entity.attributes, detail.usageTotals);
+  if (stock) {
+    card.appendChild(
+      line(
+        `compound-hover-meta stock-${stock.level}`,
+        `${formatQuantity(stock.remaining)} left of ${formatQuantity(stock.initial)}${stock.level === 'depleted' ? ' — used up' : stock.level === 'low' ? ' — running low' : ''}`
+      )
+    );
+  }
+
+  const expiry = expiryState(entity.attributes);
+  if (expiry) {
+    card.appendChild(line(`compound-hover-meta stock-${expiry === 'expired' ? 'depleted' : 'low'}`, `${expiry === 'expired' ? 'Expired' : 'Expires soon'} (${String(entity.attributes.expiry)})`));
+  }
+
+  if (detail.backlinks.length > 0) {
+    card.appendChild(line('compound-hover-meta', `Referenced in ${detail.backlinks.length} ${detail.backlinks.length === 1 ? 'document' : 'documents'}`));
+  }
 
   const rect = anchor.getBoundingClientRect();
   card.style.left = `${rect.left + window.scrollX}px`;
@@ -118,10 +158,13 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
     inlineHost.innerHTML = svg;
   };
 
-  if (isCompound) {
-    dom.title = 'Hover for structure · click to toggle inline structure';
+  if (!isDocument) {
     dom.addEventListener('mouseenter', () => void showHoverCard(dom, String(node.attrs.id)));
     dom.addEventListener('mouseleave', hideHoverCard);
+  }
+
+  if (isCompound) {
+    dom.title = 'Hover for structure · click to toggle inline structure';
     dom.addEventListener('click', (event) => {
       if (!editor.isEditable) {
         return;

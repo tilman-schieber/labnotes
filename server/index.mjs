@@ -125,6 +125,7 @@ async function loadUsages(entityId) {
         d.title as "documentTitle",
         d.kind as "documentKind",
         d.metadata ->> 'date' as "documentDate",
+        d.created_at as "documentCreatedAt",
         du.quantities,
         du.role,
         du.sentence
@@ -1071,6 +1072,67 @@ app.get('/api/entities/:id', async (request, response) => {
   ]);
 
   response.json({ entity, aliases: aliasesResult.rows, backlinks, relations, usages: usage.usages, usageTotals: usage.usageTotals });
+});
+
+// Neighbourhood of an entity: what else the same documents reference, and the derived_from
+// lineage up to two hops in each direction.
+app.get('/api/entities/:id/graph', async (request, response) => {
+  const entityId = request.params.id;
+  const exists = await query('select 1 from entities where id = $1', [entityId]);
+  if (exists.rowCount === 0) {
+    response.status(404).json({ error: 'Entity not found' });
+    return;
+  }
+
+  const coUsedResult = await query(
+    `
+      select e.id, e.label, e.type, d.id as "documentId", d.title as "documentTitle"
+      from document_mentions a
+      join document_mentions b on b.document_id = a.document_id and b.ref_type = 'entity' and b.target_id <> a.target_id
+      join entities e on e.id = b.target_id and e.document_id is null
+      join documents d on d.id = a.document_id
+      where a.ref_type = 'entity' and a.target_id = $1
+      order by lower(e.label), d.updated_at desc
+    `,
+    [entityId]
+  );
+  const coUsed = new Map();
+  for (const row of coUsedResult.rows) {
+    const entry = coUsed.get(row.id) ?? { id: row.id, label: row.label, type: row.type, sharedDocuments: [] };
+    if (!entry.sharedDocuments.some((item) => item.id === row.documentId)) {
+      entry.sharedDocuments.push({ id: row.documentId, title: row.documentTitle });
+    }
+    coUsed.set(row.id, entry);
+  }
+
+  const lineage = await query(`select subject_entity_id as subject, object_entity_id as object from entity_relations where predicate = 'derived_from'`);
+  // subject derived_from object: objects are ancestors of subjects.
+  const walk = (start, direction) => {
+    const found = new Map();
+    let frontier = [start];
+    for (let depth = 1; depth <= 2 && frontier.length > 0; depth += 1) {
+      const next = [];
+      for (const edge of lineage.rows) {
+        const [from, to] = direction === 'ancestors' ? [edge.subject, edge.object] : [edge.object, edge.subject];
+        if (frontier.includes(from) && to !== start && !found.has(to)) {
+          found.set(to, depth);
+          next.push(to);
+        }
+      }
+      frontier = next;
+    }
+    return found;
+  };
+  const ancestors = walk(entityId, 'ancestors');
+  const descendants = walk(entityId, 'descendants');
+  const lineageIds = [...new Set([...ancestors.keys(), ...descendants.keys()])];
+  const labels = lineageIds.length > 0 ? await query('select id, label, type from entities where id = any($1::text[])', [lineageIds]) : { rows: [] };
+  const describe = (found) =>
+    [...found.entries()]
+      .map(([id, depth]) => ({ ...(labels.rows.find((row) => row.id === id) ?? { id, label: id, type: null }), depth }))
+      .sort((left, right) => left.depth - right.depth || left.label.localeCompare(right.label));
+
+  response.json({ coUsed: [...coUsed.values()], ancestors: describe(ancestors), descendants: describe(descendants) });
 });
 
 // Relations touching an entity, in both directions, with the other side resolved for display.

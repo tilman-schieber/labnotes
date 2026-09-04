@@ -253,10 +253,23 @@ export type BackendUsage = {
   documentTitle: string;
   documentKind: NotebookDocumentKind;
   documentDate: string | null;
+  documentCreatedAt: string;
   quantities: { value: number; unit: string }[];
   role: 'reactant' | 'product' | 'solvent' | null;
   sentence: string | null;
 };
+
+export type BackendGraphNeighbour = { id: string; label: string; type: string | null; depth: number };
+
+export type BackendEntityGraph = {
+  coUsed: { id: string; label: string; type: string; sharedDocuments: { id: string; title: string }[] }[];
+  ancestors: BackendGraphNeighbour[];
+  descendants: BackendGraphNeighbour[];
+};
+
+export async function fetchEntityGraph(id: string): Promise<BackendEntityGraph> {
+  return request(`/entities/${id}/graph`);
+}
 
 export type BackendUsageTotal = {
   dimension: string;
