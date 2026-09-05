@@ -4,6 +4,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { fetchEntityLabels } from '../../api/backend';
 import { buildMatcher, findRecognitions, type Matcher, type Recognition as RecognitionMatch } from '../recognition/matcher';
+import { quantityRecognitionKey } from './QuantityRecognition';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -12,6 +13,8 @@ declare module '@tiptap/core' {
       linkRecognized: (from: number, to: number) => ReturnType;
       // Links every recognised name in the document.
       linkAllRecognized: () => ReturnType;
+      // Links the next recognised name or amount after the caret (wrapping around).
+      linkNextRecognized: () => ReturnType;
       refreshRecognition: () => ReturnType;
     };
   }
@@ -138,6 +141,13 @@ export const Recognition = Extension.create({
     ];
   },
 
+  addKeyboardShortcuts() {
+    return {
+      'Mod-.': () => this.editor.commands.linkNextRecognized(),
+      'Mod-Shift-l': () => this.editor.chain().linkAllRecognized().convertAllQuantities().run()
+    };
+  },
+
   addCommands() {
     return {
       linkRecognized:
@@ -170,6 +180,24 @@ export const Recognition = Extension.create({
               });
           }
           return true;
+        },
+      linkNextRecognized:
+        () =>
+        ({ state, commands }) => {
+          const names = (recognitionKey.getState(state)?.hits ?? []).map((hit) => ({ kind: 'name' as const, from: hit.from, to: hit.to }));
+          const amounts = (quantityRecognitionKey.getState(state)?.hits ?? []).map((hit) => ({ kind: 'amount' as const, from: hit.from, to: hit.to }));
+          const all = [...names, ...amounts].sort((left, right) => left.from - right.from);
+          if (all.length === 0) {
+            return false;
+          }
+          const caret = state.selection.from;
+          const next = all.find((hit) => hit.from >= caret) ?? all[0];
+          const linked = next.kind === 'name' ? commands.linkRecognized(next.from, next.to) : commands.convertQuantity(next.from, next.to);
+          if (linked) {
+            // The token is one position wide; continue after it.
+            commands.setTextSelection(next.from + 1);
+          }
+          return linked;
         },
       refreshRecognition:
         () =>

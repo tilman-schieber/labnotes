@@ -37,7 +37,7 @@ export function buildMatcher(entities: KnownEntity[]): Matcher {
 
 // True when `index` sits inside a pending suggestion query: a `#`/`@` at a word start earlier in
 // the same clause. Those words belong to the popup until the writer accepts or dismisses it.
-function insideTrigger(text: string, index: number): boolean {
+export function insideTrigger(text: string, index: number): boolean {
   const clause = text.slice(0, index).split(/[.;!?]\s|\n/).pop() ?? '';
   return /(^|\s)[#@]\S/.test(clause);
 }

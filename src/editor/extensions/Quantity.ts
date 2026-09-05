@@ -1,4 +1,5 @@
-import { InputRule, Node, mergeAttributes } from '@tiptap/core';
+import { InputRule, Node, mergeAttributes, type Editor } from '@tiptap/core';
+import { NodeSelection } from '@tiptap/pm/state';
 import { QUANTITY_SOURCE, conversionsFor, findUnit, formatQuantity, parseQuantity } from '../../units/quantity';
 import { promptDialog } from '../../ui/dialogs';
 
@@ -11,6 +12,35 @@ function tooltipFor(attrs: QuantityAttrs): string {
   const conversions = conversionsFor(attrs).map(formatQuantity);
   const dimension = findUnit(attrs.unit)?.dimension ?? 'quantity';
   return [dimension, ...conversions].join(' · ');
+}
+
+// Edit dialog for the token at `position`; used by double-click and by Enter on a selected token.
+function editQuantity(editor: Editor, position: number): void {
+  const node = editor.state.doc.nodeAt(position);
+  if (!node || node.type.name !== 'quantity') {
+    return;
+  }
+  const current = formatQuantity(node.attrs as QuantityAttrs);
+  void promptDialog({
+    title: 'Edit quantity',
+    label: 'Value and unit',
+    defaultValue: current,
+    confirmLabel: 'Apply',
+    message: 'Anything that is not a quantity becomes plain text.'
+  }).then((next) => {
+    if (next === null) {
+      editor.commands.focus();
+      return;
+    }
+    const parsed = parseQuantity(next);
+    if (!parsed) {
+      // Not a quantity any more: turn it back into plain text.
+      editor.view.dispatch(editor.state.tr.replaceWith(position, position + node.nodeSize, editor.schema.text(next)));
+    } else {
+      editor.view.dispatch(editor.state.tr.setNodeMarkup(position, undefined, parsed));
+    }
+    editor.commands.focus(position + 1);
+  });
 }
 
 // Inline atom for a value with a unit, e.g. "12.5 mL". Created by typing a quantity followed by
@@ -76,31 +106,10 @@ export const QuantityNode = Node.create({
           return;
         }
         event.preventDefault();
-        const current = formatQuantity(node.attrs as QuantityAttrs);
-        void promptDialog({
-          title: 'Edit quantity',
-          label: 'Value and unit',
-          defaultValue: current,
-          confirmLabel: 'Apply',
-          message: 'Anything that is not a quantity becomes plain text.'
-        }).then((next) => {
-          if (next === null) {
-            return;
-          }
-
-          const parsed = parseQuantity(next);
-          const position = typeof getPos === 'function' ? getPos() : null;
-          if (position === null || position === undefined) {
-            return;
-          }
-
-          if (!parsed) {
-            // Not a quantity any more: turn it back into plain text.
-            editor.view.dispatch(editor.state.tr.replaceWith(position, position + node.nodeSize, editor.schema.text(next)));
-            return;
-          }
-          editor.view.dispatch(editor.state.tr.setNodeMarkup(position, undefined, parsed));
-        });
+        const position = typeof getPos === 'function' ? getPos() : null;
+        if (position !== null && position !== undefined) {
+          editQuantity(editor, position);
+        }
       });
 
       return {
@@ -114,6 +123,20 @@ export const QuantityNode = Node.create({
           return true;
         }
       };
+    };
+  },
+
+  // Keyboard editing: select the token (arrow keys land on it as a node selection) and press Enter.
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { selection } = this.editor.state;
+        if (!(selection instanceof NodeSelection) || selection.node.type !== this.type) {
+          return false;
+        }
+        editQuantity(this.editor, selection.from);
+        return true;
+      }
     };
   },
 

@@ -73,12 +73,20 @@ Implemented now:
   - structure editor: Ketcher (EPAM, Apache-2.0, loaded on demand with its Indigo WASM); PubChem lookup by name or CAS (fills SMILES, IUPAC name, CAS)
   - same-structure detection via canonical IDCode with one-click merge
   - compound tokens in the editor show a structure card on hover; click toggles an inline structure
+- typing helpers: amounts written as plain text and known entity names are underlined and become tokens on click, `Ctrl/Cmd+.` (next) or `Ctrl/Cmd+Shift+L` (all); after a number, Tab picks a unit (units already used in the document first); Enter on a selected quantity token edits it; `/shortcuts` lists the keys
+- protocol steps: paragraphs starting with an instruction verb (Add, Stir, Incubate, …) are numbered in the margin and listed in a Steps panel with their duration/temperature and timestamps
+- reaction tables read the section above them, remember the sentence each row came from, write edited amounts back to that sentence, and flag yields above 100 %, missing isolated masses, missing MW and volumes without a concentration
+- every entity token shows a hover card (type, structure for compounds, stock left, expiry, reference count); reagents with a recorded stock show what is left after all usages, with running-low/used-up states
+- entity timeline (usages in experiment-date order with running totals) and graph neighbours: entities used in the same documents, and the `derived_from` lineage two hops in each direction
+- draft reconciliation: the registry's draft filter suggests merges by name/alias/near-spelling similarity, promotes drafts to a type, or deletes unreferenced ones
+- tamper-evident signatures: each signed revision stores a canonical content hash chained onto the previously signed one; a verify endpoint recomputes the chain, the history panel shows verdicts, and PDFs print the chain prefix
+- read-only share links (`/share/<token>`) to a signed revision: a standalone page with the signature facts and the frozen PDF/Typst
+- project/group PDF book: title page, contents, one chapter per experiment in date order, entity index with amounts, structure pages
 
 Not implemented yet:
 
-- import and draft reconciliation flow
-- graph navigation beyond one hop
-- authentication and collaboration
+- import pipeline (draft reconciliation is its manual seed)
+- authentication and collaboration (signatures trust the selected user)
 
 ## Backend Data Model
 

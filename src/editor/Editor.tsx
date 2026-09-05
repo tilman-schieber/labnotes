@@ -23,6 +23,9 @@ import { QuantityNode } from './extensions/Quantity';
 import { ReactionNode } from './extensions/Reaction';
 import { TrailingParagraph } from './extensions/TrailingParagraph';
 import { Recognition } from './extensions/Recognition';
+import { QuantityRecognition } from './extensions/QuantityRecognition';
+import { UnitSuggest } from './extensions/UnitSuggest';
+import { ProtocolSteps } from './extensions/Steps';
 
 type Props = {
   documentId: string | null;
@@ -100,6 +103,9 @@ export default function NotebookEditor({
       ReactionNode,
       TrailingParagraph,
       Recognition,
+      QuantityRecognition,
+      UnitSuggest,
+      ProtocolSteps,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),

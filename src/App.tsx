@@ -24,6 +24,7 @@ import SearchResults from './sidebar/SearchResults';
 import AttachmentsPanel from './editor/AttachmentsPanel';
 import LinkedEntities from './editor/LinkedEntities';
 import RevisionHistory from './editor/RevisionHistory';
+import StepsPanel from './editor/StepsPanel';
 import {
   IconAtom,
   IconBeaker,
@@ -618,6 +619,13 @@ export default function App() {
   })();
 
   const recognizedCount = Number(editor?.storage.recognition?.count ?? 0);
+  const amountCount = Number(editor?.storage.quantityRecognition?.count ?? 0);
+  const hintLabel = [
+    recognizedCount > 0 ? `${recognizedCount} ${recognizedCount === 1 ? 'name' : 'names'}` : null,
+    amountCount > 0 ? `${amountCount} ${amountCount === 1 ? 'amount' : 'amounts'}` : null
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const toolbar = (
     <div className="toolbar" role="toolbar" aria-label="Formatting">
@@ -641,17 +649,15 @@ export default function App() {
             ))}
         </span>
       ))}
-      {recognizedCount > 0 && (
+      {hintLabel && (
         <button
           type="button"
           className="toolbar-wide toolbar-hint-action"
-          onClick={() => editor?.chain().focus().linkAllRecognized().run()}
-          title="Turn every underlined known name into a reference"
+          onClick={() => editor?.chain().focus().linkAllRecognized().convertAllQuantities().run()}
+          title="Turn every underlined known name into a reference and every underlined amount into a quantity token (Ctrl/Cmd+Shift+L; Ctrl/Cmd+. for the next one)"
         >
           <IconAtom />
-          <span>
-            Link {recognizedCount} known {recognizedCount === 1 ? 'name' : 'names'}
-          </span>
+          <span>Link {hintLabel}</span>
         </button>
       )}
     </div>
@@ -960,6 +966,7 @@ export default function App() {
                 />
 
                 <div className="doc-footer">
+                  {selectedDocument.kind === 'experiment' && <StepsPanel editor={editor} />}
                   <AttachmentsPanel
                     key={`attachments-${selectedDocument.id}`}
                     documentId={selectedDocument.id}

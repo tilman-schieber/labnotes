@@ -1,7 +1,31 @@
 import { Extension, type Editor, type Range } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
+import { createElement } from 'react';
+import { confirmDialog } from '../../ui/dialogs';
 import { createSuggestionRenderer, type SuggestionOption } from './Mention';
+
+const SHORTCUTS: [string, string][] = [
+  ['#name', 'Reference a sample, reagent, compound or document; Tab/Enter accepts, unknown names become drafts'],
+  ['@name', 'Reference a person'],
+  ['/', 'This command palette'],
+  ['25 mg␣', 'A number with a unit becomes a quantity token on the following space; Tab picks a suggested unit'],
+  ['Ctrl/Cmd + .', 'Link the next underlined known name or amount after the caret'],
+  ['Ctrl/Cmd + Shift + L', 'Link every underlined name and amount'],
+  ['Ctrl/Cmd + Shift + T', 'Insert the current time'],
+  ['Enter on a token', 'Edit a selected quantity token (arrow keys select it)'],
+  ['Ctrl/Cmd + B / I', 'Bold / italic'],
+  ['Ctrl/Cmd + Z / Shift + Z', 'Undo / redo']
+];
+
+function showShortcuts(): void {
+  const rows = SHORTCUTS.map(([keys, what]) => createElement('tr', { key: keys }, createElement('td', null, createElement('kbd', null, keys)), createElement('td', null, what)));
+  void confirmDialog({
+    title: 'Keyboard',
+    message: createElement('table', { className: 'shortcut-table' }, createElement('tbody', null, rows)),
+    confirmLabel: 'Close'
+  });
+}
 
 type SlashCommand = {
   id: string;
@@ -101,6 +125,23 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     description: 'Horizontal rule',
     keywords: ['divider', 'rule', 'hr', 'line'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).setHorizontalRule().run()
+  },
+  {
+    id: 'link-all',
+    label: 'Link known names and amounts',
+    description: 'Turn underlined names and amounts into tokens (Ctrl/Cmd+Shift+L)',
+    keywords: ['link', 'recognize', 'recognise', 'amounts', 'names'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).linkAllRecognized().convertAllQuantities().run()
+  },
+  {
+    id: 'shortcuts',
+    label: 'Keyboard shortcuts',
+    description: 'What you can do without the mouse',
+    keywords: ['shortcuts', 'keyboard', 'help', 'keys'],
+    run: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run();
+      showShortcuts();
+    }
   }
 ];
 
