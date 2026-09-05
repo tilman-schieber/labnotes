@@ -59,6 +59,23 @@ test('solution by volume and concentration', () => {
   assert.equal(components.find((c) => c.id === 'n')!.amountMmol, 20);
 });
 
+test('warns about impossible yields, missing isolated mass and missing MW', () => {
+  const tooMuch = { ...aspirin, actualMass: { value: 5, unit: 'g' } };
+  const over = computeReaction([salicylic, tooMuch]);
+  assert.ok(over.warnings.some((warning) => warning.componentId === 'p' && warning.message.includes('above 100%')), JSON.stringify(over.warnings));
+
+  const notIsolated = computeReaction([salicylic, aspirin]);
+  assert.ok(notIsolated.warnings.some((warning) => warning.componentId === 'p' && warning.message.includes('no isolated mass')));
+
+  const noMw = createComponent('reactant', { id: 'x', label: 'Mystery', mass: { value: 1, unit: 'g' } });
+  const missing = computeReaction([noMw, aspirin]);
+  assert.ok(missing.warnings.some((warning) => warning.componentId === 'x' && warning.message.includes('MW missing')));
+  assert.ok(missing.warnings.some((warning) => warning.componentId === null), 'no limiting reagent is a table-wide problem');
+
+  const fine = computeReaction([salicylic, anhydride, { ...aspirin, actualMass: { value: 2.1, unit: 'g' } }]);
+  assert.deepEqual(fine.warnings, []);
+});
+
 test('nothing known yields nulls rather than NaN', () => {
   const empty = createComponent('reactant', { id: 'e', label: 'Unknown' });
   const { components, limitingId } = computeReaction([empty, aspirin]);

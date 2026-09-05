@@ -485,6 +485,11 @@ export async function mergeEntities(targetId: string, sourceId: string): Promise
   });
 }
 
+// Refused (409) while the entity is referenced anywhere; merge instead.
+export async function deleteEntity(id: string): Promise<void> {
+  await request(`/entities/${id}`, { method: 'DELETE' });
+}
+
 export async function deleteEntityAlias(id: string, aliasId: string): Promise<void> {
   await request(`/entities/${id}/aliases/${aliasId}`, { method: 'DELETE' });
 }

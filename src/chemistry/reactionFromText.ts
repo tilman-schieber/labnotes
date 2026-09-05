@@ -42,7 +42,8 @@ export function componentsFromBlocks(blocks: JsonNode[]): ReactionComponent[] {
       actualMass: usage.role === 'product' ? pick(usage.quantities, 'mass') : null,
       volume: pick(usage.quantities, 'volume'),
       concentration: pick(usage.quantities, 'concentration'),
-      equivalents: pick(usage.quantities, 'ratio')?.value ?? (usage.role === 'product' ? 1 : null)
+      equivalents: pick(usage.quantities, 'ratio')?.value ?? (usage.role === 'product' ? 1 : null),
+      source: { sentence: usage.sentence }
     })
   );
 }
@@ -61,7 +62,8 @@ export function mergeComponents(existing: ReactionComponent[], fromText: Reactio
       volume: component.volume ?? update.volume,
       concentration: component.concentration ?? update.concentration,
       actualMass: component.actualMass ?? update.actualMass,
-      equivalents: component.equivalents ?? update.equivalents
+      equivalents: component.equivalents ?? update.equivalents,
+      source: component.source ?? update.source ?? null
     };
   });
 

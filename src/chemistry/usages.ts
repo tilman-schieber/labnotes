@@ -16,10 +16,12 @@ export type Usage = {
   sentence: string;
 };
 
-type Token =
+// `pos` is only set by callers that build tokens from an editor document (see editor/textSync.ts),
+// so a bound amount can be found and edited in place.
+export type Token =
   | { kind: 'text'; text: string }
-  | { kind: 'entity'; id: string; label: string; entityType: string | null }
-  | { kind: 'quantity'; value: number; unit: string };
+  | { kind: 'entity'; id: string; label: string; entityType: string | null; pos?: number }
+  | { kind: 'quantity'; value: number; unit: string; pos?: number };
 
 type JsonNode = { type?: string; text?: string; attrs?: Record<string, unknown>; content?: JsonNode[] };
 
@@ -76,7 +78,7 @@ function proseBlocks(node: JsonNode, out: JsonNode[]): void {
 
 // Splits a token stream into sentences at ". ", "; " and end of block (decimal points are safe:
 // numbers with units are already quantity tokens).
-function sentences(tokens: Token[]): Token[][] {
+export function sentences(tokens: Token[]): Token[][] {
   const result: Token[][] = [];
   let current: Token[] = [];
 
@@ -119,8 +121,8 @@ function isAmount(token: Token): token is Extract<Token, { kind: 'quantity' }> {
   return Boolean(unit && AMOUNT_DIMENSIONS.has(unit.dimension));
 }
 
-// Assigns each amount token in a sentence to an entity token.
-function bindQuantities(sentence: Token[]): Map<number, number[]> {
+// Assigns each amount token in a sentence to an entity token (entity index -> quantity indexes).
+export function bindQuantities(sentence: Token[]): Map<number, number[]> {
   const bindings = new Map<number, number[]>();
   const claimed = new Set<number>();
   const entityIndexes = sentence.map((token, index) => (token.kind === 'entity' ? index : -1)).filter((index) => index >= 0);

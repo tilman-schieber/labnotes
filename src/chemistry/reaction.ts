@@ -22,6 +22,8 @@ export type ReactionComponent = {
   limiting: boolean;
   // products only: what was actually isolated
   actualMass: Quantity | null;
+  // Where a row created from prose was read from.
+  source?: { sentence: string } | null;
 };
 
 export type ComputedComponent = ReactionComponent & {
@@ -33,9 +35,13 @@ export type ComputedComponent = ReactionComponent & {
   isLimiting: boolean;
 };
 
+// Something the numbers do not add up to; `componentId` is null for table-wide problems.
+export type ReactionWarning = { componentId: string | null; message: string };
+
 export type ReactionSummary = {
   components: ComputedComponent[];
   limitingId: string | null;
+  warnings: ReactionWarning[];
 };
 
 export function createComponent(role: ComponentRole, overrides: Partial<ReactionComponent> = {}): ReactionComponent {
@@ -133,5 +139,42 @@ export function computeReaction(components: ReactionComponent[]): ReactionSummar
     };
   });
 
-  return { components: computed, limitingId: limiting?.id ?? null };
+  return { components: computed, limitingId: limiting?.id ?? null, warnings: checkReaction(computed, limiting) };
+}
+
+// Mass-balance sanity checks a chemist would make by eye.
+function checkReaction(components: ComputedComponent[], limiting: ReactionComponent | null): ReactionWarning[] {
+  const warnings: ReactionWarning[] = [];
+  const name = (component: ReactionComponent) => component.label.trim() || 'unnamed row';
+  const hasAnyAmount = components.some((component) => component.role !== 'product' && (component.mass || component.volume));
+
+  if (!limiting && components.some((component) => component.role === 'reactant') && hasAnyAmount) {
+    warnings.push({ componentId: null, message: 'No reactant has a computable amount, so equivalents and yields cannot be derived. Add a mass and MW (or volume and concentration) to one reactant.' });
+  }
+
+  for (const component of components) {
+    if (component.role === 'product') {
+      if (component.yieldPercent !== null && component.yieldPercent > 100) {
+        warnings.push({ componentId: component.id, message: `${name(component)}: yield is ${component.yieldPercent}% — above 100%. Check the isolated mass, the product MW, or which reagent is limiting.` });
+      }
+      if (component.theoreticalMass && !component.actualMass) {
+        warnings.push({ componentId: component.id, message: `${name(component)}: no isolated mass recorded, so no yield.` });
+      }
+      if (limiting && !component.molecularWeight) {
+        warnings.push({ componentId: component.id, message: `${name(component)}: MW missing, so the theoretical mass cannot be computed.` });
+      }
+      continue;
+    }
+    if (component.role === 'solvent') {
+      continue;
+    }
+    if (component.mass && !component.molecularWeight) {
+      warnings.push({ componentId: component.id, message: `${name(component)}: MW missing, so its mmol cannot be computed from the mass.` });
+    }
+    if (component.volume && !component.mass && !component.concentration && !(component.density && component.molecularWeight)) {
+      warnings.push({ componentId: component.id, message: `${name(component)}: a volume alone gives no amount — add a concentration, or density plus MW.` });
+    }
+  }
+
+  return warnings;
 }

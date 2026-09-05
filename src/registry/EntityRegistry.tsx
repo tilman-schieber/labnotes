@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createEntity, fetchEntities, type BackendEntityListItem } from '../api/backend';
+import DraftReconciliation from './DraftReconciliation';
 import EntityDetail from './EntityDetail';
 import { expiryState } from './attributeSchema';
 
@@ -142,6 +143,18 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
         </form>
 
         {error && <div className="status-inline">{error}</div>}
+
+        {statusFilter === 'draft' && (
+          <DraftReconciliation
+            drafts={entities.filter((entity) => entity.status === 'draft')}
+            types={types}
+            onChanged={() => {
+              window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
+              void reload();
+            }}
+            onSelect={setSelectedId}
+          />
+        )}
 
         <table className="registry-table">
           <thead>

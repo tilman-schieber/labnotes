@@ -7,6 +7,7 @@ import { componentsFromBlocks, mergeComponents, sectionBlocksBefore } from '../c
 import { formatQuantity, parseQuantity, type Quantity } from '../units/quantity';
 import { loadEntity } from './extensions/CompoundToken';
 import type { ReactionAttrs } from './extensions/Reaction';
+import { findBoundQuantities, sectionRange } from './textSync';
 
 type Field = 'mass' | 'volume' | 'concentration' | 'actualMass';
 
@@ -227,6 +228,27 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
   };
   const patch = (id: string, changes: Partial<ReactionComponent>) =>
     setComponents(attrs.components.map((component) => (component.id === id ? { ...component, ...changes } : component)));
+
+  // An amount edited in the table is written back to the sentence it was read from, when the
+  // prose above still carries an amount of that dimension bound to the same entity.
+  const writeBack = (component: ReactionComponent, dimension: 'mass' | 'volume' | 'concentration', value: Quantity | null) => {
+    const position = typeof getPos === 'function' ? getPos() : null;
+    if (!component.entityId || !value || position === null || position === undefined) {
+      return;
+    }
+    const { doc } = editor.state;
+    const { from, to } = sectionRange(doc, doc.resolve(position).index(0));
+    const target = (findBoundQuantities(doc, from, to).get(component.entityId) ?? []).find((item) => item.dimension === dimension);
+    const node = target ? doc.nodeAt(target.pos) : null;
+    if (!target || !node || node.type.name !== 'quantity' || (node.attrs.value === value.value && node.attrs.unit === value.unit)) {
+      return;
+    }
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(target.pos, undefined, { value: value.value, unit: value.unit }));
+  };
+  const patchAmount = (component: ReactionComponent, field: 'mass' | 'volume' | 'concentration' | 'actualMass', value: Quantity | null) => {
+    patch(component.id, { [field]: value });
+    writeBack(component, field === 'actualMass' ? 'mass' : field, value);
+  };
   const remove = (id: string) => setComponents(attrs.components.filter((component) => component.id !== id));
   const add = (role: ComponentRole) => setComponents([...attrs.components, createComponent(role)]);
   const setLimiting = (id: string) => setComponents(attrs.components.map((component) => ({ ...component, limiting: component.id === id })));
@@ -273,8 +295,9 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
           <tbody>
             {summary.components.map((component) => {
               const isProduct = component.role === 'product';
+              const hasWarning = summary.warnings.some((warning) => warning.componentId === component.id);
               return (
-                <tr key={component.id} className={`reaction-row role-${component.role}${component.isLimiting ? ' is-limiting' : ''}`}>
+                <tr key={component.id} className={`reaction-row role-${component.role}${component.isLimiting ? ' is-limiting' : ''}${hasWarning ? ' has-warning' : ''}`}>
                   <td>
                     <select
                       className="reaction-input"
@@ -297,6 +320,11 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                   </td>
                   <td>
                     <CompoundCell component={component} disabled={disabled} onChange={(changes) => patch(component.id, changes)} />
+                    {component.source?.sentence && (
+                      <span className="reaction-source" title={`Read from: “${component.source.sentence}”`}>
+                        ¶ from text
+                      </span>
+                    )}
                   </td>
                   <td>
                     <NumberInput value={component.molecularWeight} placeholder="g/mol" disabled={disabled} onChange={(value) => patch(component.id, { molecularWeight: value })} />
@@ -313,20 +341,20 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                       <div className="reaction-derived">theor. {component.theoreticalMass ? formatQuantity(component.theoreticalMass) : '—'}</div>
                     ) : (
                       <>
-                        <QuantityInput value={component.mass} field="mass" disabled={disabled} onChange={(value) => patch(component.id, { mass: value })} />
+                        <QuantityInput value={component.mass} field="mass" disabled={disabled} onChange={(value) => patchAmount(component, 'mass', value)} />
                         {component.computedMass && !component.mass && <div className="reaction-derived">need {formatQuantity(component.computedMass)}</div>}
                       </>
                     )}
                   </td>
                   <td>
                     {!isProduct && (
-                      <QuantityInput value={component.volume} field="volume" disabled={disabled} onChange={(value) => patch(component.id, { volume: value })} />
+                      <QuantityInput value={component.volume} field="volume" disabled={disabled} onChange={(value) => patchAmount(component, 'volume', value)} />
                     )}
                   </td>
                   <td>
                     {!isProduct && (
                       <div className="reaction-stack">
-                        <QuantityInput value={component.concentration} field="concentration" disabled={disabled} onChange={(value) => patch(component.id, { concentration: value })} />
+                        <QuantityInput value={component.concentration} field="concentration" disabled={disabled} onChange={(value) => patchAmount(component, 'concentration', value)} />
                         <NumberInput value={component.density} placeholder="d g/mL" disabled={disabled} onChange={(value) => patch(component.id, { density: value })} />
                       </div>
                     )}
@@ -334,7 +362,7 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                   <td>
                     {isProduct && (
                       <div className="reaction-stack">
-                        <QuantityInput value={component.actualMass} field="actualMass" disabled={disabled} onChange={(value) => patch(component.id, { actualMass: value })} />
+                        <QuantityInput value={component.actualMass} field="actualMass" disabled={disabled} onChange={(value) => patchAmount(component, 'actualMass', value)} />
                         <div className="reaction-derived">{component.yieldPercent !== null ? `${component.yieldPercent}%` : '—'}</div>
                       </div>
                     )}
@@ -350,6 +378,14 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
           </tbody>
         </table>
       </div>
+
+      {summary.warnings.length > 0 && (
+        <ul className="reaction-warnings">
+          {summary.warnings.map((warning, index) => (
+            <li key={`${warning.componentId ?? 'table'}-${index}`}>{warning.message}</li>
+          ))}
+        </ul>
+      )}
 
       {!disabled && (
         <div className="reaction-actions">

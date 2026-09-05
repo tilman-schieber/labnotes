@@ -1271,6 +1271,27 @@ app.patch('/api/entities/:id', async (request, response) => {
   response.json({ entity: result.rows[0] });
 });
 
+// Deleting is for registry noise (unused drafts). Anything referenced must be merged instead,
+// so documents never end up pointing at nothing.
+app.delete('/api/entities/:id', async (request, response) => {
+  const entity = await query('select id, document_id as "documentId" from entities where id = $1', [request.params.id]);
+  if (entity.rowCount === 0) {
+    response.status(404).json({ error: 'Entity not found' });
+    return;
+  }
+  if (entity.rows[0].documentId) {
+    response.status(400).json({ error: 'Document entities follow their document' });
+    return;
+  }
+  const mentions = await query(`select count(*) as count from document_mentions where ref_type = 'entity' and target_id = $1`, [request.params.id]);
+  if (Number(mentions.rows[0].count) > 0) {
+    response.status(409).json({ error: 'Entity is referenced in documents; merge it into another entity instead' });
+    return;
+  }
+  await query('delete from entities where id = $1', [request.params.id]);
+  response.status(204).end();
+});
+
 app.post('/api/entities/:id/aliases', async (request, response) => {
   const alias = String(request.body.alias ?? '').trim();
   if (!alias) {
