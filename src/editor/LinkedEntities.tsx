@@ -44,7 +44,7 @@ export default function LinkedEntities({ documentId, refreshToken, onOpenEntity,
       </span>
       {entities.length === 0 ? (
         <div className="linked-empty" style={{ marginTop: '0.4rem' }}>
-          Reference samples, reagents or compounds with <code>#</code>, documents with <code>/</code>.
+          Reference samples, reagents, compounds and documents with <code>#</code>, people with <code>@</code>.
         </div>
       ) : (
         <div className="linked-entities" style={{ marginTop: '0.5rem' }}>

@@ -134,6 +134,16 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).linkAllRecognized().convertAllQuantities().run()
   },
   {
+    id: 'help',
+    label: 'Help',
+    description: 'Open the documentation',
+    keywords: ['help', 'docs', 'documentation', 'manual', 'glossary'],
+    run: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run();
+      window.dispatchEvent(new CustomEvent('labnotes:open-help', { detail: { page: 'writing' } }));
+    }
+  },
+  {
     id: 'shortcuts',
     label: 'Keyboard shortcuts',
     description: 'What you can do without the mouse',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import type { Editor, JSONContent } from '@tiptap/core';
 import NotebookEditor from './editor/Editor';
 import EntityRegistry from './registry/EntityRegistry';
@@ -25,6 +25,9 @@ import AttachmentsPanel from './editor/AttachmentsPanel';
 import LinkedEntities from './editor/LinkedEntities';
 import RevisionHistory from './editor/RevisionHistory';
 import StepsPanel from './editor/StepsPanel';
+
+// The documentation and its markdown renderer are only needed once Help is opened.
+const HelpView = lazy(() => import('./help/HelpView'));
 import {
   IconAtom,
   IconBeaker,
@@ -88,7 +91,19 @@ export default function App() {
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
   // Bumped when content is replaced outside the editor (e.g. restore) to remount it with fresh content.
   const [editorEpoch, setEditorEpoch] = useState(0);
-  const [view, setView] = useState<'notebook' | 'entities'>('notebook');
+  const [view, setView] = useState<'notebook' | 'entities' | 'help'>('notebook');
+  const [helpPage, setHelpPage] = useState('index');
+
+  // `/help` in the editor (and anything else) opens the documentation through this event.
+  useEffect(() => {
+    const onOpenHelp = (event: Event) => {
+      const page = (event as CustomEvent<{ page?: string }>).detail?.page;
+      setHelpPage(page ?? 'index');
+      setView('help');
+    };
+    window.addEventListener('labnotes:open-help', onOpenHelp);
+    return () => window.removeEventListener('labnotes:open-help', onOpenHelp);
+  }, []);
   const [templates, setTemplates] = useState<BackendTemplate[]>([]);
   const [searchText, setSearchText] = useState('');
   const [attachmentsToken, setAttachmentsToken] = useState(0);
@@ -686,6 +701,10 @@ export default function App() {
               <IconAtom size={14} />
               Entities
             </button>
+            <button type="button" role="tab" aria-selected={view === 'help'} className={view === 'help' ? 'is-active' : ''} onClick={() => setView('help')}>
+              <IconBook size={14} />
+              Help
+            </button>
           </div>
 
           <div className="global-search">
@@ -899,7 +918,11 @@ export default function App() {
 
         <main className="main">
           <div className="main-inner">
-            {view === 'entities' ? (
+            {view === 'help' ? (
+              <Suspense fallback={<div className="registry-placeholder">Loading documentation…</div>}>
+                <HelpView page={helpPage} onNavigate={setHelpPage} />
+              </Suspense>
+            ) : view === 'entities' ? (
               <EntityRegistry onOpenDocument={openDocumentById} initialSelectedId={registryEntityId} />
             ) : selectedDocument ? (
               <>

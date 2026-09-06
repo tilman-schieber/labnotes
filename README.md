@@ -51,6 +51,10 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and an API 
 - Backend-backed autosave for documents
 - Last active selection restored locally on reload
 
+## Documentation
+
+The user documentation lives in [`docs/`](docs/index.md) — writing, chemistry, entities, revisions and sharing, export, data/API, keyboard, and a glossary. The same pages are rendered inside the app under **Help** (or `/help` in the editor).
+
 ## Current Implementation State
 
 Implemented now:
