@@ -22,6 +22,13 @@ const TEMPLATE_DEFINITIONS: Record<NotebookDocumentKind, TemplateDefinition> = {
   }
 };
 
+// Group and project pages are a fixed shape: an h1 and nothing else. Everything that adds
+// blocks on its own has to ask first, or it fights normalizeTemplateDocument transaction for
+// transaction and hangs the editor.
+export function allowsFreeContent(kind: NotebookDocumentKind): boolean {
+  return kind === 'experiment';
+}
+
 function cloneNode(node: JSONContent): JSONContent {
   return JSON.parse(JSON.stringify(node)) as JSONContent;
 }
@@ -104,7 +111,7 @@ export function normalizeTemplateDocument(
   const title = extractDocumentTitle(content ?? { type: 'doc', content: [] }, collectText(firstInputNode).trim() || defaultTitle);
 
   const requiredNodes = createTemplateDocument(kind, title).content ?? [];
-  const strictRequiredCount = kind === 'experiment' ? 1 : requiredNodes.length;
+  const strictRequiredCount = allowsFreeContent(kind) ? 1 : requiredNodes.length;
   const strictRequiredNodes = requiredNodes.slice(0, strictRequiredCount);
 
   const normalizedRequired = strictRequiredNodes.map((requiredNode, index) => {
@@ -123,7 +130,7 @@ export function normalizeTemplateDocument(
     return cloneNode(actualNode as JSONContent);
   });
 
-  const keepTrailingNodes = kind === 'experiment';
+  const keepTrailingNodes = allowsFreeContent(kind);
   const trailing = keepTrailingNodes ? inputNodes.slice(strictRequiredCount).map((node) => cloneNode(node)) : [];
 
   return {

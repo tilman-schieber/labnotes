@@ -101,7 +101,9 @@ export default function NotebookEditor({
       TimestampNode,
       QuantityNode,
       ReactionNode,
-      TrailingParagraph,
+      TrailingParagraph.configure({
+        kind: documentKind
+      }),
       Recognition,
       QuantityRecognition,
       UnitSuggest,
