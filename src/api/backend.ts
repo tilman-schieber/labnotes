@@ -485,6 +485,19 @@ export async function mergeEntities(targetId: string, sourceId: string): Promise
   });
 }
 
+export type ClassificationResult = {
+  classified: { id: string; label: string; type: string; via: string | null }[];
+  missed: number;
+  pending: number;
+  stopped: string | null;
+};
+
+// Runs the classifier now rather than waiting for the next background pass. Without an id it
+// works through everything still unclassified or missing chemistry.
+export async function classifyEntities(id?: string): Promise<ClassificationResult> {
+  return request(id ? `/entities/${id}/classify` : '/entities/classify', { method: 'POST', body: JSON.stringify({}) });
+}
+
 // Refused (409) while the entity is referenced anywhere; merge instead.
 export async function deleteEntity(id: string): Promise<void> {
   await request(`/entities/${id}`, { method: 'DELETE' });

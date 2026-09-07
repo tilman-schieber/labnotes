@@ -80,7 +80,39 @@ Creating `#Some new name` while writing makes a draft. The registry shows a nudg
 
 Changing a draft's type in the detail form has the same effect as Keep as new.
 
+Most drafts never need any of this: the classifier below gets to them first.
+
 <!-- screenshot: the reconciliation panel with a merge suggestion and the type picker -->
+
+## Filling entities in automatically
+
+Classifying every name by hand is busywork, so the server does it in the background. It runs at
+startup, whenever a draft is created while writing, and every couple of minutes after that. Two
+deterministic sources, in this order:
+
+1. **The name.** The head noun decides: *Lysis Buffer* → reagent, *Eppendorf tubes* → container,
+   *Tecan plate reader* → instrument, *Room 214* → location, *Sample A* → sample. Two-word heads
+   win over their last word, so a plate reader is an instrument and a 96-well plate is a container.
+2. **PubChem.** Anything the name does not settle is looked up by name (or by the CAS number
+   already on the entity). A hit makes it a compound and fills in CAS number, IUPAC name, PubChem
+   CID, structure, formula, molecular and exact mass, logP, TPSA and H-bond donors/acceptors.
+   A 404 means it is not a substance, and the entity is left alone.
+
+The same pass fills the blanks on entities that are *already* classified: a compound that has a
+structure but no formula gets one computed locally, and one without a CAS number gets it looked up.
+
+Three rules make this safe to leave running:
+
+- **Nothing you typed is ever overwritten.** Only empty fields are filled.
+- **Everything is stamped.** A filled entity carries `attributes.autoClassify` with the source
+  (`name`, `pubchem` or `structure`), what was matched, and when. The detail form shows this as a
+  line under the attributes, so an automatic fill is never mistaken for a checked one.
+- **It gives up.** A name PubChem does not know is recorded as a miss and retried at most three
+  times, hours apart, rather than on every pass. Those are the entities that genuinely need a
+  person, and they stay drafts.
+
+**Classify automatically** next to the draft nudge runs a pass immediately. Set `AUTO_CLASSIFY=false`
+to turn the background worker off (see [Data](data.md#environment)); the button still works.
 
 ## Document entities
 

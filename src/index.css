@@ -1977,24 +1977,16 @@ button:disabled {
   background: #fef3c7;
 }
 
-.ProseMirror > .protocol-step {
-  position: relative;
+.registry-drafts {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
-.ProseMirror > .protocol-step::before {
-  content: attr(data-step);
-  position: absolute;
-  left: -2.1rem;
-  top: 0.15em;
-  min-width: 1.5rem;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  line-height: 1.5;
-  color: var(--accent);
-  background: var(--accent-soft, #ccfbf1);
-  border-radius: 999px;
-  padding: 0 0.3rem;
+.steps-item.is-done .steps-text {
+  text-decoration: line-through;
+  opacity: 0.6;
 }
 
 .steps-list {

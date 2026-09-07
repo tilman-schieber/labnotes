@@ -37,7 +37,7 @@ Tokens are what make the notebook more than text: references are indexed, amount
    > Add 25 mg of #Compound X to 2 mL of #Lysis Buffer and stir for 10 min at 60 °C.
 
    Typing `#Comp` opens a picker; Tab accepts the top match. `25 mg` became a quantity token when you typed the space after it.
-3. Look at the footer: **Linked entities** lists Compound X (25 mg) and Lysis Buffer (2 mL); **Steps** lists step 1 with "10 min · 60 °C".
+3. Look at the footer: **Linked entities** lists Compound X (25 mg) and Lysis Buffer (2 mL); **Steps** lists the list items you wrote, with "10 min · 60 °C" against the one that has them.
 4. Type `/reaction` on an empty line: a stoichiometry table pre-filled from the sentence above appears.
 5. Open **History**, sign the revision, and **Share** it — the link shows a frozen, read-only PDF.
 

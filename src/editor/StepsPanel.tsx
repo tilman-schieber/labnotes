@@ -6,13 +6,13 @@ import { IconList } from '../ui/icons';
 
 type Props = { editor: Editor | null };
 
-// The procedure as a numbered timeline, read straight from the paragraphs that start with an
-// instruction. Clicking a step puts the caret there.
+// The procedure as a numbered timeline, read from the list items in the document. Clicking a
+// step puts the caret there.
 export default function StepsPanel({ editor }: Props) {
   const steps: ProtocolStep[] = editor?.storage.protocolSteps?.steps ?? [];
 
   const jump = (step: ProtocolStep) => {
-    editor?.chain().focus().setTextSelection(step.pos + 1).scrollIntoView().run();
+    editor?.chain().focus().setTextSelection(step.textPos).scrollIntoView().run();
   };
 
   return (
@@ -23,7 +23,7 @@ export default function StepsPanel({ editor }: Props) {
       </span>
       {steps.length === 0 ? (
         <div className="linked-empty" style={{ marginTop: '0.4rem' }}>
-          Paragraphs that start with an instruction (Add, Stir, Incubate…) are numbered as steps.
+          List items are the steps: type <code>- </code> or <code>1. </code> to start one.
         </div>
       ) : (
         <ol className="steps-list">
@@ -31,7 +31,12 @@ export default function StepsPanel({ editor }: Props) {
             const conditions = describeConditions(step.conditions);
             return (
               <li key={step.pos}>
-                <button type="button" className="steps-item" onClick={() => jump(step)} title="Go to this step">
+                <button
+                  type="button"
+                  className={`steps-item${step.done ? ' is-done' : ''}`}
+                  onClick={() => jump(step)}
+                  title="Go to this step"
+                >
                   <span className="steps-index">{step.index}</span>
                   <span className="steps-text">{step.text.length > 90 ? `${step.text.slice(0, 90)}…` : step.text}</span>
                   {(conditions || step.timestamps.length > 0) && (

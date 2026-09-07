@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createEntity, fetchEntities, type BackendEntityListItem } from '../api/backend';
+import { classifyEntities, createEntity, fetchEntities, type BackendEntityListItem } from '../api/backend';
 import DraftReconciliation from './DraftReconciliation';
 import EntityDetail from './EntityDetail';
 import { expiryState } from './attributeSchema';
@@ -18,6 +18,8 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
   const [queryText, setQueryText] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [isClassifying, setIsClassifying] = useState(false);
+  const [classifyNotice, setClassifyNotice] = useState<string | null>(null);
   const [entities, setEntities] = useState<BackendEntityListItem[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
@@ -63,6 +65,29 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
     const timer = window.setTimeout(() => void reload(), 150);
     return () => window.clearTimeout(timer);
   }, [reload]);
+
+  // Names the classifier could not place stay drafts; the count says how many are left.
+  const handleClassify = async () => {
+    setIsClassifying(true);
+    setClassifyNotice(null);
+    try {
+      const result = await classifyEntities();
+      const filled = result.classified.length;
+      setClassifyNotice(
+        result.stopped
+          ? `Stopped: ${result.stopped}`
+          : filled > 0
+            ? `Classified ${filled} ${filled === 1 ? 'entity' : 'entities'}${result.missed > 0 ? `; ${result.missed} still need a person` : ''}`
+            : 'Nothing could be classified automatically'
+      );
+      window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
+      await reload();
+    } catch (classifyError) {
+      setClassifyNotice(classifyError instanceof Error ? classifyError.message : 'Classification failed');
+    } finally {
+      setIsClassifying(false);
+    }
+  };
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -114,14 +139,20 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
         </div>
 
         {draftCount > 0 && (
-          <button
-            type="button"
-            className={`draft-nudge${statusFilter === 'draft' ? ' is-active' : ''}`}
-            onClick={() => setStatusFilter((current) => (current === 'draft' ? '' : 'draft'))}
-          >
-            <strong>{draftCount}</strong> {draftCount === 1 ? 'draft' : 'drafts'} created while writing — classify {draftCount === 1 ? 'it' : 'them'}
-          </button>
+          <div className="registry-drafts">
+            <button
+              type="button"
+              className={`draft-nudge${statusFilter === 'draft' ? ' is-active' : ''}`}
+              onClick={() => setStatusFilter((current) => (current === 'draft' ? '' : 'draft'))}
+            >
+              <strong>{draftCount}</strong> {draftCount === 1 ? 'draft' : 'drafts'} created while writing — classify {draftCount === 1 ? 'it' : 'them'}
+            </button>
+            <button type="button" className="link-button" disabled={isClassifying} onClick={() => void handleClassify()}>
+              {isClassifying ? 'Classifying…' : 'Classify automatically'}
+            </button>
+          </div>
         )}
+        {classifyNotice && <div className="status-inline">{classifyNotice}</div>}
 
         <form className="registry-create" onSubmit={(event) => void handleCreate(event)}>
           <input
@@ -205,7 +236,11 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
             key={selectedId}
             entityId={selectedId}
             types={types}
-            onChanged={() => void reload()}
+            onChanged={() => {
+              // Tokens in open documents colour themselves by the registry's type, so tell them.
+              window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
+              void reload();
+            }}
             onOpenDocument={onOpenDocument}
             onOpenEntity={setSelectedId}
             onMerged={(targetId) => {

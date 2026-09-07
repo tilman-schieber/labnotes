@@ -25,6 +25,8 @@ import { TrailingParagraph } from './extensions/TrailingParagraph';
 import { Recognition } from './extensions/Recognition';
 import { QuantityRecognition } from './extensions/QuantityRecognition';
 import { UnitSuggest } from './extensions/UnitSuggest';
+import { invalidateEntityCache } from './extensions/CompoundToken';
+import { refreshEntityTypes } from './entityTypes';
 import { ProtocolSteps } from './extensions/Steps';
 
 type Props = {
@@ -136,6 +138,22 @@ export default function NotebookEditor({
     onEditorReady(editor);
     return () => onEditorReady(null);
   }, [editor, onEditorReady]);
+
+  // Reference tokens draw themselves from the registry's current type, and hover cards from the
+  // detail cache. Both are refreshed when the registry changes and when the window comes back,
+  // which is also how work the background classifier did in the meantime shows up.
+  useEffect(() => {
+    const refresh = () => {
+      invalidateEntityCache();
+      void refreshEntityTypes();
+    };
+    window.addEventListener('labnotes:entities-changed', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('labnotes:entities-changed', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
 
   return (
     <div className="editor-frame">

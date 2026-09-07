@@ -16,6 +16,8 @@ export type SuggestionOption = {
 // Type given to entities created inline. Writing must never wait for a classification decision;
 // drafts are typed later in the registry.
 export const DRAFT_ENTITY_TYPE = 'unclassified';
+// Long enough for a PubChem round-trip on the server, short enough to feel immediate.
+const CLASSIFY_GRACE_MS = 4000;
 
 function buildQuickCreateOptions(query: string, existing: SuggestionOption[]): SuggestionOption[] {
   const label = query.trim();
@@ -47,8 +49,10 @@ async function resolveOption(option: SuggestionOption): Promise<SuggestionOption
   }
 
   const entity = await createEntity(option.entityType ?? DRAFT_ENTITY_TYPE, option.label, 'draft');
-  // The new name should be recognised elsewhere in the text right away.
+  // The new name should be recognised elsewhere in the text right away, and once more after the
+  // background classifier has had a moment with it, so the token takes on its real type.
   window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
+  window.setTimeout(() => window.dispatchEvent(new CustomEvent('labnotes:entities-changed')), CLASSIFY_GRACE_MS);
   return { ...option, id: entity.id, label: entity.label, entityType: entity.type, create: false };
 }
 

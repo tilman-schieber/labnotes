@@ -3,6 +3,7 @@ import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/p
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { fetchEntityLabels } from '../../api/backend';
+import { primeEntityTypes } from '../entityTypes';
 import { buildMatcher, findRecognitions, type Matcher, type Recognition as RecognitionMatch } from '../recognition/matcher';
 import { quantityRecognitionKey } from './QuantityRecognition';
 
@@ -77,7 +78,9 @@ export const Recognition = Extension.create({
 
     const load = async () => {
       try {
-        matcher = buildMatcher(await fetchEntityLabels());
+        const entities = await fetchEntityLabels();
+        primeEntityTypes(entities);
+        matcher = buildMatcher(entities);
         extension.storage.loadedAt = Date.now();
         extension.editor.view.dispatch(extension.editor.state.tr.setMeta(recognitionKey, { matcher }));
       } catch {
@@ -203,6 +206,7 @@ export const Recognition = Extension.create({
         () =>
         ({ editor }) => {
           void fetchEntityLabels().then((entities) => {
+            primeEntityTypes(entities);
             editor.view.dispatch(editor.state.tr.setMeta(recognitionKey, { matcher: buildMatcher(entities) }));
           });
           return true;

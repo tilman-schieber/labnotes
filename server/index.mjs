@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import { closePool, getDialect, getPool, query, sql, withTransaction } from './lib/database.mjs';
 import { MergeError, mergeEntities } from './lib/entities.mjs';
+import { kickClassification, runClassificationPass, startClassificationWorker } from './lib/classify.mjs';
 import { createId } from './lib/ids.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
@@ -1222,6 +1223,21 @@ app.delete('/api/entities/:id/relations/:relationId', async (request, response) 
   response.status(204).end();
 });
 
+// Runs the classifier now instead of waiting for the next background pass.
+app.post('/api/entities/classify', async (request, response) => {
+  const result = await runClassificationPass({ force: request.body?.force === true });
+  response.json(result);
+});
+
+app.post('/api/entities/:id/classify', async (request, response) => {
+  const exists = await query('select 1 from entities where id = $1', [request.params.id]);
+  if (exists.rowCount === 0) {
+    response.status(404).json({ error: 'Entity not found' });
+    return;
+  }
+  response.json(await runClassificationPass({ force: true, id: request.params.id }));
+});
+
 app.post('/api/entities', async (request, response) => {
   const entityId = createId('entity');
   const result = await query(
@@ -1240,6 +1256,8 @@ app.post('/api/entities', async (request, response) => {
     ]
   );
 
+  // Writing `#something new` lands here; the classifier fills it in while the user keeps typing.
+  kickClassification();
   response.status(201).json({ entity: result.rows[0] });
 });
 
@@ -1421,6 +1439,7 @@ async function bootstrap() {
 
 bootstrap()
   .then(() => {
+    startClassificationWorker();
     app.listen(PORT, () => {
       console.log(`Labnotes backend listening on http://localhost:${PORT}`);
     });

@@ -23,6 +23,9 @@ A SQLite notebook is one file plus the attachments directory — copying both is
 | `AUTO_SEED_ON_START` | `true` | seed an empty database; also re-syncs derived data |
 | `REVISION_COALESCE_SECONDS` | `120` | writing-session window for revisions |
 | `TYPST_BIN` | `typst` | Typst binary for PDF export |
+| `AUTO_CLASSIFY` | `true` | background classification of unclassified entities |
+| `AUTO_CLASSIFY_INTERVAL_SECONDS` | `120` | how often the classifier looks for work |
+| `AUTO_CLASSIFY_GAP_MS` | `400` | pause between entities, to stay inside PubChem's rate limit |
 | `ATTACHMENTS_DIR` | `data/attachments` | where attachment bytes live |
 | `MAX_ATTACHMENT_BYTES` | 50 MB | upload limit |
 
@@ -119,6 +122,8 @@ All routes are JSON under `/api`. Ids are opaque strings.
 | `POST /entities/:id/aliases`, `DELETE /entities/:id/aliases/:aliasId` | aliases |
 | `POST /entities/:id/relations`, `DELETE /entities/:id/relations/:relationId` | relations |
 | `POST /entities/:id/merge` | `{ sourceId }` folds the source into `:id` |
+| `POST /entities/classify` | runs a classification pass now; returns what was filled in |
+| `POST /entities/:id/classify` | classifies one entity, ignoring the retry limit |
 | `GET /users/search?q=`, `GET /users/:id` | people |
 
 Example — create a reagent and reference it from a new experiment:

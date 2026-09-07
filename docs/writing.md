@@ -30,9 +30,9 @@ Documents are entities too: `#General` references the project called General, an
 
 - **Tab** or **Enter** accepts the highlighted row; **↑/↓** move; **Escape** leaves what you typed as plain text.
 - The popup gets out of the way on its own when the text stops looking like a name (sentence punctuation, or more than four words with no match).
-- If nothing matches, the last row is **Create "…"**. Accepting it creates a *draft* entity of type `unclassified` and inserts the reference. Drafts are classified later in the registry — see [Drafts](entities.md#drafts); writing never waits.
+- If nothing matches, the last row is **Create "…"**. Accepting it creates a *draft* entity of type `unclassified` and inserts the reference. The classifier picks it up in the background, so most drafts are typed and filled in seconds later without anyone doing anything — see [Filling entities in automatically](entities.md#filling-entities-in-automatically). Writing never waits.
 
-Hovering a reference shows a card: type, structure for compounds, stock left, expiry, and how many documents reference it. Clicking a compound reference toggles an inline structure drawing.
+A reference always shows the registry's current type, so a token written before its entity was classified turns into a compound (blue) as soon as it is one. Hovering a reference shows a card: type, structure for compounds, stock left, expiry, and how many documents reference it. Clicking a compound reference toggles an inline structure drawing.
 
 <!-- screenshot: the # picker with a "used in this project" row and a Create row -->
 
@@ -71,9 +71,11 @@ Recognition skips words inside a `#` or `@` you are still typing, glued single-l
 
 ## Steps
 
-A top-level paragraph that starts with an instruction — *Add, Stir, Incubate, Centrifuge, Wash, Dry, Heat, Cool, Transfer, Wait, …* — is a **protocol step**. It gets a number in the left margin and appears in the **Steps** panel below the editor together with the duration and temperature read from its quantities and any timestamps in it. Clicking a step in the panel moves the caret there.
+A **protocol step** is a list item. Type `- ` or `1. ` at the start of a line and everything you write there is a step; ordinary paragraphs are prose and stay prose.
 
-Lists number themselves, so paragraphs inside lists are not counted. Narrative sentences ("The mixture was stirred overnight") are not steps.
+Each item appears in the **Steps** panel below the editor together with the duration and temperature read from its quantities and any timestamps in it. Clicking a step in the panel moves the caret there. Checked items in a task list are shown struck through.
+
+Nested list items belong to the step above them rather than counting as steps of their own, so sub-steps do not renumber the protocol.
 
 ## The `/` palette
 

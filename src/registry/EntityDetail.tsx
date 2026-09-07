@@ -364,6 +364,31 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
           />
         </label>
 
+        {(() => {
+          // Everything the classifier wrote is stamped, so an automatic fill is never mistaken
+          // for something a person checked.
+          const auto = detail.entity.attributes?.autoClassify as
+            | { via?: string | null; matched?: string; cid?: number; at?: string; result?: string }
+            | undefined;
+          if (!auto || auto.result !== 'classified') {
+            return null;
+          }
+          const source =
+            auto.via === 'pubchem'
+              ? `PubChem${auto.cid ? ` (CID ${auto.cid})` : ''}`
+              : auto.via === 'name'
+                ? `the name (“${auto.matched}”)`
+                : 'the classifier';
+          const when = auto.at ? new Date(auto.at).toLocaleDateString() : null;
+          return (
+            <div className="entity-hint">
+              Filled in automatically from {source}
+              {when ? ` on ${when}` : ''}. Edit anything that is wrong and save; nothing you type is
+              overwritten later.
+            </div>
+          );
+        })()}
+
         {isDocument && (
           <div className="entity-hint">
             Mirrored from the document tree — edit the title in the notebook.{' '}

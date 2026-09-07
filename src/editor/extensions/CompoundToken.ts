@@ -2,6 +2,7 @@ import type { NodeViewRenderer } from '@tiptap/core';
 import { fetchEntity, type BackendEntityDetail, type BackendEntityRecord } from '../../api/backend';
 import { formatWeight, isCompoundAttributes, smilesToSvg, type CompoundAttributes } from '../../chemistry/molecule';
 import { expiryState } from '../../registry/attributeSchema';
+import { entityType, onEntityTypes } from '../entityTypes';
 import { stockState } from '../../registry/stock';
 import { formatQuantity } from '../../units/quantity';
 
@@ -122,9 +123,25 @@ async function showHoverCard(anchor: HTMLElement, entityId: string) {
 // Renders the `#label` token; compound tokens get a hover card and can toggle an inline structure.
 export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }) => {
   const dom = document.createElement('span');
-  const isDocument = node.attrs.entityType === 'document';
-  const isCompound = node.attrs.entityType === 'compound';
-  dom.className = `mention reference-token reference-entity${isCompound ? ' reference-compound' : ''}${isDocument ? ' reference-document' : ''}`;
+  // The registry's current type, falling back to the one stored in the document.
+  let type = entityType(node.attrs.id, String(node.attrs.entityType ?? 'entity'));
+  let isDocument = type === 'document';
+  let isCompound = type === 'compound';
+
+  const applyType = () => {
+    type = entityType(node.attrs.id, String(node.attrs.entityType ?? 'entity'));
+    isDocument = type === 'document';
+    isCompound = type === 'compound';
+    dom.className = `mention reference-token reference-entity${isCompound ? ' reference-compound' : ''}${isDocument ? ' reference-document' : ''}`;
+    dom.setAttribute('data-entity-type', type);
+    dom.title = isCompound ? 'Hover for structure · click to toggle inline structure' : '';
+  };
+
+  applyType();
+  const unsubscribe = onEntityTypes(() => {
+    applyType();
+    void renderInline();
+  });
   dom.setAttribute('data-id', String(node.attrs.id ?? ''));
   dom.setAttribute('data-type', 'entityMention');
 
@@ -158,28 +175,28 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
     inlineHost.innerHTML = svg;
   };
 
-  if (!isDocument) {
-    dom.addEventListener('mouseenter', () => void showHoverCard(dom, String(node.attrs.id)));
-    dom.addEventListener('mouseleave', hideHoverCard);
-  }
+  dom.addEventListener('mouseenter', () => {
+    if (!isDocument) {
+      void showHoverCard(dom, String(node.attrs.id));
+    }
+  });
+  dom.addEventListener('mouseleave', hideHoverCard);
 
-  if (isCompound) {
-    dom.title = 'Hover for structure · click to toggle inline structure';
-    dom.addEventListener('click', (event) => {
-      if (!editor.isEditable) {
-        return;
-      }
-      event.preventDefault();
-      const position = typeof getPos === 'function' ? getPos() : null;
-      if (position === null || position === undefined) {
-        return;
-      }
-      editor.view.dispatch(
-        editor.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, inlineStructure: !node.attrs.inlineStructure })
-      );
-    });
-    void renderInline();
-  }
+  // Clicking a compound toggles its inline structure; other tokens ignore the click.
+  dom.addEventListener('click', (event) => {
+    if (!editor.isEditable || !isCompound) {
+      return;
+    }
+    event.preventDefault();
+    const position = typeof getPos === 'function' ? getPos() : null;
+    if (position === null || position === undefined) {
+      return;
+    }
+    editor.view.dispatch(
+      editor.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, inlineStructure: !node.attrs.inlineStructure })
+    );
+  });
+  void renderInline();
 
   return {
     dom,
@@ -189,11 +206,13 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
       }
       node = updated;
       label.textContent = `#${node.attrs.label ?? node.attrs.id ?? ''}`;
-      if (isCompound) {
-        void renderInline();
-      }
+      applyType();
+      void renderInline();
       return true;
     },
-    destroy: hideHoverCard
+    destroy: () => {
+      unsubscribe();
+      hideHoverCard();
+    }
   };
 };

@@ -70,7 +70,7 @@
 
 **SMILES** — the line notation for a molecular structure that compounds store. → [Chemistry](chemistry.md#compounds)
 
-**Step** — a top-level paragraph starting with an instruction verb; numbered and listed with its conditions. → [Writing](writing.md#steps)
+**Step** — a list item (`- ` or `1. `); numbered and listed with its conditions. → [Writing](writing.md#steps)
 
 **Stock recorded** — a reagent attribute: the amount on hand when written down; usages since are subtracted. → [Entities](entities.md#attributes)
 
