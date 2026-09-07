@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
     "dev:server": "node --watch server/index.mjs",
     "server": "node server/index.mjs",
     "db:up": "docker compose up -d postgres",
@@ -20,7 +20,8 @@
     "db:sync": "node scripts/db/sync.mjs",
     "test": "node --test server/ src/",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:client": "vite"
   },
   "dependencies": {
     "@tiptap/core": "^2.11.5",

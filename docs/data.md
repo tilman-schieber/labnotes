@@ -18,7 +18,7 @@ A SQLite notebook is one file plus the attachments directory — copying both is
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `DATABASE_URL` | `postgres://localhost:5432/labnotes` | see above |
-| `PORT` | `5174` | API port |
+| `PORT` | `5174` | API port in standalone mode; combined `npm run dev` selects a free port |
 | `AUTO_MIGRATE_ON_START` | `true` | apply pending migrations on start |
 | `AUTO_SEED_ON_START` | `true` | seed an empty database; also re-syncs derived data |
 | `REVISION_COALESCE_SECONDS` | `120` | writing-session window for revisions |
@@ -40,7 +40,8 @@ overrides the file for one run.
 
 | Script | Does |
 | --- | --- |
-| `npm run dev` / `dev:server` | Vite frontend / API with reload |
+| `npm run dev` | Start frontend and API together; install missing dependencies, default to SQLite, select free ports |
+| `npm run dev:client` / `dev:server` | Separate Vite frontend / API with file watching (fixed API port 5174) |
 | `npm run db:up` / `db:down` | local Postgres via Docker Compose |
 | `npm run db:migrate`, `db:status` | apply / list migrations for the configured backend |
 | `npm run db:seed`, `db:bootstrap` | seed; migrate + seed |

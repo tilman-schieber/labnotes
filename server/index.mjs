@@ -1718,8 +1718,15 @@ async function bootstrap() {
 bootstrap()
   .then(() => {
     startClassificationWorker();
-    app.listen(PORT, () => {
-      console.log(`Labnotes backend listening on http://localhost:${PORT}`);
+    const server = app.listen(PORT, process.env.HOST, () => {
+      const port = server.address().port;
+      console.log(`Labnotes backend listening on http://${process.env.HOST || 'localhost'}:${port}`);
+      process.send?.({ type: 'ready', port });
+    });
+    server.on('error', async (error) => {
+      console.error(`API could not listen: ${error.message}`);
+      await closePool();
+      process.exit(1);
     });
   })
   .catch(async (error) => {

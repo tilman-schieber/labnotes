@@ -208,7 +208,8 @@ scripts/
 
 Prerequisites:
 
-- Docker with `docker compose`
+- Node.js 22.18 or newer
+- Docker with `docker compose` (only for the optional PostgreSQL backend)
 - PostgreSQL CLI tools if you want to use `db:dump`, `db:restore`, or `db:sync`
 - [Typst](https://typst.app) CLI for PDF export (`typst` on PATH)
 
@@ -233,48 +234,48 @@ If you do not use `mise`, install a current Node.js version manually and run the
 
 ## Run Locally
 
-Recommended first-time setup:
-
-With `mise`:
+Start the frontend and API together with **Node.js 22.18 or newer**:
 
 ```bash
-mise install
-mise trust
-mise exec -- npm install
-cp .env.example .env
-mise exec -- npm run db:up
-mise exec -- npm run db:bootstrap
-mise exec -- npm run dev:server
-mise exec -- npm run dev
-```
-
-Without `mise`:
-
-```bash
-npm install
-cp .env.example .env
-npm run db:up
-npm run db:bootstrap
-npm run dev:server
 npm run dev
 ```
 
-The backend and the `db:*` scripts read `.env.local` and then `.env` from the repository root at
-startup. Neither overwrites a variable that is already set, so `DATABASE_URL=... npm run dev:server`
-and CI environments still win over the file. Without a `.env` the server falls back to
-`postgres://localhost:5432/labnotes`, which usually fails as `role "<your user>" does not exist`.
+Or use the project's managed Node version:
 
-Frontend dev server: `http://localhost:5173`
+```bash
+mise install
+mise exec -- npm run dev
+```
 
-Backend API server: `http://localhost:5174`
+The command installs missing dependencies, then starts both servers. No `.env` or Docker is
+needed: without `DATABASE_URL`, it creates a persistent SQLite database at `data/labnotes.db`,
+with migrations and initial seed data applied automatically. Existing `DATABASE_URL` settings
+(including `.env.local` and `.env`) are respected; the configured database must be reachable.
 
-If you want to keep the defaults from `.env.example`, the local Docker database uses:
+Open the **Local** URL printed in the terminal. The frontend prefers `http://127.0.0.1:5173`
+and selects another port when occupied. The API gets a free port automatically, and the
+frontend proxy uses that exact port. Ctrl+C stops both servers. Frontend edits hot reload;
+restart `npm run dev` after changing API code.
 
-- host: `localhost`
-- port: `5432`
-- database: `labnotes`
-- user: `labnotes`
-- password: `labnotes`
+After pulling dependency changes, run `npm ci` before starting. If the automatic installation
+fails, check network access to the npm registry and run `npm ci` again. Avoid running multiple
+installs in the same checkout at once.
+
+For PostgreSQL development, copy `.env.example` to `.env`, then run `npm run db:up` followed
+by `npm run dev`. Docker is required for this option. Keep an existing `.env` if you already
+have database settings.
+
+To run the processes separately (including API file watching), use two terminals:
+
+```bash
+# Terminal 1; omit DATABASE_URL if it is already configured in your environment or .env.
+DATABASE_URL=sqlite:data/labnotes.db npm run dev:server
+# Terminal 2
+npm run dev:client
+```
+
+This manual mode uses fixed API port 5174 and the default Vite proxy, so port 5174 must be
+available. The combined `npm run dev` command avoids that constraint.
 
 Build:
 
