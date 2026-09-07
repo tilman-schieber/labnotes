@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { deleteEntity, fetchEntityLabels, mergeEntities, updateEntity, type BackendEntityLabel, type BackendEntityListItem } from '../api/backend';
 import { confirmDialog } from '../ui/dialogs';
 import { suggestMatches } from './reconcile';
+import { PROMOTABLE_TYPES } from './typeCatalog';
 
 type Props = {
   drafts: BackendEntityListItem[];
@@ -10,7 +11,7 @@ type Props = {
   onSelect: (entityId: string) => void;
 };
 
-const PROMOTE_TYPES = ['sample', 'reagent', 'compound', 'instrument', 'container', 'location'];
+const PROMOTE_TYPES: string[] = [...PROMOTABLE_TYPES];
 
 // Drafts are the names written with `#` that the registry did not know. Each becomes either an
 // existing entity (merge), a new classified entity (promote), or nothing (delete).

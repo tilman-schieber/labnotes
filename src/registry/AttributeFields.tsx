@@ -24,6 +24,9 @@ function parseField(field: AttributeField, text: string): unknown {
     const number = Number(trimmed);
     return Number.isFinite(number) ? number : undefined;
   }
+  if (field.kind === 'boolean') {
+    return trimmed === 'true' ? true : trimmed === 'false' ? false : undefined;
+  }
   return trimmed;
 }
 
@@ -55,14 +58,22 @@ export default function AttributeFields({ type, attributes, onChange, disabled }
       {fields.map((field) => (
         <label key={field.key}>
           {field.label}
-          <input
-            type={field.kind === 'date' ? 'date' : field.kind === 'number' ? 'number' : 'text'}
-            step={field.kind === 'number' ? 'any' : undefined}
-            value={fieldValue(attributes[field.key])}
-            placeholder={field.placeholder}
-            disabled={disabled}
-            onChange={(event) => update(field, event.target.value)}
-          />
+          {field.kind === 'boolean' ? (
+            <select value={fieldValue(attributes[field.key])} disabled={disabled} onChange={(event) => update(field, event.target.value)}>
+              <option value="">—</option>
+              <option value="true">yes</option>
+              <option value="false">no</option>
+            </select>
+          ) : (
+            <input
+              type={field.kind === 'date' ? 'date' : field.kind === 'number' ? 'number' : 'text'}
+              step={field.kind === 'number' ? 'any' : undefined}
+              value={fieldValue(attributes[field.key])}
+              placeholder={field.placeholder}
+              disabled={disabled}
+              onChange={(event) => update(field, event.target.value)}
+            />
+          )}
         </label>
       ))}
       {extraKeys.length > 0 && <div className="entity-muted attribute-extra">Other keys ({extraKeys.join(', ')}) are editable in the JSON below.</div>}

@@ -57,12 +57,14 @@ export default function LinkedEntities({ documentId, refreshToken, onOpenEntity,
                   type="button"
                   className={`linked-entity linked-entity-${type}`}
                   onClick={() => (mention.entityDocumentId ? onOpenDocument(mention.entityDocumentId) : onOpenEntity(mention.targetId))}
-                  title={mention.entityDocumentId ? 'Open document' : 'Open in registry'}
+                  title={[
+                    mention.quantities.length > 0 ? `Used: ${mention.quantities.map(formatQuantity).join(', ')}${mention.role ? ` (${mention.role})` : ''}` : null,
+                    mention.entityDocumentId ? 'Open document' : 'Open in registry'
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 >
                   {mention.currentLabel}
-                  {mention.quantities.length > 0 && (
-                    <span className="linked-entity-amount">{mention.quantities.map(formatQuantity).join(', ')}</span>
-                  )}
                 </button>
               ))}
             </span>

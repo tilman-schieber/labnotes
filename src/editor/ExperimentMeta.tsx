@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DOCUMENT_STATUSES, type DocumentMetadata, type DocumentStatus } from '../api/backend';
+import { formatExperimentNumber } from '../chemistry/batchCode';
 
 type Props = {
   metadata: DocumentMetadata;
@@ -41,6 +42,11 @@ export default function ExperimentMeta({ metadata, createdAt, onChange }: Props)
 
   return (
     <div className="experiment-meta">
+      {metadata.number && (
+        <span className="meta-field meta-number" title="Experiment number in this project">
+          Exp {formatExperimentNumber(metadata.number)}
+        </span>
+      )}
       <span className={`meta-field status-pill status-${metadata.status ?? 'none'}`}>
         <label htmlFor="meta-status">Status</label>
         <select

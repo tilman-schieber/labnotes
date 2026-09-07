@@ -5,6 +5,11 @@ import { closePool, getDialect, getPool, query, sql, withTransaction } from './l
 import { MergeError, mergeEntities } from './lib/entities.mjs';
 import { kickClassification, runClassificationPass, startClassificationWorker } from './lib/classify.mjs';
 import { createId } from './lib/ids.mjs';
+import { cloneContent, withTitle } from './lib/clone.mjs';
+import { planBatch } from './lib/batches.mjs';
+import { syncBatchAnalytics } from './lib/analytics.mjs';
+import { buildContext, loadConfiguredProvider, suggestFor } from './lib/suggest/index.mjs';
+import { experimentNumberOf, initialsFor, nextExperimentNumber, normaliseInitials, planBackfill } from './lib/numbering.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
 import { runMigrations } from './lib/migrations.mjs';
 import { SignError, getRevision, listRevisions, recordRevision, signRevision, verifyRevisionChain } from './lib/revisions.mjs';
@@ -21,7 +26,9 @@ import {
   listAttachments,
   readAttachmentBytes,
   safeFilename,
-  storeAttachment
+  storeAttachment,
+  listEntityAttachments,
+  linkAttachment
 } from './lib/attachments.mjs';
 import { createTemplateDocument } from './lib/templates.mjs';
 
@@ -398,6 +405,25 @@ app.get('/api/documents/:id/mentions', async (request, response) => {
   response.json({ mentions: result.rows });
 });
 
+// Suggestions from the configured provider (none by default) for a saved document.
+app.get('/api/documents/:id/suggestions', async (request, response) => {
+  const documents = await loadDocuments();
+  const document = documents.find((item) => item.id === request.params.id);
+  if (!document) {
+    response.status(404).json({ error: 'Document not found' });
+    return;
+  }
+  await loadConfiguredProvider();
+  const mentions = await query(`select distinct target_id as id from document_mentions where document_id = $1 and ref_type = 'entity'`, [document.id]);
+  const ids = mentions.rows.map((row) => row.id);
+  const entities = new Map();
+  if (ids.length > 0) {
+    const rows = await query('select id, label, type, attributes from entities where id = any($1::text[])', [ids]);
+    rows.rows.forEach((row) => entities.set(row.id, row));
+  }
+  response.json({ suggestions: await suggestFor(buildContext(document, entities)) });
+});
+
 app.get('/api/documents/:id/usages', async (request, response) => {
   const exists = await query('select 1 from documents where id = $1', [request.params.id]);
   if (exists.rowCount === 0) {
@@ -430,18 +456,22 @@ app.post('/api/documents', async (request, response) => {
   }
 
   const document = await withTransaction(async (client) => {
+    // Experiments are numbered per project, in creation order, and a number is never reused.
+    const siblings = documents.filter((item) => item.kind === 'experiment' && item.parentId === parentId);
+    const metadata = kind === 'experiment' ? { ...normalizeMetadata(request.body.metadata), number: nextExperimentNumber(siblings) } : {};
     const nextDocument = {
       id: createId(kind),
       kind,
       parentId,
       title: title || `Untitled ${kind}`,
-      content: request.body.content ?? createTemplateDocument(kind, title || `Untitled ${kind}`)
+      content: request.body.content ?? createTemplateDocument(kind, title || `Untitled ${kind}`),
+      metadata
     };
 
     await client.query(
       `
-        insert into documents (id, kind, parent_id, title, content, search_text)
-        values ($1, $2, $3, $4, $5::jsonb, $6)
+        insert into documents (id, kind, parent_id, title, content, search_text, metadata)
+        values ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb)
       `,
       [
         nextDocument.id,
@@ -449,7 +479,8 @@ app.post('/api/documents', async (request, response) => {
         nextDocument.parentId,
         nextDocument.title,
         JSON.stringify(nextDocument.content),
-        extractText(nextDocument.content)
+        extractText(nextDocument.content),
+        JSON.stringify(nextDocument.metadata)
       ]
     );
     await syncDocumentEntity(client, nextDocument.id);
@@ -482,8 +513,55 @@ function normalizeMetadata(input) {
       metadata.tags = tags;
     }
   }
+  // The per-project experiment number is assigned by the server and kept across metadata edits.
+  const number = experimentNumberOf({ metadata: input });
+  if (number !== null) {
+    metadata.number = number;
+  }
+  if (typeof input.clonedFrom === 'string' && input.clonedFrom) {
+    metadata.clonedFrom = input.clonedFrom;
+  }
   return metadata;
 }
+
+// A copy of an experiment to start the next run from: fresh number, planned, today's date, and
+// the content with timestamps, ticked boxes, isolated masses and batches taken out.
+app.post('/api/documents/:id/clone', async (request, response) => {
+  const documents = await loadDocuments();
+  const source = documents.find((item) => item.id === request.params.id);
+  if (!source || source.kind !== 'experiment') {
+    response.status(404).json({ error: 'Experiment not found' });
+    return;
+  }
+
+  const title = String(request.body?.title ?? '').trim() || `${source.title} (copy)`;
+  const document = await withTransaction(async (client) => {
+    const siblings = documents.filter((item) => item.kind === 'experiment' && item.parentId === source.parentId);
+    const metadata = {
+      ...normalizeMetadata({ tags: source.metadata?.tags ?? [] }),
+      status: 'planned',
+      date: new Date().toISOString().slice(0, 10),
+      number: nextExperimentNumber(siblings),
+      clonedFrom: source.id
+    };
+    const content = withTitle(cloneContent(source.content), title);
+    const nextDocument = { id: createId('experiment'), kind: 'experiment', parentId: source.parentId, title, content, metadata };
+    await client.query(
+      `
+        insert into documents (id, kind, parent_id, title, content, search_text, metadata)
+        values ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb)
+      `,
+      [nextDocument.id, nextDocument.kind, nextDocument.parentId, nextDocument.title, JSON.stringify(content), extractText(content), JSON.stringify(metadata)]
+    );
+    await syncDocumentEntity(client, nextDocument.id);
+    await syncDocumentMentions(client, nextDocument.id, content);
+    await recordRevision(client, nextDocument.id, { title, content, coalesce: false });
+    return nextDocument;
+  });
+
+  const nextDocuments = await loadDocuments();
+  response.status(201).json({ document: getDocumentWithAncestors(nextDocuments, document.id) });
+});
 
 app.patch('/api/documents/:id', async (request, response) => {
   // Metadata-only updates do not touch content and never create a revision.
@@ -538,6 +616,7 @@ app.patch('/api/documents/:id', async (request, response) => {
 
     await syncDocumentEntity(client, request.params.id);
     await syncDocumentMentions(client, request.params.id, nextContent);
+    await syncBatchAnalytics(client, request.params.id, nextContent);
     await recordRevision(client, request.params.id, { title: nextTitle, content: nextContent });
     return request.params.id;
   });
@@ -798,6 +877,23 @@ app.get('/api/attachments/:id', async (request, response) => {
   response.send(bytes);
 });
 
+app.patch('/api/attachments/:id', async (request, response) => {
+  const entityId = request.body?.entityId ? String(request.body.entityId) : null;
+  if (entityId) {
+    const exists = await query('select 1 from entities where id = $1', [entityId]);
+    if (exists.rowCount === 0) {
+      response.status(404).json({ error: 'Entity not found' });
+      return;
+    }
+  }
+  const attachment = await linkAttachment({ query }, request.params.id, entityId);
+  if (!attachment) {
+    response.status(404).json({ error: 'Attachment not found' });
+    return;
+  }
+  response.json({ attachment });
+});
+
 app.delete('/api/attachments/:id', async (request, response) => {
   const deleted = await withTransaction((client) => deleteAttachment(client, request.params.id));
   if (!deleted) {
@@ -930,7 +1026,12 @@ app.get('/api/entities/search', async (request, response) => {
         e.status,
         e.document_id as "documentId",
         e.document_id is not null as "isDocument",
-        e.attributes->>'smiles' as smiles,
+        coalesce(e.attributes->>'smiles', parent.attributes->>'smiles') as smiles,
+        parent.id as "parentId",
+        parent.label as "parentLabel",
+        e.attributes->>'batchCode' as "batchCode",
+        e.attributes->>'amount' as amount,
+        made.metadata->>'number' as "madeInNumber",
         e.last_used is not null as "usedInContext"
       from (
         select e.*, (
@@ -940,9 +1041,12 @@ app.get('/api/entities/search', async (request, response) => {
         ) as last_used
         from entities e
       ) e
+      left join entity_relations belongs on belongs.subject_entity_id = e.id and belongs.predicate = 'belongs_to' and e.type = 'batch'
+      left join entities parent on parent.id = belongs.object_entity_id
+      left join documents made on made.id = e.attributes->>'madeInDocumentId'
       where
         e.status <> 'archived'
-        and ($3 = '' or e.type = $3)
+        and ($3 = '' or (',' || $3 || ',') like '%,' || e.type || ',%')
         and (
           $1 = ''
           or lower(e.label) like '%' || $1 || '%'
@@ -970,6 +1074,11 @@ app.get('/api/entities/search', async (request, response) => {
   response.json({
     entities: result.rows.map((entity) => {
       const base = entity.isDocument ? `${entity.subtype ?? entity.type} document` : entity.subtype ?? entity.type;
+      // A batch reads "batch of Aspirin · 1.15 g · Exp 012" so the writer knows which lot this is.
+      const batchParts =
+        entity.type === 'batch'
+          ? [entity.parentLabel ? `batch of ${entity.parentLabel}` : 'batch', entity.amount, entity.madeInNumber ? `Exp ${String(entity.madeInNumber).padStart(3, '0')}` : null]
+          : [base];
       return {
         id: entity.id,
         label: entity.label,
@@ -978,8 +1087,11 @@ app.get('/api/entities/search', async (request, response) => {
         status: entity.status,
         documentId: entity.documentId,
         smiles: entity.smiles,
+        parentId: entity.parentId ?? null,
+        parentLabel: entity.parentLabel ?? null,
+        batchCode: entity.batchCode ?? null,
         usedInContext: entity.usedInContext,
-        description: [base, entity.status === 'draft' ? 'draft' : null, entity.usedInContext ? 'used in this project' : null]
+        description: [...batchParts, entity.status === 'draft' ? 'draft' : null, entity.usedInContext ? 'used in this project' : null]
           .filter(Boolean)
           .join(' · ')
       };
@@ -1035,6 +1147,41 @@ app.get('/api/entities', async (request, response) => {
   response.json({ entities: result.rows, types: typesResult.rows.map((row) => row.type) });
 });
 
+// Compounds that share a PubChem CID or a canonical structure: two names for one substance.
+// Drafts are merged automatically by the classifier; these are the pairs left for a person.
+app.get('/api/entities/duplicates', async (_request, response) => {
+  const result = await query(
+    `
+      select id, label, status, attributes->>'pubchemCid' as cid, attributes->>'idCode' as "idCode", created_at as "createdAt"
+      from entities
+      where type = 'compound' and document_id is null and status <> 'archived'
+        and (attributes->>'pubchemCid' is not null or attributes->>'idCode' is not null)
+      order by created_at asc
+    `
+  );
+  const groups = new Map();
+  for (const row of result.rows) {
+    for (const key of [row.cid ? `cid:${row.cid}` : null, row.idCode ? `id:${row.idCode}` : null].filter(Boolean)) {
+      const group = groups.get(key) ?? [];
+      if (!group.some((item) => item.id === row.id)) {
+        group.push({ id: row.id, label: row.label, status: row.status });
+      }
+      groups.set(key, group);
+    }
+  }
+  // Merge groups that overlap (same entity under both keys) and keep only real pairs.
+  const seen = new Set();
+  const duplicates = [];
+  for (const group of groups.values()) {
+    if (group.length < 2 || group.every((item) => seen.has(item.id))) {
+      continue;
+    }
+    group.forEach((item) => seen.add(item.id));
+    duplicates.push({ entities: group });
+  }
+  response.json({ duplicates });
+});
+
 app.get('/api/entities/:id', async (request, response) => {
   const entityResult = await query(
     `
@@ -1075,7 +1222,105 @@ app.get('/api/entities/:id', async (request, response) => {
     loadUsages(entity.id)
   ]);
 
-  response.json({ entity, aliases: aliasesResult.rows, backlinks, relations, usages: usage.usages, usageTotals: usage.usageTotals });
+  // A batch shows its compound's structure and where it was made.
+  let parent = null;
+  let madeIn = null;
+  if (entity.type === 'batch') {
+    const belongs = relations.find((relation) => relation.predicate === 'belongs_to' && relation.subjectEntityId === entity.id);
+    if (belongs) {
+      const parentResult = await query('select id, label, type, attributes from entities where id = $1', [belongs.objectEntityId]);
+      parent = parentResult.rows[0] ?? null;
+    }
+    const madeInId = entity.attributes?.madeInDocumentId;
+    if (madeInId) {
+      const madeResult = await query(`select id, title, metadata->>'number' as number from documents where id = $1`, [madeInId]);
+      const row = madeResult.rows[0];
+      madeIn = row ? { id: row.id, title: row.title, number: row.number ? Number(row.number) : null } : null;
+    }
+  }
+
+  response.json({ entity, aliases: aliasesResult.rows, backlinks, relations, usages: usage.usages, usageTotals: usage.usageTotals, parent, madeIn });
+});
+
+// Register a product batch of a compound from an experiment: TS-012-A, with its amount and
+// appearance, linked to the compound and to the batches it was made from.
+app.post('/api/entities/:id/batches', async (request, response) => {
+  const compoundResult = await query(`select id, label, type from entities where id = $1`, [request.params.id]);
+  const compound = compoundResult.rows[0];
+  if (!compound || compound.type !== 'compound') {
+    response.status(404).json({ error: 'Compound not found' });
+    return;
+  }
+  const documentId = String(request.body?.documentId ?? '');
+  const documentResult = await query(`select id, kind, metadata from documents where id = $1`, [documentId]);
+  const document = documentResult.rows[0];
+  if (!document || document.kind !== 'experiment') {
+    response.status(400).json({ error: 'documentId must name an experiment' });
+    return;
+  }
+  const userId = request.body?.userId ? String(request.body.userId) : null;
+  const userResult = userId ? await query('select id, display_name as "displayName", initials from users where id = $1', [userId]) : { rows: [] };
+  const userRow = userResult.rows[0] ?? null;
+  const user = userRow ? { id: userRow.id, initials: userRow.initials || initialsFor(userRow.displayName) } : null;
+
+  const existing = await query(`select attributes->>'batchCode' as code from entities where type = 'batch' and attributes->>'madeInDocumentId' = $1`, [document.id]);
+  let plan;
+  try {
+    plan = planBatch({ compound, document, user, existingCodes: existing.rows.map((row) => row.code).filter(Boolean), input: request.body ?? {} });
+  } catch (error) {
+    response.status(400).json({ error: error instanceof Error ? error.message : 'Cannot register batch' });
+    return;
+  }
+
+  const entity = await withTransaction(async (client) => {
+    const entityId = createId('entity');
+    const inserted = await client.query(
+      `
+        insert into entities (id, type, subtype, label, status, attributes)
+        values ($1, $2, null, $3, $4, $5::jsonb)
+        returning id, type, subtype, label, status, document_id as "documentId", attributes, created_at as "createdAt", updated_at as "updatedAt"
+      `,
+      [entityId, plan.type, plan.label, plan.status, JSON.stringify(plan.attributes)]
+    );
+    for (const relation of plan.relations) {
+      await client.query(
+        `
+          insert into entity_relations (id, subject_entity_id, predicate, object_entity_id, confidence, source_document_id)
+          values ($1, $2, $3, $4, null, $5)
+          on conflict ${sql.relationConflictTarget()} do nothing
+        `,
+        [createId('relation'), entityId, relation.predicate, relation.objectEntityId, relation.sourceDocumentId]
+      );
+    }
+    return inserted.rows[0];
+  });
+
+  response.status(201).json({ entity });
+});
+
+// The batches of a compound, newest first, with what is left of each.
+app.get('/api/entities/:id/batches', async (request, response) => {
+  const result = await query(
+    `
+      select b.id, b.label, b.status, b.attributes, d.id as "madeInDocumentId", d.title as "madeInTitle", d.metadata->>'number' as "madeInNumber"
+      from entity_relations r
+      join entities b on b.id = r.subject_entity_id and b.type = 'batch'
+      left join documents d on d.id = b.attributes->>'madeInDocumentId'
+      where r.predicate = 'belongs_to' and r.object_entity_id = $1
+      order by b.created_at desc
+    `,
+    [request.params.id]
+  );
+  const batches = [];
+  for (const row of result.rows) {
+    const usage = await loadUsages(row.id);
+    batches.push({ ...row, madeInNumber: row.madeInNumber ? Number(row.madeInNumber) : null, usageTotals: usage.usageTotals });
+  }
+  response.json({ batches });
+});
+
+app.get('/api/entities/:id/attachments', async (request, response) => {
+  response.json({ attachments: await listEntityAttachments({ query }, request.params.id) });
 });
 
 // Neighbourhood of an entity: what else the same documents reference, and the derived_from
@@ -1377,7 +1622,7 @@ app.get('/api/users/search', async (request, response) => {
   const queryText = String(request.query.q ?? '').trim().toLowerCase();
   const result = await query(
     `
-      select id, display_name as label, email, status
+      select id, display_name as label, email, status, initials
       from users
       where
         $1 = ''
@@ -1392,13 +1637,13 @@ app.get('/api/users/search', async (request, response) => {
     [queryText]
   );
 
-  response.json({ users: result.rows });
+  response.json({ users: result.rows.map((user) => ({ ...user, initials: user.initials || initialsFor(user.label) })) });
 });
 
 app.get('/api/users/:id', async (request, response) => {
   const result = await query(
     `
-      select id, display_name as "displayName", email, status, created_at as "createdAt", updated_at as "updatedAt"
+      select id, display_name as "displayName", email, status, initials, created_at as "createdAt", updated_at as "updatedAt"
       from users
       where id = $1
     `,
@@ -1410,9 +1655,41 @@ app.get('/api/users/:id', async (request, response) => {
     return;
   }
 
-  const backlinks = await loadBacklinks('user', result.rows[0].id);
-  response.json({ user: result.rows[0], backlinks });
+  const user = { ...result.rows[0], initials: result.rows[0].initials || initialsFor(result.rows[0].displayName) };
+  const backlinks = await loadBacklinks('user', user.id);
+  response.json({ user, backlinks });
 });
+
+// Initials go into experiment and batch codes; they are the one thing about a user the notebook edits.
+app.patch('/api/users/:id', async (request, response) => {
+  const initials = normaliseInitials(request.body?.initials);
+  const result = await query(
+    `
+      update users
+      set initials = $2, updated_at = now()
+      where id = $1
+      returning id, display_name as label, email, status, initials
+    `,
+    [request.params.id, initials]
+  );
+  if (result.rowCount === 0) {
+    response.status(404).json({ error: 'User not found' });
+    return;
+  }
+  const user = result.rows[0];
+  response.json({ user: { ...user, initials: user.initials || initialsFor(user.label) } });
+});
+
+// Experiments written before numbering existed get a number per project, in creation order.
+async function backfillExperimentNumbers(client) {
+  const result = await client.query('select id, kind, parent_id as "parentId", metadata, created_at as "createdAt" from documents');
+  for (const { id, number } of planBackfill(result.rows)) {
+    await client.query(
+      `update documents set metadata = (coalesce(metadata, '{}'::jsonb) || $2::jsonb) where id = $1`,
+      [id, JSON.stringify({ number })]
+    );
+  }
+}
 
 // Documents written before full-text indexing existed (or by older extractors) get their text refreshed.
 async function backfillSearchText(client) {
@@ -1433,6 +1710,7 @@ async function bootstrap() {
       // Backfills mentions for content saved before indexing existed and repairs any drift.
       await syncAllDocumentMentions(client);
       await backfillSearchText(client);
+      await backfillExperimentNumbers(client);
     });
   }
 }

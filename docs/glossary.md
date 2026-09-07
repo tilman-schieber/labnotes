@@ -36,7 +36,21 @@
 
 **IDCode** — OpenChemLib's canonical structure identifier, used to detect duplicate compounds.
 
-**Limiting reagent** — the reactant everything is computed relative to; first with an amount, or marked "lim.". → [Chemistry](chemistry.md#what-the-table-computes)
+**Limiting reagent** — the reactant everything is computed relative to; marked "lim.", or the weighed reactant with the fewest equivalents. → [Chemistry](chemistry.md#what-the-table-computes)
+
+**Batch** — a particular lot of a compound, made in an experiment (`TS-012-A`) or bought; carries its own stock, purity, analytics and precursors. → [Entities](entities.md#batches)
+
+**Analytics block** — the block under a reaction table that records TLC, NMR, MS … for a product batch; signed with the document, mirrored onto the batch. → [Chemistry](chemistry.md#batches-and-analytics)
+
+**Conditions** — temperature, time, atmosphere, pressure, stirring and notes of a reaction, read from the prose and shown as chips under the table title and over the scheme arrow. → [Chemistry](chemistry.md#where-the-rows-come-from)
+
+**Scheme** — the drawing above a reaction table: reactants → products with conditions over the arrow, derived from the rows or drawn in Ketcher. → [Chemistry](chemistry.md#the-scheme)
+
+**Experiment number / code** — the per-project number every experiment gets on creation (`012`), with the writer's initials the experiment code (`TS-012`). → [Writing](writing.md#metadata-number-status-date-tags)
+
+**GHS** — the hazard classification (signal word, pictograms, H-statements) fetched from PubChem for compounds. → [Chemistry](chemistry.md#compounds)
+
+**Suggestion** — a hint from a configured provider (none by default) shown under a reaction table with an *Apply* button; never changes the text on its own. → [Data](data.md#environment)
 
 **Mention / Reference** — an entity or user token in a document. Indexed as `document_mentions`.
 
@@ -58,7 +72,7 @@
 
 **Revision** — a stored snapshot of a document's title and content; saves within two minutes fold into one. → [History](history.md#revisions)
 
-**Role** — a usage's or component's part in a reaction: reactant, reagent, solvent, product. Read from wording (*in*, *gave*, …). → [Chemistry](chemistry.md#where-the-rows-come-from)
+**Role** — a usage's or component's part in a reaction: reactant, reagent, catalyst, solvent, product. Read from wording (*in*, *gave*, *cat.*, …) and from the registry's solvent flag. → [Chemistry](chemistry.md#where-the-rows-come-from)
 
 **Search text** — the flattened text of a document kept for full-text search; derived on save.
 
@@ -70,7 +84,7 @@
 
 **SMILES** — the line notation for a molecular structure that compounds store. → [Chemistry](chemistry.md#compounds)
 
-**Step** — a list item (`- ` or `1. `); numbered and listed with its conditions. → [Writing](writing.md#steps)
+**Step** — one item of the procedure list (`- ` or `1. `), with its amounts, conditions and timestamps as tokens. → [Writing](writing.md#steps)
 
 **Stock recorded** — a reagent attribute: the amount on hand when written down; usages since are subtracted. → [Entities](entities.md#attributes)
 

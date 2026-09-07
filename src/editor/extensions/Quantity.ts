@@ -1,6 +1,7 @@
 import { InputRule, Node, mergeAttributes, type Editor } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
-import { QUANTITY_SOURCE, conversionsFor, findUnit, formatQuantity, parseQuantity } from '../../units/quantity';
+import { conversionsFor, findUnit, formatQuantity, parseQuantity } from '../../units/quantity';
+import { QUANTITY_INPUT_REGEX, quantityInputMatch } from '../recognition/quantities';
 import { promptDialog } from '../../ui/dialogs';
 
 type QuantityAttrs = {
@@ -143,17 +144,18 @@ export const QuantityNode = Node.create({
   addInputRules() {
     return [
       new InputRule({
-        find: new RegExp(`(?:^|\\s)${QUANTITY_SOURCE}\\s$`),
+        // A quantity followed by whitespace or the punctuation of "(10.0 mmol, 1.0 equiv)" and
+        // "for 4 h." — the terminator stays as text after the token.
+        find: QUANTITY_INPUT_REGEX,
         handler: ({ state, range, match }) => {
-          const parsed = parseQuantity(`${match[1]} ${match[2]}`);
-          if (!parsed) {
+          const result = quantityInputMatch(match[0]);
+          if (!result) {
             return null;
           }
 
           // `range` covers the leading whitespace (if any); keep it as text before the node.
-          const leading = match[0].startsWith(' ') || match[0].startsWith('\n') ? match[0][0] : '';
-          const from = range.from + leading.length;
-          state.tr.replaceWith(from, range.to, [this.type.create(parsed), state.schema.text(' ')]);
+          const from = range.from + result.start;
+          state.tr.replaceWith(from, range.to, [this.type.create(result.quantity), state.schema.text(result.trailing)]);
           return undefined;
         }
       })

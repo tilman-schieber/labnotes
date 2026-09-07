@@ -58,5 +58,50 @@ test('summarise keeps first amount per dimension and the first known role', () =
   );
   const summary = summariseUsages(usages);
   assert.equal(summary.length, 1);
-  assert.deepEqual(summary[0].quantities, [{ value: 2, unit: 'g' }, { value: 5, unit: 'mL' }]);
+  assert.deepEqual(summary[0].quantities, [{ value: 2, unit: 'g' }, { value: 1, unit: 'g' }, { value: 5, unit: 'mL' }], 'every distinct amount is kept');
+});
+
+test('catalysts are read from "cat." and mol%, and known solvents by volume become solvents', () => {
+  const usages = extractUsages(
+    doc(
+      paragraph(text('A solution of '), entity('ba', 'Benzoic acid'), text(' ('), qty(1.22, 'g'), text(') and '), qty(20, 'mL'), text(' of '), entity('m', 'Methanol'), text(' was treated with cat. '), entity('h', 'H2SO4'), text(' and '), qty(5, 'mol%'), text(' of '), entity('d', 'DMAP'), text('.')),
+      paragraph(text('A catalytic amount of '), entity('p', 'Pd/C'), text(' was added, then '), qty(20, 'mL'), text(' of '), entity('x', 'Compound X'), text('.'))
+    )
+  );
+  assert.deepEqual(
+    usages.map((usage) => [usage.label, usage.role]),
+    [
+      ['Benzoic acid', 'reactant'],
+      ['Methanol', 'solvent'],
+      ['H2SO4', 'catalyst'],
+      ['DMAP', 'catalyst'],
+      ['Pd/C', 'catalyst'],
+      ['Compound X', 'reactant']
+    ]
+  );
+});
+
+test('reaction rows that consume a batch record a usage of that batch; products and unlinked rows do not', () => {
+  const usages = extractUsages(
+    doc(
+      paragraph(text('Add '), qty(1, 'g'), text(' of '), entity('c', 'Compound')),
+      {
+        type: 'reaction',
+        attrs: {
+          components: [
+            { id: 'r1', role: 'reactant', entityId: 'c', batchId: 'b1', batchCode: 'TS-011-A', label: 'Compound', mass: { value: 0.5, unit: 'g' } },
+            { id: 'r2', role: 'solvent', entityId: 'm', batchId: null, label: 'MeOH', volume: { value: 5, unit: 'mL' } },
+            { id: 'r3', role: 'product', entityId: 'p', batchId: 'b2', batchCode: 'TS-012-A', label: 'Product', actualMass: { value: 0.4, unit: 'g' } }
+          ]
+        }
+      }
+    )
+  );
+  assert.deepEqual(
+    usages.map((usage) => [usage.entityId, usage.entityType, usage.role, usage.quantities, usage.sentence]),
+    [
+      ['b1', 'batch', 'reactant', [{ value: 0.5, unit: 'g' }], 'reaction table'],
+      ['c', 'compound', 'reactant', [{ value: 1, unit: 'g' }], 'Add 1 g of Compound']
+    ]
+  );
 });

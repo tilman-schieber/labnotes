@@ -7,14 +7,15 @@ import 'ketcher-react/dist/index.css';
 const structServiceProvider = new StandaloneStructServiceProvider();
 
 type Props = {
-  initialSmiles: string;
+  // Molecule or reaction SMILES; Ketcher loads either.
+  initialStructure: string;
   onReady: (ketcher: Ketcher) => void;
   onError: (message: string) => void;
 };
 
 // onInit can fire more than once (React StrictMode double-mounts in dev); the latest instance
 // is the live one, so every call re-loads the structure and hands the instance up.
-export default function KetcherEditor({ initialSmiles, onReady, onError }: Props) {
+export default function KetcherEditor({ initialStructure, onReady, onError }: Props) {
   return (
     <Editor
       staticResourcesUrl=""
@@ -22,7 +23,7 @@ export default function KetcherEditor({ initialSmiles, onReady, onError }: Props
       disableMacromoleculesEditor
       errorHandler={(message) => onError(typeof message === 'string' ? message : String(message))}
       onInit={(ketcher) => {
-        const load = initialSmiles.trim() ? ketcher.setMolecule(initialSmiles) : Promise.resolve();
+        const load = initialStructure.trim() ? ketcher.setMolecule(initialStructure) : Promise.resolve();
         Promise.resolve(load)
           .catch(() => onError('Could not load the current SMILES into the editor'))
           .finally(() => onReady(ketcher));

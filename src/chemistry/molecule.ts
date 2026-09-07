@@ -1,4 +1,5 @@
 import type { Molecule as OclMolecule } from 'openchemlib';
+import type { GhsSummary } from './pubchem';
 
 // OpenChemLib is large; load it on first use so the notebook itself stays light.
 let oclPromise: Promise<typeof import('openchemlib')> | null = null;
@@ -23,6 +24,8 @@ export type CompoundAttributes = {
   hAcceptors?: number;
   casNumber?: string;
   iupacName?: string;
+  // GHS summary from PubChem (see pubchem.ts); null once looked up with nothing found.
+  ghs?: GhsSummary | null;
 };
 
 export type MoleculeDescription = Required<
@@ -89,6 +92,28 @@ export async function smilesToSvg(smiles: string, width: number, height: number)
   const svg = molecule.toSVG(width, height, undefined, { autoCrop: true, autoCropMargin: 4, suppressChiralText: true });
   svgCache.set(key, svg);
   return svg;
+}
+
+// A reaction SMILES Ketcher produced or a user typed: canonical form, or null when it does not parse.
+export async function normaliseReactionSmiles(smiles: string): Promise<string | null> {
+  const trimmed = smiles.trim();
+  if (!trimmed.includes('>')) {
+    return null;
+  }
+  const { Reaction } = await loadOcl();
+  try {
+    const reaction = Reaction.fromSmiles(trimmed);
+    if (reaction.getReactants() + reaction.getProducts() === 0) {
+      return null;
+    }
+    const part = (count: number, at: (index: number) => OclMolecule) => Array.from({ length: count }, (_, index) => at(index).toIsomericSmiles()).filter(Boolean);
+    const reactants = part(reaction.getReactants(), (index) => reaction.getReactant(index));
+    const agents = part(reaction.getCatalysts(), (index) => reaction.getCatalyst(index));
+    const products = part(reaction.getProducts(), (index) => reaction.getProduct(index));
+    return `${reactants.join('.')}>${agents.join('.')}>${products.join('.')}`;
+  } catch {
+    return null;
+  }
 }
 
 export function isCompoundAttributes(value: unknown): value is CompoundAttributes {

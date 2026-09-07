@@ -2830,3 +2830,409 @@ button:disabled {
     padding: 1rem 1.25rem 2rem;
   }
 }
+
+/* Reaction conditions: a line of editable chips under the block title. */
+.reaction-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+.reaction-conditions-label {
+  color: var(--muted, #6b7280);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reaction-conditions .reaction-input {
+  width: 5.5rem;
+}
+
+.reaction-conditions .reaction-input.reaction-input-notes {
+  width: 12rem;
+}
+
+.reaction-conditions select.reaction-input {
+  width: auto;
+}
+
+.reaction-row.role-catalyst .reaction-input.is-linked {
+  font-style: italic;
+}
+
+.reaction-limiting-rule {
+  font-size: 0.72rem;
+  color: var(--muted, #6b7280);
+}
+
+/* Experiment numbers in the tree and the metadata bar. */
+.tree-number {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--muted, #6b7280);
+  margin-right: 0.35rem;
+}
+
+.meta-number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Who is writing: select in the sidebar head, initials editable next to it. */
+.user-select {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  margin-right: 0.35rem;
+  min-width: 0;
+}
+
+.user-select select {
+  max-width: 9rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 4px;
+  padding: 0.1rem 0.25rem;
+  background: var(--panel, #fff);
+}
+
+.user-initials {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Batches: a particular lot of a compound. */
+:root {
+  --tok-batch: #cffafe;
+  --tok-batch-text: #155e75;
+}
+
+.type-badge.type-batch {
+  background: var(--tok-batch);
+  color: var(--tok-batch-text);
+}
+
+.ProseMirror .reference-token[data-entity-type='batch'] {
+  background: var(--tok-batch);
+  color: var(--tok-batch-text);
+}
+
+.linked-entity-batch {
+  background: var(--tok-batch);
+  color: var(--tok-batch-text);
+}
+
+/* Batches in the reaction table and the registry. */
+.reaction-batch-chip {
+  display: inline-block;
+  margin-top: 0.15rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--tok-batch);
+  color: var(--tok-batch-text);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.reaction-batch-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+}
+
+.reaction-register {
+  font-size: 0.75rem;
+}
+
+.batch-list,
+.batch-analytics,
+.batch-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.batch-list li,
+.batch-analytics li,
+.batch-files li {
+  padding: 0.15rem 0;
+}
+
+.batch-panel h4.panel-title {
+  margin: 0.8rem 0 0.3rem;
+}
+
+/* Analytics block: a small table of technique / observation under the reaction. */
+.analytics-block {
+  margin: 0.75rem 0;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--panel, #fff);
+  padding: 0.4rem 0.6rem 0.5rem;
+}
+
+.analytics-block.is-selected {
+  outline: 2px solid var(--accent, #2563eb);
+}
+
+.analytics-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.analytics-batch {
+  min-width: 10rem;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.analytics-table td {
+  padding: 0.2rem 0.3rem;
+  vertical-align: top;
+}
+
+.analytics-table td:first-child {
+  width: 7rem;
+}
+
+.analytics-result {
+  width: 100%;
+}
+
+.analytics-text {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.analytics-tlc {
+  margin-bottom: 0.25rem;
+}
+
+.analytics-tlc .reaction-input-number {
+  width: 4rem;
+}
+
+.analytics-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.analytics-attachment {
+  cursor: pointer;
+  border: 1px solid var(--border, #e5e7eb);
+  background: transparent;
+  font-size: 0.72rem;
+}
+
+.analytics-attachment.is-linked {
+  background: var(--tok-batch);
+  color: var(--tok-batch-text);
+  border-color: transparent;
+}
+
+/* Reaction scheme: molecules with + and an arrow, conditions above and agents below the arrow. */
+.reaction-scheme {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.5rem 0.25rem;
+}
+
+.reaction-scheme-molecule {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 180px;
+}
+
+.reaction-scheme-molecule svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.reaction-scheme-label {
+  font-size: 0.7rem;
+  color: var(--muted, #6b7280);
+  text-align: center;
+}
+
+.reaction-scheme-plus {
+  font-size: 1.1rem;
+  color: var(--muted, #6b7280);
+}
+
+.reaction-scheme-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 7rem;
+  font-size: 0.7rem;
+  color: var(--muted, #6b7280);
+  text-align: center;
+}
+
+.reaction-scheme-arrow-line {
+  width: 100%;
+  border-top: 1.5px solid currentColor;
+  position: relative;
+  margin: 0.15rem 0;
+}
+
+.reaction-scheme-arrow-line::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: -5px;
+  border: 4.5px solid transparent;
+  border-left: 7px solid currentColor;
+}
+
+.reaction-scheme-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  padding: 0 0.5rem 0.3rem;
+  font-size: 0.75rem;
+}
+
+.reaction-scheme-empty {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted, #6b7280);
+}
+
+/* GHS hazards: a badge in rows and hover cards, a list on the compound page. */
+.reaction-hazard {
+  display: inline-block;
+  margin-top: 0.15rem;
+  margin-left: 0.3rem;
+  padding: 0 0.35rem;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.hazard-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.hazard-warning {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.hazard-info {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.compound-hover-meta.hazard-danger,
+.compound-hover-meta.hazard-warning {
+  border-radius: 3px;
+  padding: 0.1rem 0.3rem;
+}
+
+.compound-hazards {
+  margin: 0.5rem 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.compound-hazards ul {
+  margin: 0.25rem 0;
+  padding-left: 1.2rem;
+}
+
+.compound-hazards code {
+  font-size: 0.78rem;
+}
+
+.duplicate-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+}
+
+.duplicate-actions {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+/* Suggestions from the server's provider, under the reaction table. */
+.reaction-suggestions {
+  list-style: none;
+  margin: 0.35rem 0.5rem 0;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--tok-quantity-text, #92400e);
+  background: var(--tok-quantity, #fef3c7);
+  font-size: 0.8rem;
+}
+
+.reaction-suggestions li + li {
+  margin-top: 0.2rem;
+}
+
+.reaction-suggestion-kind {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  color: var(--muted, #6b7280);
+  margin-right: 0.3rem;
+}
+
+.reaction-suggestions .link-button {
+  margin-left: 0.4rem;
+}
+
+/* Folding the stoichiometry table away. */
+.reaction-collapse {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--muted, #6b7280);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+}
+
+.reaction-collapse:hover {
+  color: inherit;
+}
+
+.reaction-summary-line {
+  padding: 0.25rem 0.6rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted, #6b7280);
+}
+
+.reaction-summary-warning {
+  color: #9a3412;
+}

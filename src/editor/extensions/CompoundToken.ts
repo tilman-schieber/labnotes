@@ -5,6 +5,7 @@ import { expiryState } from '../../registry/attributeSchema';
 import { entityType, onEntityTypes } from '../entityTypes';
 import { stockState } from '../../registry/stock';
 import { formatQuantity } from '../../units/quantity';
+import { isChemical } from '../../registry/typeCatalog';
 
 // Entity details are fetched lazily on hover and cached per session, so tokens always show the
 // registry's current structure without storing SMILES in the document.
@@ -61,6 +62,20 @@ function line(className: string, text: string) {
   return element;
 }
 
+// "Danger · GHS05 GHS07 · H314 H335" from a stored GHS summary; null when nothing is known.
+export function describeGhs(attributes: Record<string, unknown> | null | undefined): { text: string; level: 'danger' | 'warning' | 'info' } | null {
+  const ghs = attributes?.ghs as { signalWord?: string | null; pictograms?: string[]; hStatements?: { code: string }[] } | null | undefined;
+  if (!ghs || typeof ghs !== 'object') {
+    return null;
+  }
+  const codes = (ghs.hStatements ?? []).map((statement) => statement.code);
+  const parts = [ghs.signalWord, (ghs.pictograms ?? []).join(' '), codes.join(' ')].filter(Boolean);
+  if (parts.length === 0) {
+    return null;
+  }
+  return { text: parts.join(' · '), level: ghs.signalWord === 'Danger' ? 'danger' : ghs.signalWord === 'Warning' ? 'warning' : 'info' };
+}
+
 // What a writer needs to know about a reference without leaving the text: the structure for
 // compounds, and for anything with stock or an expiry, whether it is still usable.
 async function showHoverCard(anchor: HTMLElement, entityId: string) {
@@ -69,7 +84,9 @@ async function showHoverCard(anchor: HTMLElement, entityId: string) {
     return;
   }
   const { entity } = detail;
-  const attributes = isCompoundAttributes(entity.attributes) ? (entity.attributes as CompoundAttributes) : null;
+  // A batch draws its compound's structure and says where it was made.
+  const structureSource = entity.type === 'batch' && detail.parent ? detail.parent.attributes : entity.attributes;
+  const attributes = isCompoundAttributes(structureSource) ? (structureSource as CompoundAttributes) : null;
   const svg = attributes?.smiles ? await smilesToSvg(attributes.smiles, 220, 140) : null;
   if (!anchor.matches(':hover')) {
     return;
@@ -93,6 +110,20 @@ async function showHoverCard(anchor: HTMLElement, entityId: string) {
     if (formula) {
       card.appendChild(line('compound-hover-meta', formula));
     }
+  }
+
+  if (entity.type === 'batch') {
+    const made = detail.madeIn ? `made in ${detail.madeIn.number ? `Exp ${String(detail.madeIn.number).padStart(3, '0')}` : detail.madeIn.title}` : null;
+    const of = detail.parent ? `batch of ${detail.parent.label}` : null;
+    const note = [of, made].filter(Boolean).join(' · ');
+    if (note) {
+      card.appendChild(line('compound-hover-meta', note));
+    }
+  }
+
+  const ghs = describeGhs((entity.type === 'batch' ? detail.parent?.attributes : entity.attributes) as Record<string, unknown> | undefined);
+  if (ghs) {
+    card.appendChild(line(`compound-hover-meta hazard-${ghs.level}`, ghs.text));
   }
 
   const stock = stockState(entity.attributes, detail.usageTotals);
@@ -126,12 +157,12 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
   // The registry's current type, falling back to the one stored in the document.
   let type = entityType(node.attrs.id, String(node.attrs.entityType ?? 'entity'));
   let isDocument = type === 'document';
-  let isCompound = type === 'compound';
+  let isCompound = isChemical(type);
 
   const applyType = () => {
     type = entityType(node.attrs.id, String(node.attrs.entityType ?? 'entity'));
     isDocument = type === 'document';
-    isCompound = type === 'compound';
+    isCompound = isChemical(type);
     dom.className = `mention reference-token reference-entity${isCompound ? ' reference-compound' : ''}${isDocument ? ' reference-document' : ''}`;
     dom.setAttribute('data-entity-type', type);
     dom.title = isCompound ? 'Hover for structure · click to toggle inline structure' : '';

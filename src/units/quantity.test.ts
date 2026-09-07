@@ -58,3 +58,11 @@ test('regex source matches trailing quantity in prose', () => {
   assert.ok(!rule.test('12.5 mLx '), 'unit must be followed by whitespace');
   assert.ok(!rule.test('x12 g '), 'number must start a word');
 });
+
+test('pressure and stirring speed', () => {
+  assert.deepEqual(parseQuantity('20 mbar'), { value: 20, unit: 'mbar' });
+  assert.deepEqual(parseQuantity('760 mmHg'), { value: 760, unit: 'Torr' });
+  assert.deepEqual(convert({ value: 1, unit: 'atm' }, 'mbar'), { value: 1013.25, unit: 'mbar' });
+  assert.deepEqual(parseQuantity('500 rpm'), { value: 500, unit: 'rpm' });
+  assert.deepEqual(parseQuantity('2 eq.'), { value: 2, unit: 'eq' });
+});

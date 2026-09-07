@@ -12,6 +12,10 @@ export type DocumentMetadata = {
   // ISO date (YYYY-MM-DD)
   date?: string;
   tags?: string[];
+  // Per-project experiment number, assigned by the server when the experiment is created.
+  number?: number;
+  // The experiment this one was cloned from.
+  clonedFrom?: string;
 };
 
 export type BackendDocumentNode = {
@@ -91,6 +95,10 @@ export type BackendEntitySearchResult = {
   smiles: string | null;
   usedInContext: boolean;
   description: string;
+  // Batches: the compound they are a lot of, and where they were made.
+  parentId?: string | null;
+  parentLabel?: string | null;
+  batchCode?: string | null;
 };
 
 export type BackendUserSearchResult = {
@@ -98,7 +106,16 @@ export type BackendUserSearchResult = {
   label: string;
   email: string | null;
   status: string;
+  initials: string | null;
 };
+
+export async function updateUserInitials(id: string, initials: string): Promise<BackendUserSearchResult> {
+  const payload = await request<{ user: BackendUserSearchResult }>(`/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ initials })
+  });
+  return payload.user;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_ROOT}${path}`, {
@@ -150,6 +167,14 @@ export async function updateDocument(
     body: JSON.stringify({ title, content })
   });
 
+  return payload.document;
+}
+
+export async function cloneDocument(id: string, title?: string): Promise<BackendDocumentRecord> {
+  const payload = await request<{ document: BackendDocumentRecord }>(`/documents/${encodeURIComponent(id)}/clone`, {
+    method: 'POST',
+    body: JSON.stringify(title ? { title } : {})
+  });
   return payload.document;
 }
 
@@ -244,7 +269,7 @@ export type BackendDocumentMention = {
   entityDocumentId: string | null;
   // Amounts read from the prose around the references (see chemistry/usages.ts)
   quantities: { value: number; unit: string }[];
-  role: 'reactant' | 'product' | 'solvent' | null;
+  role: 'reactant' | 'reagent' | 'catalyst' | 'product' | 'solvent' | null;
 };
 
 export type BackendUsage = {
@@ -255,7 +280,7 @@ export type BackendUsage = {
   documentDate: string | null;
   documentCreatedAt: string;
   quantities: { value: number; unit: string }[];
-  role: 'reactant' | 'product' | 'solvent' | null;
+  role: 'reactant' | 'reagent' | 'catalyst' | 'product' | 'solvent' | null;
   sentence: string | null;
 };
 
@@ -276,6 +301,19 @@ export type BackendUsageTotal = {
   quantity: { value: number; unit: string };
 };
 
+export type BackendSuggestion = {
+  kind: 'role' | 'condition' | 'amount' | 'duplicate' | 'hazard' | 'text';
+  message: string;
+  target: { documentId: string; blockIndex?: number; componentId?: string } | null;
+  patch: Record<string, unknown> | null;
+  provider: string;
+};
+
+export async function fetchSuggestions(documentId: string): Promise<BackendSuggestion[]> {
+  const payload = await request<{ suggestions: BackendSuggestion[] }>(`/documents/${encodeURIComponent(documentId)}/suggestions`);
+  return payload.suggestions;
+}
+
 export async function fetchDocumentMentions(documentId: string): Promise<BackendDocumentMention[]> {
   const payload = await request<{ mentions: BackendDocumentMention[] }>(`/documents/${documentId}/mentions`);
   return payload.mentions;
@@ -288,8 +326,57 @@ export type BackendAttachment = {
   mimeType: string;
   sizeBytes: number;
   sha256: string;
+  // The entity (a batch, usually) this file describes, if any.
+  entityId?: string | null;
   createdAt: string;
 };
+
+export async function linkAttachment(id: string, entityId: string | null): Promise<BackendAttachment> {
+  const payload = await request<{ attachment: BackendAttachment }>(`/attachments/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ entityId })
+  });
+  return payload.attachment;
+}
+
+export async function fetchEntityAttachments(entityId: string): Promise<BackendAttachment[]> {
+  const payload = await request<{ attachments: BackendAttachment[] }>(`/entities/${encodeURIComponent(entityId)}/attachments`);
+  return payload.attachments;
+}
+
+// A batch as the registry lists it under its compound.
+export type BackendBatch = {
+  id: string;
+  label: string;
+  status: string;
+  attributes: Record<string, unknown>;
+  madeInDocumentId: string | null;
+  madeInTitle: string | null;
+  madeInNumber: number | null;
+  usageTotals: { dimension: string; quantity: { value: number; unit: string } }[];
+};
+
+export type RegisterBatchInput = {
+  documentId: string;
+  userId: string | null;
+  amount?: string | null;
+  appearance?: string | null;
+  purity?: number | null;
+  reactantBatchIds?: string[];
+};
+
+export async function registerBatch(compoundId: string, input: RegisterBatchInput): Promise<BackendEntityRecord> {
+  const payload = await request<{ entity: BackendEntityRecord }>(`/entities/${encodeURIComponent(compoundId)}/batches`, {
+    method: 'POST',
+    body: JSON.stringify(input)
+  });
+  return payload.entity;
+}
+
+export async function fetchBatches(compoundId: string): Promise<BackendBatch[]> {
+  const payload = await request<{ batches: BackendBatch[] }>(`/entities/${encodeURIComponent(compoundId)}/batches`);
+  return payload.batches;
+}
 
 export function attachmentUrl(id: string, download = false): string {
   return `${API_ROOT}/attachments/${id}${download ? '?download' : ''}`;
@@ -349,7 +436,7 @@ export async function fetchEntityLabels(): Promise<BackendEntityLabel[]> {
 export type EntitySearchOptions = {
   // Document being edited; entities recently referenced in its project rank first.
   documentId?: string | null;
-  type?: string;
+  type?: string | string[];
 };
 
 export async function searchEntities(query: string, options: EntitySearchOptions = {}): Promise<BackendEntitySearchResult[]> {
@@ -358,7 +445,7 @@ export async function searchEntities(query: string, options: EntitySearchOptions
     params.set('documentId', options.documentId);
   }
   if (options.type) {
-    params.set('type', options.type);
+    params.set('type', Array.isArray(options.type) ? options.type.join(',') : options.type);
   }
   const payload = await request<{ entities: BackendEntitySearchResult[] }>(`/entities/search?${params.toString()}`);
   return payload.entities;
@@ -420,6 +507,9 @@ export type BackendEntityDetail = {
   relations: BackendRelation[];
   usages: BackendUsage[];
   usageTotals: BackendUsageTotal[];
+  // Batches only: the compound this is a lot of, and the experiment it was made in.
+  parent?: { id: string; label: string; type: string; attributes: Record<string, unknown> } | null;
+  madeIn?: { id: string; title: string; number: number | null } | null;
 };
 
 export const RELATION_PREDICATES = ['uses', 'derived_from', 'stored_in', 'references', 'belongs_to'] as const;
@@ -478,6 +568,13 @@ export async function addEntityAlias(id: string, alias: string, kind = 'synonym'
   return payload.alias;
 }
 
+export type BackendDuplicateGroup = { entities: { id: string; label: string; status: string }[] };
+
+export async function fetchDuplicates(): Promise<BackendDuplicateGroup[]> {
+  const payload = await request<{ duplicates: BackendDuplicateGroup[] }>('/entities/duplicates');
+  return payload.duplicates;
+}
+
 export async function mergeEntities(targetId: string, sourceId: string): Promise<{ rewrittenDocumentIds: string[] }> {
   return request(`/entities/${targetId}/merge`, {
     method: 'POST',
@@ -507,10 +604,15 @@ export async function deleteEntityAlias(id: string, aliasId: string): Promise<vo
   await request(`/entities/${id}/aliases/${aliasId}`, { method: 'DELETE' });
 }
 
-export async function createEntity(type: string, label: string, status: 'draft' | 'verified' = 'verified'): Promise<BackendEntityRecord> {
+export async function createEntity(
+  type: string,
+  label: string,
+  status: 'draft' | 'verified' = 'verified',
+  extra: { attributes?: Record<string, unknown>; subtype?: string | null } = {}
+): Promise<BackendEntityRecord> {
   const payload = await request<{ entity: BackendEntityRecord }>('/entities', {
     method: 'POST',
-    body: JSON.stringify({ type, label, status })
+    body: JSON.stringify({ type, label, status, ...extra })
   });
 
   return payload.entity;

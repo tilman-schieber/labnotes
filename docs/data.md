@@ -80,11 +80,13 @@ All routes are JSON under `/api`. Ids are opaque strings.
 | `GET /documents/tree` | the whole tree with content and metadata |
 | `GET /documents/:id` | one document with group/project ids |
 | `POST /documents` | `{ kind, parentId, title, content? }` |
-| `PATCH /documents/:id` | `{ title, content }` saves and records a revision; `{ metadata }` alone updates status/date/tags without a revision |
+| `PATCH /documents/:id` | `{ title, content }` saves and records a revision; `{ metadata }` alone updates status/date/tags without a revision (the experiment `number` is server-assigned and kept) |
+| `POST /documents/:id/clone` | `{ title? }` — a copy of an experiment with a fresh number, status planned, today's date and results removed |
 | `DELETE /documents/:id` | cascades to children, revisions, mentions, usages, attachments |
 | `GET /documents/search?q=` | titles for `#` document lookup |
 | `GET /search?q=&tag=` | full-text search with snippets |
-| `GET /documents/:id/mentions`, `/usages` | derived references and usages |
+| `GET /documents/:id/mentions`, `/usages` | derived references and usages (reaction rows that consume a batch count as usages of that batch) |
+| `GET /documents/:id/suggestions` | what the configured suggestion provider has to say (empty with the default `none`) |
 | `GET /documents/:id/export.typ`, `/export.pdf` | export (book for projects/groups) |
 
 **Revisions and sharing**
@@ -122,9 +124,14 @@ All routes are JSON under `/api`. Ids are opaque strings.
 | `POST /entities/:id/aliases`, `DELETE /entities/:id/aliases/:aliasId` | aliases |
 | `POST /entities/:id/relations`, `DELETE /entities/:id/relations/:relationId` | relations |
 | `POST /entities/:id/merge` | `{ sourceId }` folds the source into `:id` |
-| `POST /entities/classify` | runs a classification pass now; returns what was filled in |
+| `POST /entities/:id/batches` | `{ documentId, userId?, amount?, appearance?, purity?, reactantBatchIds? }` registers a batch of compound `:id` from an experiment |
+| `GET /entities/:id/batches` | the batches of a compound with stock left |
+| `GET /entities/:id/attachments`, `PATCH /attachments/:id` | files linked to an entity; `{ entityId }` links or (with null) unlinks |
+| `POST /entities/classify` | runs a classification pass now; returns what was filled in (and what was merged) |
+| `GET /entities/duplicates` | compounds sharing a PubChem CID or structure, for a person to merge |
 | `POST /entities/:id/classify` | classifies one entity, ignoring the retry limit |
-| `GET /users/search?q=`, `GET /users/:id` | people |
+| `GET /users/search?q=`, `GET /users/:id` | people, with `initials` (falling back to the display name) |
+| `PATCH /users/:id` | `{ initials }` — the letters used in experiment and batch codes |
 
 Example — create a reagent and reference it from a new experiment:
 
@@ -136,4 +143,4 @@ curl -s -X POST localhost:5174/api/documents -H 'content-type: application/json'
   -d '{"kind":"experiment","parentId":"<project id>","title":"Lysis test"}'
 ```
 
-The content format is TipTap/ProseMirror JSON; the node types that matter are `entityMention` (`attrs.id`, `label`, `entityType`), `userMention`, `quantity` (`value`, `unit`), `timestamp` (`at`), `reaction` (`title`, `components`), `inlineMath` / `blockMath` (`latex`), and `image` (`src` pointing at `/api/attachments/<id>`).
+The content format is TipTap/ProseMirror JSON; the node types that matter are `entityMention` (`attrs.id`, `label`, `entityType`), `userMention`, `quantity` (`value`, `unit`), `timestamp` (`at`), `reaction` (`title`, `components`, `conditions`, `scheme`), `analytics` (`batchId`, `batchCode`, `entries`), `inlineMath` / `blockMath` (`latex`), and `image` (`src` pointing at `/api/attachments/<id>`).

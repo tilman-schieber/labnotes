@@ -21,13 +21,13 @@ import type { NotebookDocumentKind } from '../documents/templates';
 import { LinkExtension } from './extensions/Link';
 import { QuantityNode } from './extensions/Quantity';
 import { ReactionNode } from './extensions/Reaction';
+import { AnalyticsNode } from './extensions/Analytics';
 import { TrailingParagraph } from './extensions/TrailingParagraph';
 import { Recognition } from './extensions/Recognition';
 import { QuantityRecognition } from './extensions/QuantityRecognition';
 import { UnitSuggest } from './extensions/UnitSuggest';
 import { invalidateEntityCache } from './extensions/CompoundToken';
 import { refreshEntityTypes } from './entityTypes';
-import { ProtocolSteps } from './extensions/Steps';
 
 type Props = {
   documentId: string | null;
@@ -102,14 +102,14 @@ export default function NotebookEditor({
       SlashCommands,
       TimestampNode,
       QuantityNode,
-      ReactionNode,
+      ReactionNode.configure({ documentId }),
+      AnalyticsNode.configure({ documentId }),
       TrailingParagraph.configure({
         kind: documentKind
       }),
       Recognition,
       QuantityRecognition,
       UnitSuggest,
-      ProtocolSteps,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),

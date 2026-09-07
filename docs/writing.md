@@ -71,11 +71,7 @@ Recognition skips words inside a `#` or `@` you are still typing, glued single-l
 
 ## Steps
 
-A **protocol step** is a list item. Type `- ` or `1. ` at the start of a line and everything you write there is a step; ordinary paragraphs are prose and stay prose.
-
-Each item appears in the **Steps** panel below the editor together with the duration and temperature read from its quantities and any timestamps in it. Clicking a step in the panel moves the caret there. Checked items in a task list are shown struck through.
-
-Nested list items belong to the step above them rather than counting as steps of their own, so sub-steps do not renumber the protocol.
+Write a procedure as a numbered or bulleted list (`1. ` or `- ` at the start of a line): one item per step, with its amounts, times and temperatures as tokens, and timestamps where you want to record when something happened. Nested items are sub-steps. Task lists (`[ ] `) give each step a checkbox.
 
 ## The `/` palette
 
@@ -102,9 +98,19 @@ The toolbar **Formula** button wraps the selection (or nothing) in inline math; 
 
 Paste or drop an image into the text and it is uploaded as an attachment and inserted. The **Attachments** panel below the editor lists every file attached to the document (any type, up to 50 MB by default), with download, delete, and "insert" for images. Attachments keep their SHA-256 so exports and audits can prove which file was meant.
 
-## Metadata: status, date, tags
+## Metadata: number, status, date, tags
 
 Experiments carry a status (planned, in progress, done, failed, abandoned), a date, and tags, edited in the strip above the editor. The date orders chapters in the [project book](export.md#project-and-group-books) and the entity timeline; tags are searchable.
+
+Every experiment also has a **number**, assigned when it is created: the next free number in its project, never reused, shown in the tree (`012 · Title`) and in the strip (`Exp 012`). Together with the writer's initials it forms the experiment code, `TS-012`, that product [batches](entities.md#batches) are named after (`TS-012-A`).
+
+## Who is writing
+
+There is no login. The select in the sidebar head names the person at the keyboard; the choice is remembered in this browser. It is the default signer in the history panel and supplies the initials for batch codes. Click the initials next to the select to change them (they default to the first letters of the display name).
+
+## Cloning an experiment
+
+**Clone** in the document header starts the next run from the current one: a copy in the same project with a fresh number, status *planned*, today's date and the same tags. The prose, amounts, reaction rows and conditions stay; timestamps, ticked boxes, isolated masses, registered batches and analytics blocks are removed, since they belonged to the run being copied. The clone remembers its origin in its metadata.
 
 ## Templates
 

@@ -2,7 +2,7 @@
 export type AttributeField = {
   key: string;
   label: string;
-  kind: 'text' | 'date' | 'number' | 'quantity';
+  kind: 'text' | 'date' | 'number' | 'quantity' | 'boolean';
   placeholder?: string;
 };
 
@@ -34,9 +34,27 @@ export const ATTRIBUTE_SCHEMA: Record<string, AttributeField[]> = {
     { key: 'casNumber', label: 'CAS', kind: 'text' },
     { key: 'iupacName', label: 'IUPAC name', kind: 'text' },
     { key: 'density', label: 'Density (g/mL)', kind: 'number' },
+    // A liquid the reaction is run in: a volume with no equivalents defaults to the solvent role.
+    { key: 'solvent', label: 'Solvent', kind: 'boolean' },
     { key: 'meltingPoint', label: 'Melting point', kind: 'quantity', placeholder: 'e.g. 135 °C' },
     { key: 'boilingPoint', label: 'Boiling point', kind: 'quantity', placeholder: 'e.g. 140 °C' },
     { key: 'hazards', label: 'Hazards', kind: 'text', placeholder: 'GHS statements' }
+  ],
+  // A particular lot of a compound: made in an experiment, or bought. Linked to its compound by a
+  // `belongs_to` relation and to the batches it was made from by `derived_from`.
+  batch: [
+    { key: 'batchCode', label: 'Code', kind: 'text', placeholder: 'e.g. TS-012-A' },
+    { key: 'amount', label: 'Amount (stock)', kind: 'quantity', placeholder: 'e.g. 1.15 g' },
+    { key: 'appearance', label: 'Appearance', kind: 'text', placeholder: 'e.g. white solid' },
+    { key: 'purity', label: 'Purity (%)', kind: 'number' },
+    { key: 'purityMethod', label: 'Purity by', kind: 'text', placeholder: 'HPLC, qNMR, …' },
+    { key: 'mp', label: 'Melting point', kind: 'quantity', placeholder: 'e.g. 121 °C' },
+    { key: 'vendor', label: 'Vendor', kind: 'text' },
+    { key: 'catalogNumber', label: 'Catalog no.', kind: 'text' },
+    { key: 'lotNumber', label: 'Lot no.', kind: 'text' },
+    { key: 'storage', label: 'Storage', kind: 'text' },
+    { key: 'openedAt', label: 'Opened', kind: 'date' },
+    { key: 'expiry', label: 'Expiry', kind: 'date' }
   ],
   instrument: [
     { key: 'manufacturer', label: 'Manufacturer', kind: 'text' },
@@ -58,7 +76,7 @@ export const ATTRIBUTE_SCHEMA: Record<string, AttributeField[]> = {
 };
 
 // Keys that a type's panel or the chemistry panel manages elsewhere; hidden from the raw JSON editor.
-export const MANAGED_KEYS = new Set(['smiles', 'idCode', 'formula', 'molecularWeight', 'exactMass', 'logP', 'tpsa', 'hDonors', 'hAcceptors', 'pubchemCid']);
+export const MANAGED_KEYS = new Set(['smiles', 'idCode', 'formula', 'molecularWeight', 'exactMass', 'logP', 'tpsa', 'hDonors', 'hAcceptors', 'pubchemCid', 'madeInDocumentId', 'analytics', 'autoClassify', 'ghs', 'ghsAttemptedAt', 'madeBy']);
 
 export type ExpiryState = 'expired' | 'soon' | null;
 

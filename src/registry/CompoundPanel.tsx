@@ -14,6 +14,7 @@ type Props = {
 };
 
 export default function CompoundPanel({ entityId, label, attributes, onSaveAttributes, onMergeInto }: Props) {
+  const ghs = attributes.ghs && typeof attributes.ghs === 'object' ? attributes.ghs : null;
   const [smilesInput, setSmilesInput] = useState(attributes.smiles ?? '');
   const [preview, setPreview] = useState<MoleculeDescription | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
@@ -186,6 +187,23 @@ export default function CompoundPanel({ entityId, label, attributes, onSaveAttri
         </dl>
       </div>
 
+      {ghs && (
+        <div className={`compound-hazards hazard-${ghs.signalWord === 'Danger' ? 'danger' : ghs.signalWord === 'Warning' ? 'warning' : 'info'}`}>
+          <strong>{ghs.signalWord ?? 'Hazards'}</strong>
+          {ghs.pictograms.length > 0 && <span className="entity-muted"> · {ghs.pictograms.join(' ')}</span>}
+          <ul>
+            {ghs.hStatements.map((statement) => (
+              <li key={statement.code}>
+                <code>{statement.code}</code> {statement.text}
+              </li>
+            ))}
+          </ul>
+          {ghs.pCodes.length > 0 && <div className="entity-muted">{ghs.pCodes.join(', ')}</div>}
+          <div className="entity-muted">GHS classification from PubChem; check the supplier's SDS before use.</div>
+        </div>
+      )}
+      {attributes.ghs === null && <div className="entity-muted compound-hazards">No GHS classification listed by PubChem.</div>}
+
       <label className="compound-smiles">
         SMILES
         <input
@@ -231,7 +249,7 @@ export default function CompoundPanel({ entityId, label, attributes, onSaveAttri
 
       {isEditorOpen && (
         <StructureEditorDialog
-          initialSmiles={smilesInput}
+          initialStructure={smilesInput}
           onCancel={() => setIsEditorOpen(false)}
           onSave={(smiles) => {
             setIsEditorOpen(false);

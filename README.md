@@ -23,7 +23,7 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and an API 
   - `$...$` inline math and `$$...$$` block math
 - Basic tables (insert and edit)
 - Usages are read from the prose: an entity token with amounts next to it (`#Salicylic acid (2.0 g, 14.5 mmol)`, `12.5 mL of #Compound X`, `2 eq #Base`) records *entity × amounts × role* at save time. Roles come from a few keywords (`dissolved in` → solvent, `afforded/gave/yield` → product); time and temperature are conditions, not amounts. The linked strip shows amounts per entity, the registry shows every usage with totals per dimension.
-- Reaction block (`/reaction` or toolbar): stoichiometry table with reactant/reagent/solvent/product rows, **pre-filled from the current section's prose** and refreshable with "↻ from text" (adds entities and fills empty fields, never overwrites manual edits). Compounds are picked from the registry (MW auto-filled, structure shown); enter mass, or volume + concentration, or volume + density, or just equivalents. Computes mmol, equivalents vs. the limiting reagent, required masses, theoretical yield and % yield from the isolated mass. Component compounds count as references (backlinks).
+- Reaction block (`/reaction` or toolbar): stoichiometry table with reactant/reagent/catalyst/solvent/product rows, **pre-filled from the current section's prose** and refreshable with "↻ from text" (adds entities and fills empty fields, never overwrites manual edits). Compounds and batches are picked from the registry (MW, structure and density auto-filled); enter mass, or volume + concentration (molar, mg/mL, wt%), or volume + density, a stated mmol, purity, or just equivalents. Computes mmol, equivalents vs. the limiting reagent (marked, or the weighed reactant with the fewest equivalents), required masses, theoretical yield, isolated mmol and % yield, and cross-checks stated mmol against mass and MW. **Conditions** (temperature, time, atmosphere, pressure, stirring, notes) are read from the section and editable as chips; a **scheme** (reactants → products, conditions over the arrow) is drawn from the rows or edited in Ketcher. A product row with an isolated mass can **register a batch** (`TS-012-A`) and get an **analytics block** (TLC, NMR, MS …) under the table. Component compounds and batches count as references (backlinks); batch rows consume the batch's stock.
 - Passive recognition: registry names (labels and aliases, ≥ 3 characters, non-document entities) typed as plain text get a dotted underline. Click one to turn it into a reference, or use "Link n known names" in the toolbar to do them all; ignoring them costs nothing. Names right after `#`/`@` are left to the popup.
 - The document always ends with an empty paragraph, and clicking below the content places the caret at the end
 - Quantities: typing `12.5 mL `, `-20 °C `, `2 eq ` turns into a unit-aware token (hover shows conversions, double-click edits, Backspace right after undoes). Units: g/L/mol/M with n/µ/m/k prefixes, °C/K, s/min/h/d, eq, %
@@ -46,7 +46,9 @@ Single-page lab notebook built with Vite, React, TypeScript, TipTap, and an API 
 - Attachments: any file can be attached to a document (panel above the editor); images pasted or dropped into the text are uploaded and placed inline, and appear in the PDF export. Bytes live under `ATTACHMENTS_DIR` (default `data/attachments`, git-ignored) with sha256 recorded; deleting a document removes its files.
 - PDF export ("Export PDF" in the editor): the document is converted to Typst and compiled with the local `typst` binary. Header carries the tree path, status/date/tags and the latest revision (with signature). Math goes through the `mitex` package (fetched from the Typst package registry on first use); compound structures are embedded as SVG. `GET …/export.typ` returns the source.
 - Full-text search across titles, content (including mentions, quantities, reaction rows, math) and tags — sidebar search box; `#tag` lists everything with that tag
-- Experiment metadata bar: status (planned / in progress / done / failed / abandoned, shown as a dot in the tree), date, tags
+- Experiment metadata bar: per-project experiment number (`Exp 012`, also in the tree), status (planned / in progress / done / failed / abandoned, shown as a dot in the tree), date, tags
+- Current user (sidebar select, kept per browser) with editable initials; default signer and the prefix of experiment and batch codes
+- Clone an experiment: a copy with a fresh number, status planned, today's date and results (timestamps, ticks, isolated masses, batches, analytics) removed
 - Task lists (toolbar "Task list" or type `[ ] `)
 - Backend-backed autosave for documents
 - Last active selection restored locally on reload
@@ -78,8 +80,10 @@ Implemented now:
   - same-structure detection via canonical IDCode with one-click merge
   - compound tokens in the editor show a structure card on hover; click toggles an inline structure
 - typing helpers: amounts written as plain text and known entity names are underlined and become tokens on click, `Ctrl/Cmd+.` (next) or `Ctrl/Cmd+Shift+L` (all); after a number, Tab picks a unit (units already used in the document first); Enter on a selected quantity token edits it; `/shortcuts` lists the keys
-- protocol steps: list items (`- ` or `1. `) are listed in a Steps panel with their duration/temperature and timestamps
-- automatic classification: entities nobody has typed are classified from the head noun of their name, and looked up in PubChem for CAS number, structure, formula and mass
+- automatic classification: entities nobody has typed are classified from the head noun of their name, and looked up in PubChem for CAS number, structure, formula and mass; a built-in table fills density and the solvent flag for ~60 common liquids; PubChem's view service supplies GHS hazards (signal word, pictograms, H-statements) shown on hover cards, reaction rows, the compound page and the PDF
+- duplicate substances: a draft or auto-filled compound that resolves to an existing PubChem record or structure is merged into it automatically; hand-verified pairs are listed as possible duplicates in the registry
+- batches: entities of type `batch` (a lot of a compound, made in an experiment or bought), linked by `belongs_to` and `derived_from` relations, with stock, purity, appearance, precursors, mirrored analytics and linked files
+- suggestion hook: `SUGGEST_PROVIDER` names a module under `server/lib/suggest/` that reviews saved experiments; the default `none` returns nothing, and no model is called anywhere
 - reaction tables read the section above them, remember the sentence each row came from, write edited amounts back to that sentence, and flag yields above 100 %, missing isolated masses, missing MW and volumes without a concentration
 - every entity token shows a hover card (type, structure for compounds, stock left, expiry, reference count); reagents with a recorded stock show what is left after all usages, with running-low/used-up states
 - entity timeline (usages in experiment-date order with running totals) and graph neighbours: entities used in the same documents, and the `derived_from` lineage two hops in each direction
@@ -104,7 +108,7 @@ Core persisted tables:
 - `document_mentions`
 - `entity_relations`
 
-Schema is defined per backend in `db/migrations/postgres/` (incremental history) and `db/migrations/sqlite/0001_init.sql` (current schema in one file).
+Schema is defined per backend in `db/migrations/postgres/` (incremental history) and `db/migrations/sqlite/` (`0001_init.sql` plus incremental files from `0002` on).
 
 Compound entities keep their chemistry in `attributes`: `smiles`, `idCode` (canonical, used for duplicate detection), `formula`, `molecularWeight`, `exactMass`, `logP`, `tpsa`, `hDonors`, `hAcceptors`, plus `casNumber`, `iupacName`, `pubchemCid` when known. Registry search matches `idCode`, `smiles`, and `casNumber` exactly.
 
@@ -292,6 +296,8 @@ Important variables:
 - `AUTO_MIGRATE_ON_START`
 - `AUTO_SEED_ON_START`
 - `REVISION_COALESCE_SECONDS`
+- `AUTO_CLASSIFY`, `AUTO_CLASSIFY_INTERVAL_SECONDS`, `AUTO_CLASSIFY_GAP_MS`, `AUTO_CLASSIFY_GHS`
+- `SUGGEST_PROVIDER` (default `none`)
 - `TYPST_BIN` (default `typst`)
 - `ATTACHMENTS_DIR` (default `data/attachments`), `MAX_ATTACHMENT_BYTES` (default 50 MB)
 
@@ -419,6 +425,8 @@ Current backend endpoints:
 - `POST /api/documents/:id/revisions/:revision/sign` (`{ userId, note? }`)
 - `POST /api/documents`
 - `PATCH /api/documents/:id` (`{ title, content }` records a revision; `{ metadata }` alone updates status/date/tags without one)
+- `POST /api/documents/:id/clone`, `GET /api/documents/:id/suggestions`
+- `POST /api/entities/:id/batches`, `GET /api/entities/:id/batches`, `GET /api/entities/duplicates`, `GET /api/entities/:id/attachments`, `PATCH /api/attachments/:id`, `PATCH /api/users/:id`
 - `DELETE /api/documents/:id`
 - `GET /api/templates?kind=`, `GET /api/templates/:id`, `POST /api/templates` (`{ name, documentId }` or `{ name, kind, content }`), `DELETE /api/templates/:id`
 - `GET /api/entities?q=&type=&status=` (registry listing with mention counts)

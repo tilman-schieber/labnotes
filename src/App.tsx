@@ -11,6 +11,7 @@ import {
 } from './documents/templates';
 import { sanitizeLatex } from './editor/extensions/Math';
 import {
+  cloneDocument,
   createTemplateFromDocument,
   deleteTemplate,
   fetchTemplate,
@@ -20,11 +21,12 @@ import {
   type DocumentMetadata
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
+import { formatExperimentNumber } from './chemistry/batchCode';
+import UserSelect from './ui/UserSelect';
 import SearchResults from './sidebar/SearchResults';
 import AttachmentsPanel from './editor/AttachmentsPanel';
 import LinkedEntities from './editor/LinkedEntities';
 import RevisionHistory from './editor/RevisionHistory';
-import StepsPanel from './editor/StepsPanel';
 
 // The documentation and its markdown renderer are only needed once Help is opened.
 const HelpView = lazy(() => import('./help/HelpView'));
@@ -171,6 +173,8 @@ export default function App() {
           setPendingSave((current) => (current === pendingSave ? null : current));
           setSaveState('idle');
           setSaveCount((previous) => previous + 1);
+          // Blocks that show server-derived data (suggestions, batch mirrors) refresh on this.
+          window.dispatchEvent(new CustomEvent('labnotes:document-saved', { detail: { documentId: pendingSave.id } }));
         })
         .catch(() => {
           setSaveState('error');
@@ -469,6 +473,15 @@ export default function App() {
     });
   };
 
+  // The next run of the same experiment: a copy with fresh number, planned status and no results.
+  const handleClone = async () => {
+    if (!db || !selectedDocument || selectedDocument.kind !== 'experiment') {
+      return;
+    }
+    const document = await cloneDocument(selectedDocument.id);
+    await reloadDb({ groupId: db.active.groupId, projectId: db.active.projectId, experimentId: document.id });
+  };
+
   const handleSaveAsTemplate = async () => {
     if (!selectedDocument || selectedDocument.kind !== 'experiment') {
       return;
@@ -729,6 +742,7 @@ export default function App() {
         <aside className="sidebar">
           <div className="sidebar-head">
             <span>Notebook</span>
+            <UserSelect />
             <div className="new-menu">
               <button
                 type="button"
@@ -896,6 +910,7 @@ export default function App() {
                                       onClick={() => handleExperimentSelect(group, project, experiment)}
                                     >
                                       <IconBeaker size={14} />
+                                      {experiment.metadata.number && <span className="tree-number">{formatExperimentNumber(experiment.metadata.number)}</span>}
                                       <span className="tree-label">{experiment.title}</span>
                                       {experiment.metadata.status && (
                                         <span className={`status-dot status-${experiment.metadata.status}`} title={STATUS_LABELS[experiment.metadata.status]} />
@@ -938,6 +953,12 @@ export default function App() {
                   </div>
                   <div className="doc-actions">
                     <RevisionHistory documentId={selectedDocument.id} onRestored={() => void handleDocumentRestored()} />
+                    {selectedDocument.kind === 'experiment' && (
+                      <button type="button" className="btn btn-sm" onClick={() => void handleClone()} title="Start the next run from this experiment: a copy with a fresh number and no results">
+                        <IconTemplate size={14} />
+                        Clone
+                      </button>
+                    )}
                     {selectedDocument.kind === 'experiment' && (
                       <button type="button" className="btn btn-sm" onClick={() => void handleSaveAsTemplate()} title="Save this experiment as a template">
                         <IconTemplate size={14} />
@@ -989,7 +1010,6 @@ export default function App() {
                 />
 
                 <div className="doc-footer">
-                  {selectedDocument.kind === 'experiment' && <StepsPanel editor={editor} />}
                   <AttachmentsPanel
                     key={`attachments-${selectedDocument.id}`}
                     documentId={selectedDocument.id}

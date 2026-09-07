@@ -106,6 +106,13 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).insertReaction().run()
   },
   {
+    id: 'analytics',
+    label: 'Analytics',
+    description: 'TLC, NMR, MS, HPLC … on a product batch',
+    keywords: ['analytics', 'nmr', 'tlc', 'ms', 'hplc', 'characterisation', 'characterization'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).insertAnalytics().run()
+  },
+  {
     id: 'formula',
     label: 'Formula',
     description: 'Display math (LaTeX, mhchem)',

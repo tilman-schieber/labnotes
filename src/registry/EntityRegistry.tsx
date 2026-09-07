@@ -3,6 +3,8 @@ import { classifyEntities, createEntity, fetchEntities, type BackendEntityListIt
 import DraftReconciliation from './DraftReconciliation';
 import EntityDetail from './EntityDetail';
 import { expiryState } from './attributeSchema';
+import DuplicateSuggestions from './DuplicateSuggestions';
+import { ENTITY_TYPES } from './typeCatalog';
 
 type Props = {
   onOpenDocument: (documentId: string) => void;
@@ -12,7 +14,7 @@ type Props = {
 
 const STATUSES = ['draft', 'verified', 'archived'];
 // Offered when creating from the registry; the type select also lists whatever already exists.
-const BASE_TYPES = ['sample', 'specimen', 'reagent', 'compound', 'instrument', 'container', 'location'];
+const BASE_TYPES: string[] = [...ENTITY_TYPES];
 
 export default function EntityRegistry({ onOpenDocument, initialSelectedId = null }: Props) {
   const [queryText, setQueryText] = useState('');
@@ -174,6 +176,14 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
         </form>
 
         {error && <div className="status-inline">{error}</div>}
+
+        <DuplicateSuggestions
+          onChanged={() => {
+            window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
+            void reload();
+          }}
+          onSelect={setSelectedId}
+        />
 
         {statusFilter === 'draft' && (
           <DraftReconciliation

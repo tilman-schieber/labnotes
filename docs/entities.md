@@ -101,6 +101,10 @@ deterministic sources, in this order:
 The same pass fills the blanks on entities that are *already* classified: a compound that has a
 structure but no formula gets one computed locally, and one without a CAS number gets it looked up.
 
+The same pass also asks PubChem's view service for the **GHS classification** of every compound with a PubChem CID — signal word, pictogram codes and H-statements — and stores the summary as `attributes.ghs` (`null` once looked up with nothing found). Hover cards, reaction rows, the compound page and the PDF show it. Set `AUTO_CLASSIFY_GHS=false` where nothing may leave the network; the service is often busy, in which case the attempt is noted and repeated hours later.
+
+**Duplicates.** When a classified entity turns out to have the same PubChem record or the same canonical structure as an existing compound, the two are one substance. A draft, or an entry the classifier itself filled in, is merged into the existing entry on the spot — references rewritten, the extra name kept as an alias, the survivor stamped `autoClassify.via = "merge"` with what was merged. Two entries that people verified by hand are never merged automatically; the registry lists them under **Possible duplicates** with a button per name to keep.
+
 Three rules make this safe to leave running:
 
 - **Nothing you typed is ever overwritten.** Only empty fields are filled.
@@ -113,6 +117,15 @@ Three rules make this safe to leave running:
 
 **Classify automatically** next to the draft nudge runs a pass immediately. Set `AUTO_CLASSIFY=false`
 to turn the background worker off (see [Data](data.md#environment)); the button still works.
+
+## Batches
+
+A **batch** is a particular lot of a compound: the material one experiment isolated, or a bottle that was bought. The compound is the substance; the batch is what sits on the shelf. Batches are entities of type `batch`, linked to their compound by a `belongs_to` relation and to the batches they were made from by `derived_from`, so the graph section walks a synthesis backwards and forwards.
+
+- **Registering.** In a reaction table, a product row with an isolated mass shows **Register batch**. One click creates the batch under the compound, coded after the experiment and the writer — `TS-012-A`, then `-B`, `-C` … for further products of the same experiment — with the isolated mass as its stock, the row's purity, and the batches consumed in the table as its precursors. Bought material is created in the registry as a `batch` with vendor, lot and expiry, then linked to its compound with a `belongs_to` relation.
+- **Using.** The compound picker in a reaction table lists batches next to compounds (`TS-012-A · batch of Aspirin · 1.15 g · Exp 012`). Picking one fills the row from the compound and remembers the lot; the mass or volume in that row is a usage of the batch, so its stock goes down. `#TS-012-A` in prose works the same way.
+- **Batch page.** Structure (from the compound), code, where it was made, stock left, appearance and purity, precursors, the analytics mirrored from the experiments that describe it, and the files linked to it.
+- **Analytics** live in the experiment as an [analytics block](chemistry.md#analytics), not on the batch: they are part of the signed record. The batch shows a read-only mirror, refreshed on every save.
 
 ## Document entities
 

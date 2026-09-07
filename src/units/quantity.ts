@@ -1,7 +1,18 @@
 // Unit-aware quantities for notebook text. Kept dependency-free and pure so it can be
 // unit-tested and later reused server-side for extraction.
 
-export type Dimension = 'mass' | 'volume' | 'amount' | 'concentration' | 'temperature' | 'time' | 'ratio';
+export type Dimension =
+  | 'mass'
+  | 'volume'
+  | 'amount'
+  | 'concentration'
+  // mass per volume (g/L base): mg/mL solutions, ppm, % w/v
+  | 'massConcentration'
+  | 'temperature'
+  | 'time'
+  | 'ratio'
+  | 'pressure'
+  | 'rate';
 
 export type UnitDefinition = {
   symbol: string;
@@ -42,8 +53,28 @@ export const UNITS: UnitDefinition[] = [
   { symbol: 'min', dimension: 'time', factor: 60 },
   { symbol: 'h', dimension: 'time', factor: 3600, aliases: ['hr'] },
   { symbol: 'd', dimension: 'time', factor: 86400 },
-  { symbol: 'eq', dimension: 'ratio', factor: 1, aliases: ['equiv', 'equiv.'] },
-  { symbol: '%', dimension: 'ratio', factor: 0.01 }
+  { symbol: 'eq', dimension: 'ratio', factor: 1, aliases: ['equiv', 'equiv.', 'eq.'] },
+  { symbol: '%', dimension: 'ratio', factor: 0.01 },
+  // Percentages that say what they are a percentage of. mol% is a ratio to the limiting reagent
+  // (5 mol% = 0.05 eq); wt% and v/v% describe a mixture and need a density or a volume to become
+  // an amount.
+  { symbol: 'mol%', dimension: 'ratio', factor: 0.01, aliases: ['mol-%', 'mol %'] },
+  { symbol: 'wt%', dimension: 'ratio', factor: 0.01, aliases: ['wt.%', 'wt-%', 'w/w%', '%w/w', 'w/w'] },
+  { symbol: 'v/v%', dimension: 'ratio', factor: 0.01, aliases: ['%v/v', 'vol%', 'vol-%', 'v/v'] },
+  // Mass per volume, base g/L. "ppm" is the aqueous convention (1 mg/L).
+  { symbol: 'g/L', dimension: 'massConcentration', factor: 1, aliases: ['g/l'] },
+  { symbol: 'mg/mL', dimension: 'massConcentration', factor: 1, aliases: ['mg/ml'] },
+  { symbol: 'µg/mL', dimension: 'massConcentration', factor: 1e-3, aliases: ['ug/mL', 'ug/ml', 'µg/ml', 'μg/mL', 'mg/L', 'mg/l', 'ppm'] },
+  { symbol: 'ng/mL', dimension: 'massConcentration', factor: 1e-6, aliases: ['ng/ml', 'µg/L', 'ug/L', 'ppb'] },
+  { symbol: 'w/v%', dimension: 'massConcentration', factor: 10, aliases: ['%w/v', 'w/v'] },
+  // Pressure in pascal; "Torr" and "mmHg" are the same thing at the precision a notebook needs.
+  { symbol: 'bar', dimension: 'pressure', factor: 1e5 },
+  { symbol: 'mbar', dimension: 'pressure', factor: 100 },
+  { symbol: 'atm', dimension: 'pressure', factor: 101325 },
+  { symbol: 'Torr', dimension: 'pressure', factor: 133.322, aliases: ['torr', 'mmHg'] },
+  { symbol: 'psi', dimension: 'pressure', factor: 6894.76 },
+  // Stirring and centrifuge speeds; the base unit is revolutions per second.
+  { symbol: 'rpm', dimension: 'rate', factor: 1 / 60 }
 ];
 
 const UNIT_BY_TOKEN = new Map<string, UnitDefinition>();

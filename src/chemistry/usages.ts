@@ -2,8 +2,9 @@
 // itself. Deterministic, adjacency-based; no semantics beyond a few chemistry keywords.
 // Explicit extension so Node's type-stripping test runner (and the server) can resolve it.
 import { findUnit, type Quantity } from '../units/quantity.ts';
+import { isKnownSolvent } from './densities.ts';
 
-export type UsageRole = 'reactant' | 'product' | 'solvent' | null;
+export type UsageRole = 'reactant' | 'reagent' | 'catalyst' | 'product' | 'solvent' | null;
 
 export type Usage = {
   entityId: string;
@@ -30,8 +31,10 @@ const AMOUNT_DIMENSIONS = new Set(['mass', 'volume', 'amount', 'concentration', 
 
 const PRODUCT_WORDS = /\b(afford(?:ed|ing)?|gave|give[sn]?|yield(?:ed|ing|s)?|obtain(?:ed|ing)?|isolat(?:ed|ing)|furnish(?:ed)?|product|to give|resulting in)\b/i;
 const SOLVENT_TAIL = /\b(in|dissolved in|suspended in|diluted with|taken up in|washed with|extracted with|eluted with)\s*$/i;
+// "cat. #DMAP", "a catalytic amount of #Pd/C", "catalysed by #TsOH"
+const CATALYST_TAIL = /\b(cat\.?|catalytic(?:\s+amounts?\s+of)?|catalyst|catalys(?:ed|ized)\s+(?:by|with))\s*$/i;
 
-function inlineTokens(node: JsonNode, out: Token[]): void {
+export function inlineTokens(node: JsonNode, out: Token[]): void {
   switch (node.type) {
     case 'text':
       out.push({ kind: 'text', text: node.text ?? '' });
@@ -65,7 +68,7 @@ function inlineTokens(node: JsonNode, out: Token[]): void {
 }
 
 // Blocks that carry prose: paragraphs and headings, including those nested in lists/quotes/cells.
-function proseBlocks(node: JsonNode, out: JsonNode[]): void {
+export function proseBlocks(node: JsonNode, out: JsonNode[]): void {
   if (node.type === 'paragraph' || node.type === 'heading') {
     out.push(node);
     return;
@@ -75,6 +78,9 @@ function proseBlocks(node: JsonNode, out: JsonNode[]): void {
   }
   (node.content ?? []).forEach((child) => proseBlocks(child, out));
 }
+
+// A full stop that ends an abbreviation, not a sentence: "cat. H2SO4", "conc. HCl", "ca. 2 h".
+const ABBREVIATION_STOP = /(?:^|[\s(])(?:cat|conc|approx|ca|eq|equiv|anh|anhydr|sat|aq|abs|dil|vs|cf|no|fig|ref|temp|r\.t|e\.g|i\.e|et al)\.$/i;
 
 // Splits a token stream into sentences at ". ", "; " and end of block (decimal points are safe:
 // numbers with units are already quantity tokens).
@@ -87,16 +93,29 @@ export function sentences(tokens: Token[]): Token[][] {
       current.push(token);
       continue;
     }
-    const parts = token.text.split(/(?<=[.;!?])\s+/);
-    parts.forEach((part, index) => {
+    const parts = token.text.split(/(?<=[.;!?])(\s+)/);
+    // `split` with a capturing group interleaves the separators: part, gap, part, gap, ...
+    let pending = '';
+    for (let index = 0; index < parts.length; index += 2) {
+      const part = pending + parts[index];
+      const gap = parts[index + 1];
+      if (gap === undefined) {
+        if (part) {
+          current.push({ kind: 'text', text: part });
+        }
+        break;
+      }
+      if (ABBREVIATION_STOP.test(part)) {
+        pending = part + gap;
+        continue;
+      }
+      pending = '';
       if (part) {
         current.push({ kind: 'text', text: part });
       }
-      if (index < parts.length - 1) {
-        result.push(current);
-        current = [];
-      }
-    });
+      result.push(current);
+      current = [];
+    }
   }
 
   if (current.length > 0) {
@@ -201,7 +220,7 @@ export function bindQuantities(sentence: Token[]): Map<number, number[]> {
   return bindings;
 }
 
-function roleFor(sentence: Token[], entityIndex: number, hasAmount: boolean): UsageRole {
+function roleFor(sentence: Token[], entityIndex: number, quantities: Quantity[]): UsageRole {
   const before = textOf(sentence.slice(0, entityIndex));
   if (SOLVENT_TAIL.test(before)) {
     return 'solvent';
@@ -210,7 +229,60 @@ function roleFor(sentence: Token[], entityIndex: number, hasAmount: boolean): Us
   if (PRODUCT_WORDS.test(before) || (PRODUCT_WORDS.test(around) && /\b(as|of)\s*$/i.test(before))) {
     return 'product';
   }
-  return hasAmount ? 'reactant' : null;
+  const dimensions = quantities.map((quantity) => findUnit(quantity.unit)?.dimension ?? null);
+  if (CATALYST_TAIL.test(before) || quantities.some((quantity) => findUnit(quantity.unit)?.symbol === 'mol%')) {
+    return 'catalyst';
+  }
+  if (quantities.length === 0) {
+    return null;
+  }
+  // "20 mL of #Methanol" with no equivalents: a known solvent measured by volume is the solvent.
+  const token = sentence[entityIndex];
+  if (dimensions.every((dimension) => dimension === 'volume') && token.kind === 'entity' && isKnownSolvent(token.label)) {
+    return 'solvent';
+  }
+  return 'reactant';
+}
+
+// Rows of reaction tables that consume a *batch* (a particular lot) rather than a substance in
+// general: the batch's stock goes down by the row's amount. Compound-level usage stays with the
+// prose, so nothing is counted twice. Products are what a batch is registered *from*, not a use.
+function reactionBatchUsages(content: JsonNode, usages: Usage[]): void {
+  let blockIndex = 0;
+  const visit = (node: JsonNode) => {
+    if (node.type === 'reaction') {
+      const components = Array.isArray(node.attrs?.components) ? (node.attrs?.components as Record<string, unknown>[]) : [];
+      for (const component of components) {
+        const batchId = typeof component.batchId === 'string' ? component.batchId : '';
+        const role = String(component.role ?? '');
+        if (!batchId || role === 'product') {
+          continue;
+        }
+        const quantities = [component.mass, component.volume, component.amount]
+          .filter((quantity): quantity is Quantity => Boolean(quantity && typeof quantity === 'object' && Number.isFinite((quantity as Quantity).value) && (quantity as Quantity).unit));
+        if (quantities.length === 0) {
+          continue;
+        }
+        usages.push({
+          entityId: batchId,
+          label: String(component.batchCode ?? component.label ?? batchId),
+          entityType: 'batch',
+          quantities,
+          role: (['reactant', 'reagent', 'catalyst', 'solvent'].includes(role) ? role : 'reactant') as UsageRole,
+          blockIndex,
+          sentence: 'reaction table'
+        });
+      }
+      blockIndex += 1;
+      return;
+    }
+    if (node.type === 'paragraph' || node.type === 'heading') {
+      blockIndex += 1;
+      return;
+    }
+    (node.content ?? []).forEach(visit);
+  };
+  (content.content ?? []).forEach(visit);
 }
 
 export function extractUsages(content: JsonNode | null | undefined): Usage[] {
@@ -222,6 +294,7 @@ export function extractUsages(content: JsonNode | null | undefined): Usage[] {
   (content.content ?? []).forEach((child) => proseBlocks(child, blocks));
 
   const usages: Usage[] = [];
+  reactionBatchUsages(content, usages);
 
   blocks.forEach((block, blockIndex) => {
     const tokens: Token[] = [];
@@ -245,7 +318,7 @@ export function extractUsages(content: JsonNode | null | undefined): Usage[] {
           label: token.label,
           entityType: token.entityType,
           quantities,
-          role: roleFor(sentence, index, quantities.length > 0),
+          role: roleFor(sentence, index, quantities),
           blockIndex,
           sentence: textOf(sentence)
         });
@@ -256,8 +329,8 @@ export function extractUsages(content: JsonNode | null | undefined): Usage[] {
   return usages;
 }
 
-// One entry per entity, first occurrence wins for label/role, quantities de-duplicated by unit
-// (first amount of each dimension). Used to seed reaction tables.
+// One entry per entity, first occurrence wins for label/role; every distinct amount is kept in
+// document order so "1.22 g (10.0 mmol)" can be cross-checked. Used to seed reaction tables.
 export function summariseUsages(usages: Usage[]): Usage[] {
   const byEntity = new Map<string, Usage>();
   for (const usage of usages) {
@@ -270,8 +343,7 @@ export function summariseUsages(usages: Usage[]): Usage[] {
       existing.role = usage.role;
     }
     for (const quantity of usage.quantities) {
-      const dimension = findUnit(quantity.unit)?.dimension;
-      if (!existing.quantities.some((item) => findUnit(item.unit)?.dimension === dimension)) {
+      if (!existing.quantities.some((item) => item.value === quantity.value && item.unit === quantity.unit)) {
         existing.quantities.push(quantity);
       }
     }

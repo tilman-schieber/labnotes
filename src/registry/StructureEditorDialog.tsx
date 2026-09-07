@@ -23,12 +23,14 @@ class EditorBoundary extends Component<{ onError: (message: string) => void; chi
 }
 
 type Props = {
-  initialSmiles: string;
+  // A molecule SMILES, or a reaction SMILES ("A.B>C>D") in reaction mode.
+  initialStructure: string;
+  mode?: 'molecule' | 'reaction';
   onCancel: () => void;
-  onSave: (smiles: string) => void;
+  onSave: (structure: string) => void;
 };
 
-export default function StructureEditorDialog({ initialSmiles, onCancel, onSave }: Props) {
+export default function StructureEditorDialog({ initialStructure, mode = 'molecule', onCancel, onSave }: Props) {
   const ketcherRef = useRef<Ketcher | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,8 +44,14 @@ export default function StructureEditorDialog({ initialSmiles, onCancel, onSave 
 
     setIsSaving(true);
     try {
-      // Isomeric SMILES keeps stereo; Ketcher returns '' for an empty canvas.
+      // Isomeric SMILES keeps stereo; Ketcher returns '' for an empty canvas. With a reaction on
+      // the canvas it returns reaction SMILES, which is what a scheme wants.
       const smiles = (await ketcher.getSmiles(true)).trim();
+      if (mode === 'reaction' && smiles && !ketcher.containsReaction()) {
+        setError('Draw a reaction (reactants, an arrow, products), not a single structure');
+        setIsSaving(false);
+        return;
+      }
       onSave(smiles);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not read the structure');
@@ -56,14 +64,16 @@ export default function StructureEditorDialog({ initialSmiles, onCancel, onSave 
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Structure editor">
       <div className="modal structure-editor-modal">
         <div className="modal-header">
-          <strong>Edit structure</strong>
-          <span className="entity-muted">Draw or paste a structure (Ketcher), then use it to update the SMILES.</span>
+          <strong>{mode === 'reaction' ? 'Edit scheme' : 'Edit structure'}</strong>
+          <span className="entity-muted">
+            {mode === 'reaction' ? 'Draw the reaction: reactants, arrow, products (Ketcher). Reagents go above the arrow.' : 'Draw or paste a structure (Ketcher), then use it to update the SMILES.'}
+          </span>
         </div>
         <div className="structure-editor-host">
           <EditorBoundary onError={setError}>
             <Suspense fallback={<div className="structure-editor-loading">Loading structure editor…</div>}>
               <KetcherEditor
-                initialSmiles={initialSmiles}
+                initialStructure={initialStructure}
                 onReady={(ketcher) => {
                   ketcherRef.current = ketcher;
                   setIsReady(true);
@@ -79,7 +89,7 @@ export default function StructureEditorDialog({ initialSmiles, onCancel, onSave 
             Cancel
           </button>
           <button type="button" onClick={() => void handleSave()} disabled={!isReady || isSaving}>
-            {isSaving ? 'Reading…' : 'Use structure'}
+            {isSaving ? 'Reading…' : mode === 'reaction' ? 'Use scheme' : 'Use structure'}
           </button>
         </div>
       </div>

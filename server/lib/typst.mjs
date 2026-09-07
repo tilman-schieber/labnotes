@@ -1,3 +1,6 @@
+import { describeEntry } from '../../src/chemistry/analytics.ts';
+import { describeConditions } from '../../src/chemistry/conditions.ts';
+import { parseScheme, schemeFromComponents } from '../../src/chemistry/scheme.ts';
 import { computeReaction } from '../../src/chemistry/reaction.ts';
 import { formatQuantity } from '../../src/units/quantity.ts';
 
@@ -133,8 +136,43 @@ export function documentToTypst(document, options = {}) {
 // heading (the chapter heading replaces it).
 export function renderDocumentBody(
   document,
-  { path = [], entities = new Map(), revision = null, assets = new Map(), resolveImage = () => null, headingOffset = 0, skipTitle = false } = {}
+  { path = [], entities = new Map(), molecules = new Map(), revision = null, assets = new Map(), resolveImage = () => null, headingOffset = 0, skipTitle = false } = {}
 ) {
+  // Molecule drawings for reaction schemes, one asset per distinct SMILES.
+  const moleculeFiles = new Map();
+  const moleculeImage = (smiles) => {
+    const svg = molecules.get(smiles);
+    if (!svg) {
+      return `#text(size: 7pt)[#raw("${escapeString(smiles)}")]`;
+    }
+    let file = moleculeFiles.get(smiles);
+    if (!file) {
+      file = `scheme-${moleculeFiles.size + 1}-${assets.size}.svg`;
+      moleculeFiles.set(smiles, file);
+      assets.set(file, svg);
+    }
+    return `#box(image("${file}", height: 4.2em))`;
+  };
+
+  // Reactants → products, conditions above the arrow, reagents and catalysts below it.
+  const scheme = (node, components, conditions) => {
+    const parts = parseScheme(node.attrs?.scheme ?? schemeFromComponents(components));
+    if (!parts) {
+      return '';
+    }
+    const labelFor = (smiles) => (node.attrs?.scheme ? '' : components.find((component) => component.smiles === smiles)?.label ?? '');
+    const side = (list) =>
+      list
+        .map((smiles) => {
+          const label = labelFor(smiles);
+          return `stack(dir: ttb, spacing: 3pt, [${moleculeImage(smiles)}], ${label ? `text(size: 7pt, fill: luma(90))[${escapeText(label)}]` : '[]'})`;
+        })
+        .join(', align(horizon, text(size: 12pt)[+]), ');
+    const agents = parts.agents.map((smiles) => labelFor(smiles) || smiles).map(escapeText).join(', ');
+    const arrow = `align(horizon, stack(dir: ttb, spacing: 3pt, text(size: 7pt, fill: luma(90))[${escapeText(conditions)}], [#h(3em) $arrow.r.long$ #h(3em)], text(size: 7pt, fill: luma(90))[${agents}]))`;
+    const cells = [side(parts.reactants), arrow, side(parts.products)].filter((cell) => cell.length > 0);
+    return `#align(center)[#stack(dir: ltr, spacing: 8pt, ${cells.join(', ')})]\n`;
+  };
   const structureImage = (entityId, height) => {
     const entity = entities.get(entityId);
     if (!entity?.svg) {
@@ -203,11 +241,14 @@ export function renderDocumentBody(
     const components = Array.isArray(node.attrs?.components) ? node.attrs.components : [];
     const summary = computeReaction(components);
     const title = node.attrs?.title ? escapeText(node.attrs.title) : 'Reaction';
+    const conditions = describeConditions(node.attrs?.conditions ?? null);
+    const schemeBlock = scheme(node, summary.components, conditions);
     const header = ['Role', 'Compound', 'MW', 'Equiv', 'mmol', 'Mass', 'Volume', 'Yield'].map((cell) => `[*${cell}*]`);
     // Every cell is escaped exactly once here; the structure image is appended afterwards as markup.
     const rows = summary.components.map((component) => {
-      const structure = component.entityId ? structureImage(component.entityId, '1.6em') : '';
-      const label = `${escapeText(component.label || '—')}${component.isLimiting ? ' (lim.)' : ''}${structure ? ` ${structure}` : ''}`;
+      const structure = component.entityId ? structureImage(component.entityId, '2.6em') : '';
+      const batch = component.batchCode ? ` #text(size: 8pt, fill: luma(90))[${escapeText(component.batchCode)}]` : '';
+      const label = `${escapeText(component.label || '—')}${component.isLimiting ? ' (lim.)' : ''}${batch}${structure ? ` ${structure}` : ''}`;
       const mass = component.role === 'product'
         ? component.theoreticalMass ? `theor. ${formatQuantity(component.theoreticalMass)}` : '—'
         : component.mass ? formatQuantity(component.mass) : component.computedMass ? `need ${formatQuantity(component.computedMass)}` : '—';
@@ -225,11 +266,21 @@ export function renderDocumentBody(
         escapeText(yieldCell)
       ].map((cell) => `[${cell}]`);
     });
+    // Hazards of the linked compounds, one line each, so the printed page carries the warning.
+    const hazardLines = summary.components
+      .map((component) => (component.entityId ? { label: component.label, ghs: entities.get(component.entityId)?.ghs } : null))
+      .filter((item) => item?.ghs && (item.ghs.hStatements?.length > 0 || item.ghs.signalWord))
+      .map((item) => {
+        const codes = (item.ghs.hStatements ?? []).map((statement) => statement.code).join(' ');
+        const parts = [item.ghs.signalWord, (item.ghs.pictograms ?? []).join(' '), codes].filter(Boolean).join(' · ');
+        return `- *${escapeText(item.label)}*: ${escapeText(parts)}`;
+      });
+    const hazards = hazardLines.length > 0 ? `\n  #text(size: 8pt, fill: luma(60))[*Hazards* \\\n${hazardLines.join(' \\\n')}]` : '';
     return `#block(stroke: 0.5pt + luma(180), inset: 6pt, radius: 3pt, width: 100%)[
-  *${title}*
-  #table(columns: 8, stroke: none, inset: 3pt,
+  *${title}*${conditions ? ` #h(1em) #text(size: 8.5pt, fill: luma(90))[${escapeText(conditions)}]` : ''}
+  ${schemeBlock}#table(columns: 8, stroke: none, inset: 3pt,
     ${[...header, ...rows.flat()].join(', ')}
-  )
+  )${hazards}
 ]`;
   };
 
@@ -259,6 +310,12 @@ export function renderDocumentBody(
             return table(node);
           case 'reaction':
             return reaction(node);
+          case 'analytics': {
+            const entries = Array.isArray(node.attrs?.entries) ? node.attrs.entries : [];
+            const title = node.attrs?.batchCode ? `Analytics · ${escapeText(node.attrs.batchCode)}` : 'Analytics';
+            const lines = entries.map((entry) => `- ${escapeText(describeEntry({ attachmentIds: [], result: '', ...entry }))}`).join('\n');
+            return `#block(stroke: 0.5pt + luma(180), inset: 6pt, radius: 3pt, width: 100%)[\n  *${title}*\n${lines}\n]`;
+          }
           case 'image': {
             const file = resolveImage(String(node.attrs?.src ?? ''));
             if (!file) {

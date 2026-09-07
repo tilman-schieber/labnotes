@@ -84,3 +84,66 @@ test('nothing known yields nulls rather than NaN', () => {
   assert.equal(components[1].theoreticalMass, null);
   assert.equal(components[1].yieldPercent, null);
 });
+
+test('a stated mmol is used when nothing more direct is known, and cross-checked against mass and MW', () => {
+  const stated = createComponent('reactant', { id: 's', label: 'Stated', amount: { value: 10, unit: 'mmol' } });
+  const { components, limitingId } = computeReaction([stated, aspirin]);
+  assert.equal(limitingId, 's');
+  assert.equal(components.find((c) => c.id === 's')!.amountMmol, 10);
+
+  const consistent = createComponent('reactant', { id: 'c', label: 'Benzoic acid', molecularWeight: 122.12, mass: { value: 1.22, unit: 'g' }, amount: { value: 10, unit: 'mmol' } });
+  assert.deepEqual(computeReaction([consistent, aspirin]).warnings.filter((w) => w.componentId === 'c'), []);
+
+  const off = { ...consistent, id: 'o', amount: { value: 12, unit: 'mmol' } };
+  const warning = computeReaction([off, aspirin]).warnings.find((w) => w.componentId === 'o');
+  assert.ok(warning && /text says 12 mmol/.test(warning.message), JSON.stringify(warning));
+});
+
+test('products report the isolated amount in mmol', () => {
+  const isolated = { ...aspirin, actualMass: { value: 2.1, unit: 'g' } };
+  const p = computeReaction([salicylic, anhydride, isolated]).components.find((c) => c.id === 'p')!;
+  assert.ok(Math.abs(p.actualMmol! - 11.656) < 0.01, `actual mmol ${p.actualMmol}`);
+  assert.equal(computeReaction([salicylic, aspirin]).components.find((c) => c.id === 'p')!.actualMmol, null);
+});
+
+test('the limiting reagent is the reactant with the fewest equivalents; a hand flag still wins', () => {
+  // 1 : 1.2 stoichiometry, but the "excess" partner was under-weighed
+  const a = createComponent('reactant', { id: 'a', label: 'A', molecularWeight: 100, mass: { value: 1, unit: 'g' } });
+  const b = createComponent('reactant', { id: 'b', label: 'B', molecularWeight: 100, mass: { value: 0.9, unit: 'g' }, equivalents: 1.2 });
+  const lowest = computeReaction([a, b, aspirin]);
+  assert.equal(lowest.limitingId, 'b');
+  assert.equal(lowest.limitingRule, 'lowest');
+  const flagged = computeReaction([{ ...a, limiting: true }, b, aspirin]);
+  assert.equal(flagged.limitingId, 'a');
+  assert.equal(flagged.limitingRule, 'explicit');
+  assert.equal(computeReaction([salicylic, aspirin]).limitingRule, 'explicit', 'a single candidate needs no rule');
+});
+
+test('purity scales the amount from a mass; catalysts get equivalents from mol%', () => {
+  const impure = createComponent('reactant', { id: 'i', label: 'Impure', molecularWeight: 100, mass: { value: 1, unit: 'g' }, purity: 90 });
+  const cat = createComponent('catalyst', { id: 'c', label: 'DMAP', molecularWeight: 122.17, equivalents: 0.05 });
+  const { components } = computeReaction([impure, cat, aspirin]);
+  assert.equal(components.find((c) => c.id === 'i')!.amountMmol, 9);
+  assert.ok(Math.abs(components.find((c) => c.id === 'c')!.amountMmol! - 0.45) < 1e-6);
+  assert.equal(components.find((c) => c.id === 'c')!.computedMass?.unit, 'mg');
+});
+
+test('mass concentration and wt% solutions by volume', () => {
+  const stock = createComponent('reagent', { id: 's', label: 'Stock', molecularWeight: 200, volume: { value: 2, unit: 'mL' }, concentration: { value: 10, unit: 'mg/mL' } });
+  const brine = createComponent('reagent', { id: 'w', label: 'Aqueous HCl', molecularWeight: 36.46, volume: { value: 1, unit: 'mL' }, concentration: { value: 37, unit: 'wt%' }, density: 1.18 });
+  const noDensity = createComponent('reagent', { id: 'n', label: 'No density', molecularWeight: 36.46, volume: { value: 1, unit: 'mL' }, concentration: { value: 37, unit: 'wt%' } });
+  const { components, warnings } = computeReaction([salicylic, stock, brine, noDensity]);
+  assert.ok(Math.abs(components.find((c) => c.id === 's')!.amountMmol! - 0.1) < 1e-9, 'stock mmol');
+  assert.ok(Math.abs(components.find((c) => c.id === 'w')!.amountMmol! - 11.98) < 0.01, `HCl mmol ${components.find((c) => c.id === 'w')!.amountMmol}`);
+  assert.equal(components.find((c) => c.id === 'n')!.amountMmol, null);
+  assert.ok(warnings.some((warning) => warning.componentId === 'n' && /density/.test(warning.message)));
+});
+
+test('a neat liquid poured by volume is not chosen as limiting over a weighed reactant', () => {
+  const weighed = createComponent('reactant', { id: 'w', label: 'Benzoic acid', molecularWeight: 122.12, mass: { value: 1.22, unit: 'g' } });
+  const poured = createComponent('reactant', { id: 'acid', label: 'H2SO4', molecularWeight: 98.08, volume: { value: 0.5, unit: 'mL' }, density: 1.84 });
+  assert.equal(computeReaction([poured, weighed, aspirin]).limitingId, 'w');
+  // …unless nothing was weighed at all
+  const other = createComponent('reactant', { id: 'o', label: 'MeOH', molecularWeight: 32.04, volume: { value: 20, unit: 'mL' }, density: 0.792 });
+  assert.equal(computeReaction([other, poured, aspirin]).limitingId, 'acid');
+});

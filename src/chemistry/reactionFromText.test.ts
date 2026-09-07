@@ -45,3 +45,12 @@ test('merge keeps manual rows, fills blanks, adds new entities, drops empty plac
   assert.equal(merged[0].molecularWeight, 138.12);
   assert.equal(merged[1].label, 'B');
 });
+
+test('a stated mmol in the prose lands on the row and survives a merge', () => {
+  const rows = componentsFromBlocks([paragraph(entity('ba', 'Benzoic acid'), text(' ('), qty(1.22, 'g'), text(', '), qty(10, 'mmol'), text(') in '), entity('m', 'MeOH'), text('.'))]);
+  assert.deepEqual(rows[0].amount, { value: 10, unit: 'mmol' });
+  assert.equal(rows[1].amount, null);
+
+  const manual = createComponent('reactant', { id: 'm', entityId: 'ba', label: 'Benzoic acid' });
+  assert.deepEqual(mergeComponents([manual], rows)[0].amount, { value: 10, unit: 'mmol' });
+});

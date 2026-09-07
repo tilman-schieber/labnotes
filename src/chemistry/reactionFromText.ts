@@ -22,7 +22,7 @@ function pick(quantities: Quantity[], dimension: string): Quantity | null {
 }
 
 function roleOf(usage: Usage): ComponentRole {
-  if (usage.role === 'product' || usage.role === 'solvent') {
+  if (usage.role === 'product' || usage.role === 'solvent' || usage.role === 'catalyst' || usage.role === 'reagent') {
     return usage.role;
   }
   // Amounts given only as equivalents read as reagents; masses/volumes as reactants.
@@ -36,11 +36,13 @@ export function componentsFromBlocks(blocks: JsonNode[]): ReactionComponent[] {
 
   return usages.map((usage) =>
     createComponent(roleOf(usage), {
+      roleSource: 'text',
       entityId: usage.entityId,
       label: usage.label,
       mass: usage.role === 'product' ? null : pick(usage.quantities, 'mass'),
       actualMass: usage.role === 'product' ? pick(usage.quantities, 'mass') : null,
       volume: pick(usage.quantities, 'volume'),
+      amount: pick(usage.quantities, 'amount'),
       concentration: pick(usage.quantities, 'concentration'),
       equivalents: pick(usage.quantities, 'ratio')?.value ?? (usage.role === 'product' ? 1 : null),
       source: { sentence: usage.sentence }
@@ -60,6 +62,7 @@ export function mergeComponents(existing: ReactionComponent[], fromText: Reactio
       ...component,
       mass: component.mass ?? update.mass,
       volume: component.volume ?? update.volume,
+      amount: component.amount ?? update.amount ?? null,
       concentration: component.concentration ?? update.concentration,
       actualMass: component.actualMass ?? update.actualMass,
       equivalents: component.equivalents ?? update.equivalents,

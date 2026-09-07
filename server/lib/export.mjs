@@ -7,6 +7,7 @@ import { listAttachments, readAttachmentBytes } from './attachments.mjs';
 import { query } from './database.mjs';
 import { getRevision, listRevisions } from './revisions.mjs';
 import { documentToTypst, projectToTypst, renderDocumentBody } from './typst.mjs';
+import { parseScheme, schemeFromComponents } from '../../src/chemistry/scheme.ts';
 import { formatQuantity } from '../../src/units/quantity.ts';
 
 const execFileAsync = promisify(execFile);
@@ -26,7 +27,7 @@ async function loadReferencedCompounds(documentIds) {
   const result = await query(
     `
       select distinct e.id, e.label, e.attributes->>'smiles' as smiles, e.attributes->>'formula' as formula,
-        e.attributes->>'molecularWeight' as "molecularWeight"
+        e.attributes->>'molecularWeight' as "molecularWeight", e.attributes->'ghs' as ghs
       from document_mentions m
       join entities e on e.id = m.target_id
       where m.document_id = any($1::text[]) and m.ref_type = 'entity' and e.type = 'compound' and e.attributes ? 'smiles'
@@ -46,14 +47,50 @@ async function loadReferencedCompounds(documentIds) {
       entities.set(row.id, {
         label: row.label,
         formula: row.formula,
+        ghs: row.ghs && typeof row.ghs === 'object' ? row.ghs : null,
         molecularWeight: row.molecularWeight ? Number(row.molecularWeight) : null,
-        svg: molecule.toSVG(200, 120, undefined, { autoCrop: true, autoCropMargin: 4, suppressChiralText: true })
+        svg: molecule.toSVG(320, 200, undefined, { autoCrop: true, autoCropMargin: 4, suppressChiralText: true })
       });
     } catch {
       // Unparseable SMILES: export without a structure.
     }
   }
   return entities;
+}
+
+// Every molecule that appears in a reaction scheme of `documents` (drawn, or derived from the
+// rows), rendered once: smiles -> svg. The Typst renderer is synchronous, so this runs first.
+async function loadSchemeImages(documents) {
+  const smilesSet = new Set();
+  const visit = (node) => {
+    if (!node || typeof node !== 'object') {
+      return;
+    }
+    if (node.type === 'reaction') {
+      const scheme = node.attrs?.scheme ?? schemeFromComponents(Array.isArray(node.attrs?.components) ? node.attrs.components : []);
+      const parts = parseScheme(scheme);
+      if (parts) {
+        [...parts.reactants, ...parts.agents, ...parts.products].forEach((smiles) => smilesSet.add(smiles));
+      }
+      return;
+    }
+    (node.content ?? []).forEach(visit);
+  };
+  documents.forEach((document) => visit(document.content));
+
+  const images = new Map();
+  if (smilesSet.size === 0) {
+    return images;
+  }
+  const { Molecule } = await loadOcl();
+  for (const smiles of smilesSet) {
+    try {
+      images.set(smiles, Molecule.fromSmiles(smiles).toSVG(260, 160, undefined, { autoCrop: true, autoCropMargin: 4, suppressChiralText: true }));
+    } catch {
+      // Unparseable: the scheme prints the SMILES as text.
+    }
+  }
+  return images;
 }
 
 async function loadAllDocuments() {
@@ -106,16 +143,17 @@ async function loadExportContext(documentId, { revision = null } = {}) {
     document = { ...document, title: revisionInfo.title, content: revisionInfo.content };
   }
 
-  const [revisions, entities, attachments] = await Promise.all([
+  const [revisions, entities, attachments, molecules] = await Promise.all([
     revisionInfo ? [revisionInfo] : listRevisions({ query }, documentId),
     loadReferencedCompounds([documentId]),
-    listAttachments({ query }, documentId)
+    listAttachments({ query }, documentId),
+    loadSchemeImages([document])
   ]);
   const assets = new Map();
   const imageFiles = new Map();
   const resolveImage = imageResolver(attachments, imageFiles);
 
-  const source = documentToTypst(document, { path: pathOf(byId, document), entities, revision: revisions[0] ?? null, assets, resolveImage });
+  const source = documentToTypst(document, { path: pathOf(byId, document), entities, molecules, revision: revisions[0] ?? null, assets, resolveImage });
   for (const [file, attachmentId] of imageFiles) {
     assets.set(file, await readAttachmentBytes(attachmentId));
   }
@@ -175,6 +213,7 @@ async function loadBookContext(documentId) {
   const leaves = tree.flatMap((item) => (item.children.length > 0 ? item.children : item.document.kind === 'experiment' ? [item.document] : []));
   const documentIds = leaves.map((document) => document.id);
   const entities = await loadReferencedCompounds(documentIds);
+  const molecules = await loadSchemeImages(leaves);
   const assets = new Map();
   const imageFiles = new Map();
   const titles = new Map(leaves.map((document) => [document.id, document.title]));
@@ -183,6 +222,7 @@ async function loadBookContext(documentId) {
     const [revisions, attachments] = await Promise.all([listRevisions({ query }, document.id), listAttachments({ query }, document.id)]);
     const body = renderDocumentBody(document, {
       entities,
+      molecules,
       revision: revisions[0] ?? null,
       assets,
       resolveImage: imageResolver(attachments, imageFiles),

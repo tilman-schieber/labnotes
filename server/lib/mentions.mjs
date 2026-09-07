@@ -37,7 +37,13 @@ export function extractMentions(content) {
     }
 
     if (node.type === 'reaction' && Array.isArray(node.attrs?.components)) {
-      node.attrs.components.forEach((component) => add('entity', component?.entityId, component?.label));
+      node.attrs.components.forEach((component) => {
+        add('entity', component?.entityId, component?.label);
+        add('entity', component?.batchId, component?.batchCode ?? component?.label);
+      });
+    }
+    if (node.type === 'analytics' && node.attrs?.batchId) {
+      add('entity', node.attrs.batchId, null);
     }
 
     if (Array.isArray(node.content)) {

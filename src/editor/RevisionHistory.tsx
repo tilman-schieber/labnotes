@@ -10,6 +10,7 @@ import {
   type BackendRevisionSummary,
   type BackendUserSearchResult
 } from '../api/backend';
+import { getCurrentUserId } from '../storage/currentUser';
 import { IconHistory } from '../ui/icons';
 import { confirmDialog, promptDialog } from '../ui/dialogs';
 
@@ -42,7 +43,8 @@ export default function RevisionHistory({ documentId, onRestored }: Props) {
       const [items, activeUsers] = await Promise.all([fetchDocumentRevisions(documentId), searchUsers('')]);
       setRevisions(items);
       setUsers(activeUsers);
-      setSignerId((current) => current || activeUsers[0]?.id || '');
+      const preferred = getCurrentUserId();
+      setSignerId((current) => current || (preferred && activeUsers.some((user) => user.id === preferred) ? preferred : '') || activeUsers[0]?.id || '');
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load history');

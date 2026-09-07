@@ -5,7 +5,9 @@
 //
 // Nothing here guesses beyond those two, and every write records where the value came from in
 // `attributes.autoClassify`, so a reviewer can tell an automatic fill from a human one.
-import { query } from './database.mjs';
+import { query, withTransaction } from './database.mjs';
+import { mergeEntities } from './entities.mjs';
+import { densityFor } from '../../src/chemistry/densities.ts';
 
 const AUTO_CLASSIFY = process.env.AUTO_CLASSIFY !== 'false';
 const INTERVAL_MS = Number(process.env.AUTO_CLASSIFY_INTERVAL_SECONDS ?? 120) * 1000;
@@ -14,6 +16,8 @@ const REQUEST_GAP_MS = Number(process.env.AUTO_CLASSIFY_GAP_MS ?? 400);
 const BATCH = 25;
 const MAX_ATTEMPTS = 3;
 const RETRY_AFTER_MS = 6 * 60 * 60 * 1000;
+// GHS hazard summaries from PubChem's view service; off when a lab must not fetch them.
+const AUTO_CLASSIFY_GHS = process.env.AUTO_CLASSIFY_GHS !== 'false';
 
 // Head nouns that settle the type without asking anyone. Multi-word entries are matched against
 // the last two words first, so "plate reader" beats "plate".
@@ -123,12 +127,27 @@ export async function planClassification(entity, deps = {}) {
   let next = attributes;
   let filled = 0;
 
+  // Density and the solvent flag come from a local table of common liquids, keyed by CAS number
+  // (or the name, for a draft that has no CAS yet); nothing to fetch.
+  const lookupDensity = deps.densityFor ?? densityFor;
+  const fromTable = (cas, label) => {
+    const entry = lookupDensity({ casNumber: cas, label });
+    return entry ? { density: entry.density, solvent: entry.isSolvent ? true : undefined } : {};
+  };
+  if (!isUnclassified) {
+    const merged = fillBlanks(next, fromTable(next.casNumber, entity.label));
+    next = merged.attributes;
+    filled += merged.filled;
+  }
+
   // Formula, mass and the rest follow from a structure the entity already has; no need to ask
   // anyone for those.
   if (!isUnclassified && typeof attributes.smiles === 'string' && attributes.smiles) {
     const described = await describeSmilesSafely(attributes.smiles, deps);
     if (described) {
-      ({ attributes: next, filled } = fillBlanks(next, described));
+      const merged = fillBlanks(next, described);
+      next = merged.attributes;
+      filled += merged.filled;
     }
   }
 
@@ -153,7 +172,8 @@ export async function planClassification(entity, deps = {}) {
         ...(described ?? { smiles: hit.smiles, formula: hit.formula, molecularWeight: hit.molecularWeight }),
         casNumber: hit.casNumber ?? undefined,
         iupacName: hit.iupacName ?? undefined,
-        pubchemCid: hit.cid
+        pubchemCid: hit.cid,
+        ...fromTable(hit.casNumber ?? next.casNumber, entity.label)
       };
       const merged = fillBlanks(next, fromPubChem);
       next = merged.attributes;
@@ -168,7 +188,24 @@ export async function planClassification(entity, deps = {}) {
     }
   }
 
-  if (isUnclassified || filled === 0) {
+  // Hazards come from PubChem's view service, once per CID; "none known" is recorded so the
+  // question is not asked again.
+  let hazardsUnavailable = false;
+  if (!isUnclassified && AUTO_CLASSIFY_GHS && next.pubchemCid && next.ghs === undefined && hazardsDue(next)) {
+    const lookupHazards = deps.lookupHazards ?? (async (cid) => (await import('../../src/chemistry/pubchem.ts')).lookupHazards(cid));
+    try {
+      const ghs = await lookupHazards(Number(next.pubchemCid));
+      next = { ...next, ghs: ghs ?? null };
+      filled += 1;
+    } catch {
+      // PubChem's view service is often busy; note the attempt and ask again later rather than
+      // stopping the whole pass.
+      next = { ...next, ghsAttemptedAt: new Date().toISOString() };
+      hazardsUnavailable = true;
+    }
+  }
+
+  if (isUnclassified || (filled === 0 && !hazardsUnavailable)) {
     return null;
   }
 
@@ -176,14 +213,93 @@ export async function planClassification(entity, deps = {}) {
     type: entity.type,
     status: entity.status,
     attributes: next,
-    provenance: { via: 'structure', matched: String(next.smiles), filled }
+    provenance: { via: next.smiles ? 'structure' : 'table', matched: String(next.smiles ?? next.casNumber ?? entity.label), filled }
   };
 }
 
+// Two entries for one substance: the same PubChem CID or the same canonical structure. A draft
+// (or an entry the classifier itself filled in) is folded into the existing one; two entries
+// people verified by hand are only reported, never merged behind their backs.
+export function chooseMergeTarget(entity, duplicate) {
+  if (!duplicate || duplicate.id === entity.id) {
+    return { action: 'none' };
+  }
+  const isAutomatic = (item) => item.status === 'draft' || item.type === 'unclassified' || Boolean(item.attributes?.autoClassify?.via);
+  const entityAutomatic = isAutomatic(entity);
+  const duplicateAutomatic = isAutomatic(duplicate);
+  if (!entityAutomatic && !duplicateAutomatic) {
+    return { action: 'suggest', targetId: duplicate.id };
+  }
+  // The survivor: the one a person verified; failing that, the older entry.
+  let survivor = duplicate;
+  if (entityAutomatic && !duplicateAutomatic) {
+    survivor = duplicate;
+  } else if (!entityAutomatic && duplicateAutomatic) {
+    survivor = entity;
+  } else if (entity.createdAt && duplicate.createdAt && String(entity.createdAt) < String(duplicate.createdAt)) {
+    survivor = entity;
+  }
+  const removed = survivor.id === entity.id ? duplicate : entity;
+  return { action: 'merge', targetId: survivor.id, sourceId: removed.id };
+}
+
+async function findDuplicateEntity(entity, attributes) {
+  const cid = attributes.pubchemCid ? String(attributes.pubchemCid) : null;
+  const idCode = attributes.idCode ? String(attributes.idCode) : null;
+  if (!cid && !idCode) {
+    return null;
+  }
+  const result = await query(
+    `
+      select id, label, status, attributes
+      from entities
+      where id <> $1
+        and document_id is null
+        and type = 'compound'
+        and status <> 'archived'
+        and (($2::text is not null and attributes->>'pubchemCid' = $2) or ($3::text is not null and attributes->>'idCode' = $3))
+      order by (status = 'verified') desc, created_at asc
+      limit 1
+    `,
+    [entity.id, cid, idCode]
+  );
+  return result.rows[0] ?? null;
+}
+
+async function mergeIntoExisting(survivor, removed, plan) {
+  // When the survivor is the entity being classified, its plan (chemistry, density, hazards)
+  // is applied first so nothing the pass learned is lost in the merge.
+  if (plan && survivor.id === plan.entityId) {
+    await query('update entities set type = $2, status = $3, attributes = $4::jsonb, updated_at = now() where id = $1', [
+      survivor.id,
+      plan.type,
+      plan.status,
+      JSON.stringify(withProvenance(plan.attributes, { ...plan.provenance, result: 'classified' }, survivor.attributes?.autoClassify))
+    ]);
+  }
+  await withTransaction((client) => mergeEntities(client, survivor.id, removed.id));
+  const current = await query('select attributes from entities where id = $1', [survivor.id]);
+  const attributes = withProvenance(
+    current.rows[0]?.attributes ?? {},
+    { via: 'merge', mergedFrom: removed.id, mergedLabel: removed.label, matched: plan?.provenance?.matched ?? removed.label, result: 'classified' },
+    current.rows[0]?.attributes?.autoClassify
+  );
+  await query('update entities set attributes = $2::jsonb, updated_at = now() where id = $1', [survivor.id, JSON.stringify(attributes)]);
+}
+
+// Hazards are asked for again only after the usual retry gap.
+function hazardsDue(attributes) {
+  const attempted = attributes.ghsAttemptedAt ? Date.parse(attributes.ghsAttemptedAt) : NaN;
+  return Number.isNaN(attempted) || Date.now() - attempted > RETRY_AFTER_MS;
+}
+
 function withProvenance(attributes, provenance, previous) {
+  // A merge is worth remembering across later stamps (a hazard fill must not erase it).
+  const merged = previous?.mergedFrom && !provenance.mergedFrom ? { mergedFrom: previous.mergedFrom, mergedLabel: previous.mergedLabel } : {};
   return {
     ...attributes,
     autoClassify: {
+      ...merged,
       ...provenance,
       at: new Date().toISOString(),
       attempts: Number(previous?.attempts ?? 0) + 1
@@ -197,7 +313,23 @@ async function recordMiss(entity, reason) {
   await query('update entities set attributes = $2::jsonb where id = $1', [entity.id, JSON.stringify(attributes)]);
 }
 
-async function applyPlan(entity, plan) {
+async function applyPlan(entity, plan, deps = {}) {
+  // Same substance already in the registry? Fold this one into it rather than keep two.
+  if (plan.type === 'compound') {
+    const findDuplicate = deps.findDuplicate ?? findDuplicateEntity;
+    const duplicate = await findDuplicate(entity, plan.attributes);
+    const decision = chooseMergeTarget(entity, duplicate);
+    if (decision.action === 'merge') {
+      const survivor = decision.targetId === entity.id ? entity : duplicate;
+      const removed = decision.sourceId === entity.id ? entity : duplicate;
+      await (deps.merge ?? mergeIntoExisting)(survivor, removed, { ...plan, entityId: entity.id });
+      return { id: survivor.id, label: survivor.label, type: 'compound', via: 'merge', mergedFrom: removed.id, mergedLabel: removed.label };
+    }
+    if (decision.action === 'suggest') {
+      plan = { ...plan, provenance: { ...plan.provenance, duplicateOf: duplicate.id } };
+    }
+  }
+
   const previous = entity.attributes?.autoClassify;
   const attributes = withProvenance(plan.attributes, { ...plan.provenance, result: 'classified' }, previous);
   await query(
@@ -219,7 +351,7 @@ async function applyPlan(entity, plan) {
 export async function pendingEntities({ force = false, id = null } = {}) {
   const result = await query(
     `
-      select id, type, status, label, attributes
+      select id, type, status, label, attributes, created_at as "createdAt"
       from entities
       where document_id is null
         and status <> 'archived'
@@ -234,7 +366,10 @@ export async function pendingEntities({ force = false, id = null } = {}) {
   return result.rows.filter((entity) => {
     const attributes = entity.attributes ?? {};
     const wantsChemistry = !attributes.smiles || !attributes.casNumber || !attributes.formula || !attributes.molecularWeight;
-    if (entity.type === 'compound' && !wantsChemistry) {
+    // A liquid the density table knows, still without a density: one local fill, no network.
+    const wantsDensity = !attributes.density && densityFor({ casNumber: attributes.casNumber, label: entity.label }) !== null;
+    const wantsHazards = AUTO_CLASSIFY_GHS && Boolean(attributes.pubchemCid) && attributes.ghs === undefined && hazardsDue(attributes);
+    if (entity.type === 'compound' && !wantsChemistry && !wantsDensity && !wantsHazards) {
       return false;
     }
     if (force) {
@@ -273,7 +408,7 @@ export async function runClassificationPass({ force = false, id = null, limit = 
     }
 
     if (plan) {
-      classified.push(await applyPlan(entity, plan));
+      classified.push(await applyPlan(entity, plan, deps));
     } else {
       missed += 1;
       await recordMiss(entity, 'unknown');

@@ -19,6 +19,8 @@ import {
 import { isCompoundAttributes } from '../chemistry/molecule';
 import AttributeFields from './AttributeFields';
 import { expiryState } from './attributeSchema';
+import BatchList from './BatchList';
+import BatchPanel from './BatchPanel';
 import CompoundPanel from './CompoundPanel';
 import { stockState, usageTimeline } from './stock';
 import { confirmDialog } from '../ui/dialogs';
@@ -416,6 +418,8 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
           onMergeInto={(target) => void handleMerge(target)}
         />
       )}
+      {detail.entity.type === 'compound' && <BatchList compoundId={entityId} onOpenEntity={onOpenEntity} onOpenDocument={onOpenDocument} />}
+      {detail.entity.type === 'batch' && <BatchPanel detail={detail} onOpenEntity={onOpenEntity} onOpenDocument={onOpenDocument} />}
 
       <section className="entity-section">
         <h3>Aliases</h3>
