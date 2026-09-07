@@ -238,7 +238,6 @@ mise trust
 mise exec -- npm install
 cp .env.example .env
 mise exec -- npm run db:up
-export DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes
 mise exec -- npm run db:bootstrap
 mise exec -- npm run dev:server
 mise exec -- npm run dev
@@ -250,13 +249,15 @@ Without `mise`:
 npm install
 cp .env.example .env
 npm run db:up
-export DATABASE_URL=postgres://labnotes:labnotes@localhost:5432/labnotes
 npm run db:bootstrap
 npm run dev:server
 npm run dev
 ```
 
-If you use `.env`, make sure your shell or process launcher exports it before starting the backend. The current server reads environment variables from the process environment and does not load `.env` automatically.
+The backend and the `db:*` scripts read `.env.local` and then `.env` from the repository root at
+startup. Neither overwrites a variable that is already set, so `DATABASE_URL=... npm run dev:server`
+and CI environments still win over the file. Without a `.env` the server falls back to
+`postgres://localhost:5432/labnotes`, which usually fails as `role "<your user>" does not exist`.
 
 Frontend dev server: `http://localhost:5173`
 
@@ -279,7 +280,7 @@ npm run preview
 
 ## Environment
 
-Copy `.env.example` into your preferred environment loader or export the variables manually.
+Copy `.env.example` to `.env`; it is read automatically at startup. Anything you export in the shell takes precedence.
 
 Important variables:
 

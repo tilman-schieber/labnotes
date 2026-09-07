@@ -1,3 +1,4 @@
+import '../../server/lib/env.mjs';
 import { mkdtemp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';

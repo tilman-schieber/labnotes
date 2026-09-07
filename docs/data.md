@@ -28,6 +28,11 @@ A SQLite notebook is one file plus the attachments directory — copying both is
 
 `DEV_DATABASE_URL` / `PROD_DATABASE_URL` are used by the `db:*` scripts with `--env dev|prod`.
 
+The backend and the `db:*` scripts read `.env.local`, then `.env`, from the repository root when they
+start; copy `.env.example` to `.env` and you are done. Neither file overwrites a variable that is
+already set in the environment, so `DATABASE_URL=sqlite:data/labnotes.db npm run dev:server` still
+overrides the file for one run.
+
 ## Scripts
 
 | Script | Does |

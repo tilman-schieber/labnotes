@@ -1,3 +1,4 @@
+import './lib/env.mjs';
 import cors from 'cors';
 import express from 'express';
 import { closePool, getDialect, getPool, query, sql, withTransaction } from './lib/database.mjs';
@@ -229,7 +230,9 @@ function makeSnippet(text, terms) {
 async function searchDocuments(queryText, tag) {
   if (getDialect() === 'sqlite') {
     const terms = queryText.toLowerCase().split(/\s+/).filter(Boolean);
-    const termClauses = terms.map((_term, index) => `instr(lower(d.title || ' ' || d.search_text), $${index + 3}) > 0`);
+    // Postgres searches title + text + tags (the generated search_tsv); match that haystack here.
+    const haystack = `lower(d.title || ' ' || d.search_text || ' ' || coalesce(d.metadata ->> 'tags', ''))`;
+    const termClauses = terms.map((_term, index) => `instr(${haystack}, $${index + 3}) > 0`);
     const result = await query(
       `
         select d.id, d.kind, d.title, d.metadata, d.updated_at as "updatedAt", d.search_text as "searchText"
