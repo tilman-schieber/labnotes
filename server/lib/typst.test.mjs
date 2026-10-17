@@ -125,3 +125,20 @@ test('plate blocks render wells, heat values and the legend', () => {
   assert.doesNotMatch(typst, /A1: blank · A2/);
 });
 
+test('results blocks render samples down and measures across', () => {
+  const doc = {
+    title: 'R',
+    metadata: {},
+    content: {
+      type: 'doc',
+      content: [
+        heading(1, 'R'),
+        { type: 'results', attrs: { title: 'Day 3', columns: [{ id: 'c1', label: 'OD600', unit: '' }, { id: 'c2', label: 'Viability', unit: '%' }], rows: [{ id: 'r1', entityId: 'x', entityType: 'sample', label: 'Culture A', values: { c1: 1.21, c2: 95 }, note: 'rep 1' }] } }
+      ]
+    }
+  };
+  const typst = documentToTypst(doc, { path: [] });
+  assert.match(typst, /\*Day 3\*/);
+  assert.match(typst, /#table\(columns: 4, stroke: none, inset: 3pt,\s*\[\*Sample\*\], \[\*OD600\*\], \[\*Viability\* #text\(size: 7pt, fill: luma\(90\)\)\[\(%\)\]\], \[\*Note\*\], \[Culture A\], \[1\.21\], \[95\]/);
+});
+

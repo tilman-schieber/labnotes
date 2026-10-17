@@ -148,6 +148,10 @@ async function showHoverCard(anchor: HTMLElement, entityId: string) {
   if (detail.backlinks.length > 0) {
     card.appendChild(line('compound-hover-meta', `Referenced in ${detail.backlinks.length} ${detail.backlinks.length === 1 ? 'document' : 'documents'}`));
   }
+  const latest = detail.results?.[0];
+  if (latest) {
+    card.appendChild(line('compound-hover-meta', `${latest.measure}: ${latest.value}${latest.unit ? ` ${latest.unit}` : ''} · ${latest.documentTitle}${detail.results.length > 1 ? ` · ${detail.results.length} results` : ''}`));
+  }
   card.appendChild(line('compound-hover-hint', entity.status === 'draft' ? 'Unclassified draft · click to say what it is' : 'Click to edit'));
 
   const rect = anchor.getBoundingClientRect();

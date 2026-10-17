@@ -45,6 +45,13 @@ function collectEntities(node: JSONContent, into: Map<string, { id: string; labe
       }
     }
   }
+  if (node.type === 'results') {
+    for (const row of (node.attrs?.rows as { entityId?: string | null; label?: string; entityType?: string | null }[] | undefined) ?? []) {
+      if (row.entityId && !into.has(row.entityId)) {
+        into.set(row.entityId, { id: row.entityId, label: row.label ?? row.entityId, type: row.entityType ?? 'entity' });
+      }
+    }
+  }
   (node.content ?? []).forEach((child) => collectEntities(child, into));
 }
 

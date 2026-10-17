@@ -24,6 +24,11 @@ function cloneNode(node) {
       }));
       return { ...node, attrs: { ...(node.attrs ?? {}), components } };
     }
+    case 'results': {
+      // The samples and measures stay; the numbers belonged to the original run.
+      const rows = (node.attrs?.rows ?? []).map((row) => ({ ...row, values: {} }));
+      return { ...node, attrs: { ...(node.attrs ?? {}), rows } };
+    }
     case 'plate': {
       const wells = Object.fromEntries(
         Object.entries(node.attrs?.wells ?? {})

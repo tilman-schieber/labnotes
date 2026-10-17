@@ -347,6 +347,27 @@ export function renderDocumentBody(
   };
 
   // A results table: samples down, measures across, units in the header.
+  const results = (node) => {
+    const columns = Array.isArray(node.attrs?.columns) ? node.attrs.columns : [];
+    const rows = Array.isArray(node.attrs?.rows) ? node.attrs.rows : [];
+    if (columns.length === 0) {
+      return '';
+    }
+    const title = node.attrs?.title ? escapeText(node.attrs.title) : 'Results';
+    const header = ['[*Sample*]', ...columns.map((column) => `[*${escapeText(column.label || '—')}*${column.unit ? ` #text(size: 7pt, fill: luma(90))[(${escapeText(column.unit)})]` : ''}]`), '[*Note*]'];
+    const body = rows.flatMap((row) => [
+      `[${escapeText(row.label || '—')}]`,
+      ...columns.map((column) => `[${typeof row.values?.[column.id] === 'number' ? escapeText(String(row.values[column.id])) : ''}]`),
+      `[#text(size: 8pt, fill: luma(90))[${escapeText(row.note ?? '')}]]`
+    ]);
+    return `#block(stroke: 0.5pt + luma(180), inset: 6pt, radius: 3pt, width: 100%)[
+  *${title}*
+  #table(columns: ${columns.length + 2}, stroke: none, inset: 3pt,
+    ${[...header, ...body].join(', ')}
+  )
+]`;
+  };
+
   const blocks = (nodes = [], indent = '') =>
     nodes
       .map((node) => {
@@ -375,6 +396,8 @@ export function renderDocumentBody(
             return reaction(node);
           case 'plate':
             return plate(node);
+          case 'results':
+            return results(node);
           case 'analytics': {
             const entries = Array.isArray(node.attrs?.entries) ? node.attrs.entries : [];
             const title = node.attrs?.batchCode ? `Analytics · ${escapeText(node.attrs.batchCode)}` : 'Analytics';

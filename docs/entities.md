@@ -70,6 +70,10 @@ In the registry an entity shows:
 - a **Timeline**: every usage in experiment-date order (the experiment's date field, else its creation date) with the running total after each; the sentence is on hover;
 - **Stock**, when a stock is recorded — see above.
 
+## Results
+
+Measured values read from documents — "OD600 of #Culture A was 1.21", a row of a `/results` table, the mean of a plate group — listed newest first with the measure, the value and the sentence or block they came from. See [Results](writing.md#results-what-came-out) for the patterns. The hover card on a reference shows the latest one.
+
 ## Around this entity
 
 - **Used together with** — every other entity referenced in the same documents, with how many documents they share; click to jump.

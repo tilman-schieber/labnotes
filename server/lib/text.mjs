@@ -32,6 +32,13 @@ export function extractText(content) {
         parts.push('\n');
         return;
       }
+      case 'results': {
+        const columns = Array.isArray(node.attrs?.columns) ? node.attrs.columns : [];
+        const rows = Array.isArray(node.attrs?.rows) ? node.attrs.rows : [];
+        parts.push([node.attrs?.title, ...columns.map((column) => column?.label), ...rows.map((row) => row?.label)].filter(Boolean).join(' '));
+        parts.push('\n');
+        return;
+      }
       case 'plate': {
         const groups = Array.isArray(node.attrs?.groups) ? node.attrs.groups : [];
         parts.push([node.attrs?.title, `${node.attrs?.format ?? 96}-well plate`, node.attrs?.measure, ...groups.map((group) => group?.label)].filter(Boolean).join(' '));

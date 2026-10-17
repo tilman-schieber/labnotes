@@ -170,6 +170,33 @@ async function loadUsages(entityId) {
   return { usages: result.rows, usageTotals };
 }
 
+// Measured values for an entity, newest document first.
+async function loadResults(entityId) {
+  const result = await query(
+    `
+      select
+        dr.id,
+        dr.document_id as "documentId",
+        d.title as "documentTitle",
+        d.kind as "documentKind",
+        d.metadata ->> 'date' as "documentDate",
+        d.metadata ->> 'number' as "documentNumber",
+        d.created_at as "documentCreatedAt",
+        dr.measure,
+        dr.value,
+        dr.unit,
+        dr.source,
+        dr.sentence
+      from document_results dr
+      join documents d on d.id = dr.document_id
+      where dr.target_id = $1
+      order by coalesce(d.metadata ->> 'date', '') desc, d.created_at desc, dr.block_index asc
+    `,
+    [entityId]
+  );
+  return result.rows.map((row) => ({ ...row, value: Number(row.value) }));
+}
+
 // Mentions joined with their document so callers can render backlinks without a second lookup.
 async function loadBacklinks(refType, targetId) {
   const result = await query(
@@ -422,6 +449,19 @@ app.get('/api/documents/:id/suggestions', async (request, response) => {
     rows.rows.forEach((row) => entities.set(row.id, row));
   }
   response.json({ suggestions: await suggestFor(buildContext(document, entities)) });
+});
+
+app.get('/api/documents/:id/results', async (request, response) => {
+  const result = await query(
+    `
+      select id, target_id as "targetId", label, entity_type as "entityType", measure, value, unit, source, block_index as "blockIndex", sentence
+      from document_results
+      where document_id = $1
+      order by block_index asc, created_at asc
+    `,
+    [request.params.id]
+  );
+  response.json({ results: result.rows.map((row) => ({ ...row, value: Number(row.value) })) });
 });
 
 app.get('/api/documents/:id/usages', async (request, response) => {
@@ -1213,7 +1253,7 @@ app.get('/api/entities/:id', async (request, response) => {
     return;
   }
 
-  const [aliasesResult, backlinks, relations, usage] = await Promise.all([
+  const [aliasesResult, backlinks, relations, usage, results] = await Promise.all([
     query(
       `
         select id, entity_id as "entityId", alias, kind, created_at as "createdAt"
@@ -1225,7 +1265,8 @@ app.get('/api/entities/:id', async (request, response) => {
     ),
     loadBacklinks('entity', entity.id),
     loadRelations(entity.id),
-    loadUsages(entity.id)
+    loadUsages(entity.id),
+    loadResults(entity.id)
   ]);
 
   // A batch shows its compound's structure and where it was made.
@@ -1245,7 +1286,7 @@ app.get('/api/entities/:id', async (request, response) => {
     }
   }
 
-  response.json({ entity, aliases: aliasesResult.rows, backlinks, relations, usages: usage.usages, usageTotals: usage.usageTotals, parent, madeIn });
+  response.json({ entity, aliases: aliasesResult.rows, backlinks, relations, usages: usage.usages, usageTotals: usage.usageTotals, results, parent, madeIn });
 });
 
 // Register a product batch of a compound from an experiment: TS-012-A, with its amount and

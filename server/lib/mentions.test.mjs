@@ -114,3 +114,11 @@ test('plate legend entities count as references and are retargeted on merge', ()
   assert.equal(content.content[0].attrs.groups[1], plate.attrs.groups[1], 'untouched groups keep identity');
 });
 
+test('results block rows count as references and are retargeted on merge', () => {
+  const block = { type: 'results', attrs: { title: '', columns: [], rows: [{ id: 'r1', entityId: 'cul-a', entityType: 'sample', label: 'Culture A', values: {}, note: '' }] } };
+  const doc = { type: 'doc', content: [block] };
+  assert.deepEqual(extractMentions(doc), [{ refType: 'entity', targetId: 'cul-a', label: 'Culture A' }]);
+  const { content, changed } = retargetEntityMentions(doc, 'cul-a', 'cul-b', 'Culture B');
+  assert.equal(changed, true);
+  assert.equal(content.content[0].attrs.rows[0].entityId, 'cul-b');
+});

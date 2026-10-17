@@ -1,5 +1,6 @@
 import { createId } from './ids.mjs';
 import { extractUsages } from '../../src/chemistry/usages.ts';
+import { extractResults } from '../../src/chemistry/results.ts';
 
 // TipTap node type -> document_mentions.ref_type
 const MENTION_NODE_TYPES = {
@@ -48,6 +49,9 @@ export function extractMentions(content) {
     if (node.type === 'plate' && Array.isArray(node.attrs?.groups)) {
       node.attrs.groups.forEach((group) => add('entity', group?.entityId, group?.label));
     }
+    if (node.type === 'results' && Array.isArray(node.attrs?.rows)) {
+      node.attrs.rows.forEach((row) => add('entity', row?.entityId, row?.label));
+    }
 
     if (Array.isArray(node.content)) {
       node.content.forEach(visit);
@@ -89,6 +93,13 @@ export function retargetEntityMentions(content, fromId, toId, label) {
       if (groups.some((group, index) => group !== node.attrs.groups[index])) {
         changed = true;
         next = { ...next, attrs: { ...next.attrs, groups } };
+      }
+    }
+    if (node.type === 'results' && Array.isArray(node.attrs?.rows)) {
+      const rows = node.attrs.rows.map((row) => (row?.entityId === fromId ? { ...row, entityId: toId, label } : row));
+      if (rows.some((row, index) => row !== node.attrs.rows[index])) {
+        changed = true;
+        next = { ...next, attrs: { ...next.attrs, rows } };
       }
     }
 
@@ -147,7 +158,25 @@ export async function syncDocumentMentions(client, documentId, content) {
   }
 
   await syncDocumentUsages(client, documentId, content);
+  await syncDocumentResults(client, documentId, content);
   return mentions;
+}
+
+
+// Results are derived like usages: replaced on every save.
+export async function syncDocumentResults(client, documentId, content) {
+  const results = extractResults(content);
+  await client.query('delete from document_results where document_id = $1', [documentId]);
+  for (const result of results) {
+    await client.query(
+      `
+        insert into document_results (id, document_id, target_id, label, entity_type, measure, value, unit, source, block_index, sentence)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `,
+      [createId('result'), documentId, result.entityId, result.label, result.entityType, result.measure, result.value, result.unit, result.source, result.blockIndex, result.sentence]
+    );
+  }
+  return results;
 }
 
 // Usages are fully derived, so they are simply replaced on every save.

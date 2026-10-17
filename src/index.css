@@ -4065,3 +4065,120 @@ button:disabled {
   }
 }
 
+/* ---------- Results block ---------- */
+.results-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: 0.75rem 0.9rem;
+  margin: 1rem 0;
+  background: var(--surface-2);
+}
+
+.results-block.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.results-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.results-header .reaction-title {
+  flex: 1 1 10rem;
+}
+
+.results-count {
+  font-size: 0.78rem;
+}
+
+.results-sample {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.results-sample-input {
+  width: 11rem;
+}
+
+.results-sample-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 14rem;
+}
+
+.results-unlinked {
+  font-size: 0.8rem;
+}
+
+.results-column-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.results-measure {
+  width: 6.5rem;
+}
+
+.results-unit {
+  width: 3.5rem;
+}
+
+.results-value {
+  width: 5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-value-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-note {
+  width: 8rem;
+}
+
+.results-table tr.is-linked td:first-child {
+  font-weight: 500;
+}
+
+.entity-results {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.entity-results th {
+  text-align: left;
+  font-size: 0.72rem;
+  color: var(--text-2);
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.entity-results td {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.entity-results .is-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.entity-results .usage-sentence {
+  display: block;
+  font-size: 0.76rem;
+}
+

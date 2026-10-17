@@ -566,6 +566,44 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
         </section>
       )}
 
+      {detail.results.length > 0 && (
+        <section className="entity-section">
+          <h3>Results</h3>
+          <table className="entity-results">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Measure</th>
+                <th className="is-numeric">Value</th>
+                <th>Where</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.results.map((result) => (
+                <tr key={result.id}>
+                  <td className="timeline-date">{result.documentDate ?? result.documentCreatedAt.slice(0, 10)}</td>
+                  <td>{result.measure}</td>
+                  <td className="is-numeric">
+                    {result.value}
+                    {result.unit && ` ${result.unit}`}
+                  </td>
+                  <td>
+                    <button type="button" className="link-button" onClick={() => onOpenDocument(result.documentId)}>
+                      {result.documentTitle}
+                    </button>
+                    {result.sentence && (
+                      <span className="usage-sentence" title={result.sentence}>
+                        {result.source === 'prose' ? `“${result.sentence}”` : result.sentence}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {graph && (graph.coUsed.length > 0 || graph.ancestors.length > 0 || graph.descendants.length > 0) && (
         <section className="entity-section">
           <h3>Around this entity</h3>

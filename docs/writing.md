@@ -56,6 +56,16 @@ Units understood: g, L, mol, M with SI prefixes (n, µ/u, m, c, k; `ml` and `ul`
 
 Quantities are more than formatting: the sentence they sit in binds them to the reference next to them. `Add 25 mg of #Compound X` makes 25 mg a *usage* of Compound X. See [Usages](entities.md#usages).
 
+## Results: what came out
+
+A measured value written next to a reference becomes a **result** on that entity, the way an amount becomes a usage:
+
+> The OD600 of #Culture A was 1.21. #Batch 7: purity 98.5 %. The Tm of #Primer F1 is 61.3 °C.
+
+The pattern is *measure* **of** *#entity* **was / is / = / reads** *number* *unit*, or *#entity*: *measure* *number*. Measures are whatever you call them (OD600, pH, Tm, yield, viability, cell count); units are optional. Amounts used (`25 mg of #X`) are not results. Results appear on the entity's registry page under **Results**, newest first, on the hover card as the latest value, and in the PDF index.
+
+For many samples at once, type `/results`: a small table with one row per sample and one column per measure (with a unit). **Paste…** takes a spreadsheet export whose header row names the measures (`Viability (%)` gives the unit) and whose first column names the samples; names that match a reference in the document are linked automatically, others can be picked from the registry. Every number in a linked row is a result. A [plate](plates.md) with a measure records the mean per group that is a registry entity in the same way.
+
 ## Recognition: names and amounts you did not tokenise
 
 Plain text that matches a registry name (label or alias, three characters or more) is underlined, and so are amounts written without a token (`25mg` pasted from somewhere, or typed before the unit was known). Nothing changes until you ask:

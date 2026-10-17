@@ -27,7 +27,7 @@ Tokens are what make the notebook more than text: references are indexed, amount
 
 **The registry.** Every `#` reference points at an *entity* — a sample, reagent, compound, instrument, container or location. Entities live in the registry (the "Entities" view) with attributes, aliases, relations and a record of where and how much they were used. A name the registry does not know yet becomes a *draft* the moment you reference it, so writing never waits for data entry.
 
-**Derived, not entered.** Usages (which entity, how much, in what role), reaction tables, protocol steps, search text and the entity index in PDF exports are all read from the prose. When the text changes, they follow.
+**Derived, not entered.** Usages (which entity, how much, in what role), results ("OD600 of #X was 1.21"), reaction tables, protocol steps, search text and the entity index in PDF exports are all read from the prose. When the text changes, they follow.
 
 ## A first protocol
 

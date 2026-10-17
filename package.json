@@ -21,7 +21,8 @@
     "test": "node --test server/ src/",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "dev:client": "vite"
+    "dev:client": "vite",
+    "db:reindex": "node scripts/db/reindex.mjs"
   },
   "dependencies": {
     "@tiptap/core": "^2.11.5",

@@ -501,6 +501,21 @@ export type BackendRelation = {
   createdAt: string;
 };
 
+export type BackendResult = {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  documentKind: NotebookDocumentKind;
+  documentDate: string | null;
+  documentNumber: string | null;
+  documentCreatedAt: string;
+  measure: string;
+  value: number;
+  unit: string;
+  source: 'prose' | 'block' | 'plate';
+  sentence: string | null;
+};
+
 export type BackendEntityDetail = {
   entity: BackendEntityRecord;
   aliases: BackendEntityAlias[];
@@ -508,6 +523,8 @@ export type BackendEntityDetail = {
   relations: BackendRelation[];
   usages: BackendUsage[];
   usageTotals: BackendUsageTotal[];
+  // Measured values read from documents: prose, results blocks, plates. Newest first.
+  results: BackendResult[];
   // Batches only: the compound this is a lot of, and the experiment it was made in.
   parent?: { id: string; label: string; type: string; attributes: Record<string, unknown> } | null;
   madeIn?: { id: string; title: string; number: number | null } | null;

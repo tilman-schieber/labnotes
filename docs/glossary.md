@@ -66,6 +66,10 @@
 
 **Shelf** — a section of the Entities view: Chemicals, Reagents & stock, Samples & organisms, Equipment, Storage & places, Needs sorting. Each covers one or two entity types and shows the columns that matter for them. → [Entities](entities.md#the-shelves)
 
+**Result** — a measured value for an entity, read from the prose ("OD600 of #X was 1.21"), a results block or a plate group; listed on the entity's page. → [Writing](writing.md#results-what-came-out)
+
+**Results block** — a table of samples × measures (`/results`); linked rows record results. → [Writing](writing.md#results-what-came-out)
+
 **Reaction table** — a block computing stoichiometry from its rows, pre-filled from the section above. → [Chemistry](chemistry.md#reaction-tables)
 
 **Recognition** — underlining of plain-text names and amounts that could be tokens; nothing changes until you click or use the shortcuts. → [Writing](writing.md#recognition-names-and-amounts-you-did-not-tokenise)

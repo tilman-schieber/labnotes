@@ -45,6 +45,7 @@ overrides the file for one run.
 | `npm run db:up` / `db:down` | local Postgres via Docker Compose |
 | `npm run db:migrate`, `db:status` | apply / list migrations for the configured backend |
 | `npm run db:seed`, `db:bootstrap` | seed; migrate + seed |
+| `npm run db:reindex` | re-derive mentions, usages, results and relations for every document |
 | `npm run db:dump`, `db:restore`, `db:sync` | pg_dump-based; refuse SQLite URLs |
 | `npm test` | unit tests (server and shared modules) |
 
