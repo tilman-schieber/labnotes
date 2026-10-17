@@ -3382,3 +3382,15 @@ button:disabled {
   color: var(--text-3);
 }
 
+/* ---------- Registry: raw JSON folded away ---------- */
+.entity-json summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.entity-json textarea {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+

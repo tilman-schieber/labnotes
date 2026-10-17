@@ -356,15 +356,16 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
           );
         })()}
 
-        <label>
-          Attributes (JSON)
+        <details className="entity-json">
+          <summary>Attributes as JSON</summary>
           <textarea
             rows={6}
             value={form.attributesText}
             onChange={(event) => updateField('attributesText', event.target.value)}
             spellCheck={false}
+            aria-label="Attributes (JSON)"
           />
-        </label>
+        </details>
 
         {(() => {
           // Everything the classifier wrote is stamped, so an automatic fill is never mistaken
