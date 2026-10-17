@@ -47,7 +47,7 @@ A number followed by a unit becomes a **quantity token** when you type the space
 
 Units understood: g, L, mol, M with SI prefixes (n, µ/u, m, c, k; `ml` and `ul` spellings accepted), °C (also `C`, `degC`), K, s/min/h/d, eq/equiv, %.
 
-- **Unit popup.** After you type a number and a space (or the first letters of a unit), a small list offers units — the ones already used in this document first, nearest to the caret, then the everyday set. Tab or Enter inserts the token; keep typing to ignore it; Escape dismisses it for that number.
+- **Unit popup.** Once you type the first letter of a unit after a number (`25 m`), a small list offers units — the ones already used in this document first, nearest to the caret, then the everyday set. Tab or Enter inserts the token; keep typing to ignore it; Escape dismisses it for that number. After a bare `25 ` nothing opens (numbers in prose are left alone); press Tab there to ask for the list.
 - **Editing.** Double-click a token, or select it with the arrow keys and press Enter. Typing something that is not a quantity turns it back into plain text.
 - **Hover** shows the same amount in other units of that dimension.
 - **Backspace** right after the space undoes the conversion, like any input rule.

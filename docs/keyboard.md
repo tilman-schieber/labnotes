@@ -10,7 +10,8 @@ Everything in the editor is reachable without the mouse. `/shortcuts` inside the
 | `@name` | reference a person |
 | `/` | command palette |
 | `25 mg` + Space | quantity token |
-| number + Space, then Tab | pick the suggested unit |
+| number + Space + first letter of the unit | unit list; Tab/Enter picks |
+| number + Space, then Tab | open the unit list without typing a letter |
 | Enter on a selected quantity token | edit it (select tokens with the arrow keys) |
 | Ctrl/Cmd + Shift + T | insert the current time |
 | Ctrl/Cmd + . | link the next underlined name or amount after the caret |

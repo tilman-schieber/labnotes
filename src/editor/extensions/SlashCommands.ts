@@ -9,7 +9,7 @@ const SHORTCUTS: [string, string][] = [
   ['#name', 'Reference a sample, reagent, compound or document; Tab/Enter accepts, unknown names become drafts'],
   ['@name', 'Reference a person'],
   ['/', 'This command palette'],
-  ['25 mg␣', 'A number with a unit becomes a quantity token on the following space; Tab picks a suggested unit'],
+  ['25 mg␣', 'A number with a unit becomes a quantity token on the following space; the unit list opens on the first letter (or Tab after "25 ")'],
   ['Ctrl/Cmd + .', 'Link the next underlined known name or amount after the caret'],
   ['Ctrl/Cmd + Shift + L', 'Link every underlined name and amount'],
   ['Ctrl/Cmd + Shift + T', 'Insert the current time'],
