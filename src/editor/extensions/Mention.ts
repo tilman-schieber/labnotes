@@ -1,7 +1,8 @@
-import Mention from '@tiptap/extension-mention';
-import type { Editor } from '@tiptap/core';
+import Mention, { type MentionNodeAttrs } from '@tiptap/extension-mention';
+import type { Editor, Range } from '@tiptap/core';
 import { createEntity, searchEntities, searchUsers } from '../../api/backend';
 import { compoundTokenNodeView } from './CompoundToken';
+import { canCreateDraft, looksLikeProse } from './pickerRules.ts';
 
 export type SuggestionOption = {
   id: string;
@@ -21,7 +22,7 @@ const CLASSIFY_GRACE_MS = 4000;
 
 function buildQuickCreateOptions(query: string, existing: SuggestionOption[]): SuggestionOption[] {
   const label = query.trim();
-  if (!label) {
+  if (!canCreateDraft(label)) {
     return [];
   }
 
@@ -42,18 +43,59 @@ function buildQuickCreateOptions(query: string, existing: SuggestionOption[]): S
   ];
 }
 
-// Resolves a quick-create row into a real entity before the mention node is inserted.
-async function resolveOption(option: SuggestionOption): Promise<SuggestionOption> {
+// Ids of drafts whose entity is still being created on the server. The token is inserted at
+// once so typing never waits; the id is patched in when the server answers.
+const PROVISIONAL_PREFIX = 'pending:';
+
+export function isProvisionalId(id: unknown): boolean {
+  return typeof id === 'string' && id.startsWith(PROVISIONAL_PREFIX);
+}
+
+function replaceProvisional(editor: Editor, provisionalId: string, attrs: Partial<SuggestionOption> | null): void {
+  const { doc, tr } = editor.state;
+  const hits: { pos: number; node: typeof doc }[] = [];
+  doc.descendants((node, pos) => {
+    if (node.type.name === 'entityMention' && node.attrs.id === provisionalId) {
+      hits.push({ pos, node });
+    }
+  });
+  if (hits.length === 0) {
+    return;
+  }
+  // From the end so earlier positions stay valid.
+  for (const hit of hits.reverse()) {
+    if (attrs) {
+      tr.setNodeMarkup(hit.pos, undefined, { ...hit.node.attrs, ...attrs });
+    } else {
+      tr.replaceWith(hit.pos, hit.pos + hit.node.nodeSize, editor.schema.text(String(hit.node.attrs.label ?? '')));
+    }
+  }
+  editor.view.dispatch(tr);
+}
+
+// A quick-create row is inserted immediately under a provisional id and resolved in the
+// background. Keystrokes typed during the round trip land after the token, where they belong.
+function insertOption(option: SuggestionOption, props: Pick<RendererProps, 'editor' | 'command'>): void {
   if (!option.create) {
-    return option;
+    props.command(option);
+    return;
   }
 
-  const entity = await createEntity(option.entityType ?? DRAFT_ENTITY_TYPE, option.label, 'draft');
-  // The new name should be recognised elsewhere in the text right away, and once more after the
-  // background classifier has had a moment with it, so the token takes on its real type.
-  window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
-  window.setTimeout(() => window.dispatchEvent(new CustomEvent('labnotes:entities-changed')), CLASSIFY_GRACE_MS);
-  return { ...option, id: entity.id, label: entity.label, entityType: entity.type, create: false };
+  const provisionalId = `${PROVISIONAL_PREFIX}${Math.random().toString(36).slice(2, 10)}`;
+  props.command({ ...option, id: provisionalId, create: false });
+
+  createEntity(option.entityType ?? DRAFT_ENTITY_TYPE, option.label, 'draft')
+    .then((entity) => {
+      replaceProvisional(props.editor, provisionalId, { id: entity.id, label: entity.label, entityType: entity.type });
+      // The new name should be recognised elsewhere in the text right away, and once more after
+      // the background classifier has had a moment with it, so the token takes on its real type.
+      window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent('labnotes:entities-changed')), CLASSIFY_GRACE_MS);
+    })
+    .catch(() => {
+      // The registry refused: keep what was typed as plain text rather than a dangling token.
+      replaceProvisional(props.editor, provisionalId, null);
+    });
 }
 
 type SuggestionListState = {
@@ -121,12 +163,13 @@ function isStale(char: string, props: RendererProps): boolean {
 }
 
 // With spaces allowed the query only ends on Enter/Tab/Escape; once it plainly reads as prose
-// again (sentence punctuation, or many words with nothing matching) the popup gets out of the way.
+// again (see pickerRules) and nothing real matches, the popup gets out of the way so Enter is a
+// line break again and no draft is made from half a sentence.
 function shouldHide(props: RendererProps): boolean {
   if (props.items.length > 0 && !props.items.every((item) => item.create)) {
     return false;
   }
-  return /[.,;:!?]$/.test(props.query) || props.query.trim().split(/\s+/).length > 4;
+  return looksLikeProse(props.query);
 }
 
 export function createSuggestionRenderer(char: string) {
@@ -147,7 +190,7 @@ export function createSuggestionRenderer(char: string) {
         element,
         selectedIndex: 0,
         options: props.items,
-        command: (option) => void resolveOption(option).then(props.command)
+        command: (option) => insertOption(option, props)
       };
 
       createList(state);
@@ -171,7 +214,7 @@ export function createSuggestionRenderer(char: string) {
         element.className = 'mention-list';
         element.style.position = 'absolute';
         element.style.zIndex = '1000';
-        state = { element, selectedIndex: 0, options: props.items, command: (option) => void resolveOption(option).then(props.command) };
+        state = { element, selectedIndex: 0, options: props.items, command: (option) => insertOption(option, props) };
         createList(state);
         positionElement(element, props.editor);
         document.body.appendChild(element);
@@ -179,7 +222,7 @@ export function createSuggestionRenderer(char: string) {
       }
 
       state.options = props.items;
-      state.command = (option) => void resolveOption(option).then(props.command);
+      state.command = (option) => insertOption(option, props);
       if (state.selectedIndex >= state.options.length) {
         state.selectedIndex = 0;
       }
@@ -234,6 +277,29 @@ export function createSuggestionRenderer(char: string) {
   };
 }
 
+// What the default Mention command does, minus the trailing space when the token lands right
+// before punctuation or an existing space, so "#Methanol ." cannot happen.
+const PUNCTUATION_AFTER = /^[.,;:!?)\]]/;
+
+function insertMentionNode(nodeType: string) {
+  return ({ editor, range, props }: { editor: Editor; range: Range; props: MentionNodeAttrs }) => {
+    const nodeAfter = editor.state.doc.resolve(range.to).nodeAfter;
+    const textAfter = nodeAfter?.isText ? nodeAfter.text ?? '' : '';
+    const addSpace = !(textAfter.startsWith(' ') || PUNCTUATION_AFTER.test(textAfter));
+    const option = props as unknown as SuggestionOption;
+    const attrs =
+      option.refType === 'user'
+        ? { id: option.id, label: option.label, refType: 'user' }
+        : { id: option.id, label: option.label, entityType: option.entityType ?? 'entity', refType: 'entity' };
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(range, [{ type: nodeType, attrs }, ...(addSpace ? [{ type: 'text', text: ' ' }] : [])])
+      .run();
+    window.getSelection()?.collapseToEnd();
+  };
+}
+
 function makeReferenceLabel(prefix: string, node: { attrs: Record<string, unknown> }) {
   const label = typeof node.attrs.label === 'string' ? node.attrs.label : String(node.attrs.id ?? '');
   return `${prefix}${label}`;
@@ -283,6 +349,7 @@ export function createEntityMentionExtension(documentId: string | null) {
         }));
         return [...options, ...buildQuickCreateOptions(query, options)];
       },
+      command: insertMentionNode('entityMention'),
       render: () => createSuggestionRenderer('#')
     },
     renderLabel({ node }) {
@@ -317,6 +384,7 @@ export const UserMentionExtension = Mention.extend({
         refType: 'user' as const
       }));
     },
+    command: insertMentionNode('userMention'),
     render: () => createSuggestionRenderer('@')
   },
   renderLabel({ node }) {

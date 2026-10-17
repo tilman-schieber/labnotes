@@ -29,8 +29,8 @@ Type `#` followed by a name. A picker opens as you type — spaces are allowed, 
 Documents are entities too: `#General` references the project called General, and the token is coloured differently.
 
 - **Tab** or **Enter** accepts the highlighted row; **↑/↓** move; **Escape** leaves what you typed as plain text.
-- The popup gets out of the way on its own when the text stops looking like a name (sentence punctuation, or more than four words with no match).
-- If nothing matches, the last row is **Create "…"**. Accepting it creates a *draft* entity of type `unclassified` and inserts the reference. The classifier picks it up in the background, so most drafts are typed and filled in seconds later without anyone doing anything — see [Filling entities in automatically](entities.md#filling-entities-in-automatically). Writing never waits.
+- The popup gets out of the way on its own when the text stops looking like a name: sentence punctuation, more than three words, or a word only a sentence contains (`#toluene was` is prose, so Enter there is a line break, not a draft called "toluene was").
+- If nothing matches, the last row is **Create "…"**. Accepting it inserts the reference at once and creates a *draft* entity of type `unclassified` in the background; keep typing, nothing waits for the server. The classifier picks the draft up seconds later, so most drafts are typed and filled in without anyone doing anything — see [Filling entities in automatically](entities.md#filling-entities-in-automatically).
 
 A reference always shows the registry's current type, so a token written before its entity was classified turns into a compound (blue) as soon as it is one. Hovering a reference shows a card: type, structure for compounds, stock left, expiry, and how many documents reference it. Clicking a compound reference toggles an inline structure drawing.
 
