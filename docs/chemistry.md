@@ -6,7 +6,7 @@ Chemistry lives on **compound** entities in the registry and in **reaction table
 
 A compound is an entity of type `compound`. Its chemistry is kept in attributes and edited in the compound panel of the registry:
 
-- **SMILES** — entered by hand, drawn in the structure editor (Ketcher), or fetched from PubChem by name or CAS number. It is validated on entry.
+- **SMILES** — entered by hand, drawn in the structure editor (Ketcher, from the registry or the popover on a token), or fetched from PubChem by name or CAS number. It is validated on entry.
 - **Derived properties** — formula, molecular weight, exact mass, cLogP, TPSA, H-bond donors/acceptors — are computed from the SMILES (OpenChemLib) and stored with it.
 - **Identifiers** — CAS number, IUPAC name, PubChem CID when known. Registry search matches CAS, SMILES and the canonical structure exactly.
 - **Duplicates** — the canonical IDCode of the structure is compared across the registry; a compound with the same structure is offered for a one-click merge.

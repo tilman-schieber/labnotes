@@ -3541,6 +3541,16 @@ button:disabled {
   color: var(--text-2);
 }
 
+.entity-popover-smiles {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.entity-popover-smiles input {
+  flex: 1;
+  min-width: 0;
+}
+
 .entity-popover-row input,
 .entity-popover-row select,
 .entity-popover .attribute-fields input,

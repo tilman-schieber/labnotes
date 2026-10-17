@@ -4,6 +4,7 @@ import type { Editor } from '@tiptap/core';
 import { fetchEntity, updateEntity, type BackendEntityDetail } from '../api/backend';
 import { describeSmiles, isCompoundAttributes, smilesToSvg } from '../chemistry/molecule';
 import AttributeFields from '../registry/AttributeFields';
+import StructureEditorDialog from '../registry/StructureEditorDialog';
 import { ATTRIBUTE_SCHEMA } from '../registry/attributeSchema';
 import { DRAFT_TYPE, PROMOTABLE_TYPES, isChemical } from '../registry/typeCatalog';
 import { invalidateEntityCache } from './extensions/CompoundToken';
@@ -78,6 +79,8 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // The Ketcher dialog is portalled outside the popover; while it is open the popover stays.
+  const [isDrawing, setIsDrawing] = useState(false);
   const container = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -117,16 +120,21 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
     };
   }, [smiles, type]);
 
-  // Escape or a click elsewhere closes; the editor keeps working underneath.
+  // Escape or a click elsewhere closes; the editor keeps working underneath. With the structure
+  // editor open, Escape closes that instead and clicks in it are not "elsewhere".
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        if (isDrawing) {
+          setIsDrawing(false);
+        } else {
+          onClose();
+        }
       }
     };
     const onDown = (event: MouseEvent) => {
-      if (container.current && !container.current.contains(event.target as Node)) {
+      if (!isDrawing && container.current && !container.current.contains(event.target as Node)) {
         onClose();
       }
     };
@@ -136,7 +144,8 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
       document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('mousedown', onDown);
     };
-  }, [onClose]);
+  }, [onClose, isDrawing]);
+
 
   const isDraft = detail?.entity.status === 'draft';
   const isDocument = detail?.entity.type === 'document';
@@ -234,7 +243,12 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
             {isChemical(type) && (
               <label className="entity-popover-row">
                 SMILES
-                <input type="text" value={smiles} placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O" spellCheck={false} onChange={(event) => setSmiles(event.target.value)} />
+                <span className="entity-popover-smiles">
+                  <input type="text" value={smiles} placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O" spellCheck={false} onChange={(event) => setSmiles(event.target.value)} />
+                  <button type="button" className="btn btn-sm" onClick={() => setIsDrawing(true)} title="Draw the structure in Ketcher">
+                    Draw…
+                  </button>
+                </span>
               </label>
             )}
             {svg && <div className="entity-popover-svg" dangerouslySetInnerHTML={{ __html: svg }} />}
@@ -261,6 +275,17 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
           </button>
         </div>
       </form>
+
+      {isDrawing && (
+        <StructureEditorDialog
+          initialStructure={smiles}
+          onCancel={() => setIsDrawing(false)}
+          onSave={(drawn) => {
+            setIsDrawing(false);
+            setSmiles(drawn);
+          }}
+        />
+      )}
     </div>
   );
 }
