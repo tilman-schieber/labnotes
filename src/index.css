@@ -1086,14 +1086,16 @@ button:disabled {
   outline: 2px solid var(--accent);
 }
 
-/* Inline tokens */
+/* Inline tokens: tinted words, not pills, so a sentence still reads as a sentence. */
 .ProseMirror .reference-token,
 .ProseMirror .quantity-token {
-  border-radius: 5px;
-  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  padding: 0 0.2em;
+  margin: 0 -0.05em;
   font-weight: 500;
-  font-size: 0.93em;
+  font-size: 0.96em;
   white-space: nowrap;
+  box-decoration-break: clone;
 }
 
 .ProseMirror .reference-token.reference-entity {
@@ -3236,3 +3238,4 @@ button:disabled {
 .reaction-summary-warning {
   color: #9a3412;
 }
+

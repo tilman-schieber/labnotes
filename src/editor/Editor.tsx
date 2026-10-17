@@ -26,6 +26,7 @@ import { TrailingParagraph } from './extensions/TrailingParagraph';
 import { Recognition } from './extensions/Recognition';
 import { QuantityRecognition } from './extensions/QuantityRecognition';
 import { UnitSuggest } from './extensions/UnitSuggest';
+import { TokenSpacing } from './extensions/TokenSpacing';
 import { invalidateEntityCache } from './extensions/CompoundToken';
 import { refreshEntityTypes } from './entityTypes';
 
@@ -110,6 +111,7 @@ export default function NotebookEditor({
       Recognition,
       QuantityRecognition,
       UnitSuggest,
+      TokenSpacing,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),

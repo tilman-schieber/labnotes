@@ -31,6 +31,7 @@ Documents are entities too: `#General` references the project called General, an
 - **Tab** or **Enter** accepts the highlighted row; **↑/↓** move; **Escape** leaves what you typed as plain text.
 - The popup gets out of the way on its own when the text stops looking like a name: sentence punctuation, more than three words, or a word only a sentence contains (`#toluene was` is prose, so Enter there is a line break, not a draft called "toluene was").
 - If nothing matches, the last row is **Create "…"**. Accepting it inserts the reference at once and creates a *draft* entity of type `unclassified` in the background; keep typing, nothing waits for the server. The classifier picks the draft up seconds later, so most drafts are typed and filled in without anyone doing anything — see [Filling entities in automatically](entities.md#filling-entities-in-automatically).
+- A reference is followed by one space. Typing another space, or a comma or full stop, right after it does the expected thing: the extra space is dropped and the punctuation sits against the token.
 
 A reference always shows the registry's current type, so a token written before its entity was classified turns into a compound (blue) as soon as it is one. Hovering a reference shows a card: type, structure for compounds, stock left, expiry, and how many documents reference it. Clicking a compound reference toggles an inline structure drawing.
 
