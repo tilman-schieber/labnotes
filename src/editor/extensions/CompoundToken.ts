@@ -6,6 +6,7 @@ import { entityType, onEntityTypes } from '../entityTypes';
 import { stockState } from '../../registry/stock';
 import { formatQuantity } from '../../units/quantity';
 import { isChemical } from '../../registry/typeCatalog';
+import { isEntityPopoverOpen, openEntityPopover } from '../EntityPopover';
 
 // Entity details are fetched lazily on hover and cached per session, so tokens always show the
 // registry's current structure without storing SMILES in the document.
@@ -79,8 +80,11 @@ export function describeGhs(attributes: Record<string, unknown> | null | undefin
 // What a writer needs to know about a reference without leaving the text: the structure for
 // compounds, and for anything with stock or an expiry, whether it is still usable.
 async function showHoverCard(anchor: HTMLElement, entityId: string) {
+  if (isEntityPopoverOpen()) {
+    return;
+  }
   const detail = await loadEntityDetail(entityId);
-  if (!detail || !anchor.matches(':hover')) {
+  if (!detail || !anchor.matches(':hover') || isEntityPopoverOpen()) {
     return;
   }
   const { entity } = detail;
@@ -144,6 +148,7 @@ async function showHoverCard(anchor: HTMLElement, entityId: string) {
   if (detail.backlinks.length > 0) {
     card.appendChild(line('compound-hover-meta', `Referenced in ${detail.backlinks.length} ${detail.backlinks.length === 1 ? 'document' : 'documents'}`));
   }
+  card.appendChild(line('compound-hover-hint', entity.status === 'draft' ? 'Unclassified draft · click to say what it is' : 'Click to edit'));
 
   const rect = anchor.getBoundingClientRect();
   card.style.left = `${rect.left + window.scrollX}px`;
@@ -165,7 +170,7 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
     isCompound = isChemical(type);
     dom.className = `mention reference-token reference-entity${isCompound ? ' reference-compound' : ''}${isDocument ? ' reference-document' : ''}`;
     dom.setAttribute('data-entity-type', type);
-    dom.title = isCompound ? 'Hover for structure · click to toggle inline structure' : '';
+    dom.title = isDocument ? 'Click to open' : 'Click to edit';
   };
 
   applyType();
@@ -213,19 +218,31 @@ export const compoundTokenNodeView: NodeViewRenderer = ({ node, getPos, editor }
   });
   dom.addEventListener('mouseleave', hideHoverCard);
 
-  // Clicking a compound toggles its inline structure; other tokens ignore the click.
-  dom.addEventListener('click', (event) => {
-    if (!editor.isEditable || !isCompound) {
-      return;
-    }
-    event.preventDefault();
+  const toggleInline = () => {
     const position = typeof getPos === 'function' ? getPos() : null;
     if (position === null || position === undefined) {
       return;
     }
-    editor.view.dispatch(
-      editor.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, inlineStructure: !node.attrs.inlineStructure })
-    );
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, inlineStructure: !node.attrs.inlineStructure }));
+  };
+
+  // Clicking a token opens the entity for editing right here; a document token opens the document.
+  dom.addEventListener('click', (event) => {
+    if (!editor.isEditable) {
+      return;
+    }
+    event.preventDefault();
+    hideHoverCard();
+    if (isDocument) {
+      window.dispatchEvent(new CustomEvent('labnotes:open-document', { detail: { entityId: String(node.attrs.id) } }));
+      return;
+    }
+    openEntityPopover(dom, {
+      entityId: String(node.attrs.id),
+      editor,
+      inlineStructure: isCompound ? Boolean(node.attrs.inlineStructure) : null,
+      onToggleInline: isCompound ? toggleInline : null
+    });
   });
   void renderInline();
 

@@ -3249,3 +3249,136 @@ button:disabled {
   color: #9a3412;
 }
 
+/* ---------- Entity popover (click a token) ---------- */
+.entity-popover-host {
+  position: absolute;
+  z-index: 1100;
+}
+
+.entity-popover {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-l);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.88rem;
+}
+
+.entity-popover form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.entity-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.entity-popover-label {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 0.1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  background: transparent;
+  outline: none;
+}
+
+.entity-popover-label:focus {
+  border-bottom-color: var(--accent);
+}
+
+.entity-popover-types {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chip-button {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  background: var(--surface);
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.chip-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip-button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.entity-popover-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.entity-popover-row input,
+.entity-popover-row select,
+.entity-popover .attribute-fields input,
+.entity-popover .attribute-fields select {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-s);
+  padding: 0.3rem 0.45rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.entity-popover .attribute-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.6rem;
+}
+
+.entity-popover .attribute-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+
+.entity-popover .attribute-extra {
+  grid-column: 1 / -1;
+}
+
+.entity-popover-svg svg {
+  display: block;
+  max-width: 200px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.entity-popover-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-top: 0.2rem;
+}
+
+.entity-popover-actions .btn {
+  display: inline-flex;
+  margin: 0;
+}
+
+.compound-hover-hint {
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
+

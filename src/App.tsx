@@ -21,6 +21,7 @@ import {
   type DocumentMetadata
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
+import { fetchEntity } from './api/backend';
 import { formatExperimentNumber } from './chemistry/batchCode';
 import UserSelect from './ui/UserSelect';
 import SearchResults from './sidebar/SearchResults';
@@ -615,6 +616,36 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db]);
+
+  // Tokens and popovers in the editor ask for the registry or a document through these events.
+  useEffect(() => {
+    const onOpenEntity = (event: Event) => {
+      const entityId = (event as CustomEvent<{ entityId?: string }>).detail?.entityId;
+      if (entityId) {
+        openEntityInRegistry(entityId);
+      }
+    };
+    const onOpenDocument = (event: Event) => {
+      const entityId = (event as CustomEvent<{ entityId?: string }>).detail?.entityId;
+      if (!entityId) {
+        return;
+      }
+      fetchEntity(entityId)
+        .then((detail) => {
+          if (detail.entity.documentId) {
+            openDocumentById(detail.entity.documentId);
+          }
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener('labnotes:open-entity', onOpenEntity);
+    window.addEventListener('labnotes:open-document', onOpenDocument);
+    return () => {
+      window.removeEventListener('labnotes:open-entity', onOpenEntity);
+      window.removeEventListener('labnotes:open-document', onOpenDocument);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db]);
 

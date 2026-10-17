@@ -1,6 +1,6 @@
 # Entities & registry
 
-Everything you can reference with `#` is an **entity**. The **Entities** view is the registry: a filterable list on the left, the selected entity's details on the right.
+Everything you can reference with `#` is an **entity**. Most editing happens in the text: click a reference and a popover offers the name, the type and the attributes that matter for it (see [Writing](writing.md#references-with-)). The **Entities** view is the registry for everything else — aliases, relations, merges, batches, the chemistry panel: a filterable list on the left, the selected entity's details on the right. Typed fields come first; the raw JSON of the attributes is folded away under *Attributes as JSON*.
 
 ## Types and statuses
 
@@ -72,7 +72,7 @@ Compounds with an identical structure get a shortcut to this in the compound pan
 
 ## Drafts
 
-Creating `#Some new name` while writing makes a draft. The registry shows a nudge with the number of drafts; clicking it (or filtering by status *draft*) opens the **reconciliation panel**. For each draft:
+Creating `#Some new name` while writing makes a draft. Clicking the grey token offers a row of types right there; picking one and saving classifies it. The registry shows a nudge with the number of drafts; clicking it (or filtering by status *draft*) opens the **reconciliation panel**. For each draft:
 
 - suggested matches among existing entities — same name, alias, one name containing the other, a near spelling, or mostly shared words — each a one-click **merge**;
 - a type picker with **Keep as new**, which classifies the draft and marks it verified;
