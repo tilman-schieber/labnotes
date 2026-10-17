@@ -22,6 +22,7 @@ import {
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
 import DocumentFeed from './documents/DocumentFeed';
+import { readStampSteps, writeStampSteps } from './editor/extensions/StampedSteps';
 import { fetchEntity } from './api/backend';
 import { formatExperimentNumber } from './chemistry/batchCode';
 import UserSelect from './ui/UserSelect';
@@ -38,6 +39,7 @@ import {
   IconBold,
   IconBook,
   IconChevron,
+  IconClock,
   IconFlask,
   IconFolder,
   IconHeading,
@@ -122,6 +124,8 @@ export default function App() {
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   // The document whose title should be selected when its editor mounts (just created).
   const [focusTitleId, setFocusTitleId] = useState<string | null>(null);
+  // Protocol mode for the open experiment: new list items start with the time.
+  const [stampSteps, setStampSteps] = useState(false);
 
   const openEntityInRegistry = (entityId: string) => {
     setRegistryEntityId(entityId);
@@ -650,6 +654,25 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db]);
 
+  // What is open goes to the top of the sidebar's Recent list; protocol mode follows the document.
+  useEffect(() => {
+    if (!selectedDocument) {
+      return;
+    }
+    setStampSteps(readStampSteps(selectedDocument.id));
+    // A new page starts at its top, whatever the previous one was scrolled to.
+    window.scrollTo({ top: 0 });
+  }, [selectedDocument?.id]);
+
+  const toggleStampSteps = () => {
+    if (!selectedDocument) {
+      return;
+    }
+    const next = !stampSteps;
+    setStampSteps(next);
+    writeStampSteps(selectedDocument.id, next);
+    editor?.chain().focus().setStampSteps(next).run();
+  };
 
   const handleDocumentRestored = async () => {
     if (!selectedDocument) {
@@ -722,6 +745,7 @@ export default function App() {
                 key={action.label}
                 type="button"
                 className={`${action.isActive ? 'is-active' : ''}${action.wide ? ' toolbar-wide' : ''}`}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={action.onClick}
                 disabled={!editor || !selectedDocument}
                 title={action.label}
@@ -733,10 +757,26 @@ export default function App() {
             ))}
         </span>
       ))}
+      {selectedDocument?.kind === 'experiment' && (
+        <span className="toolbar-group">
+          <button
+            type="button"
+            className={`toolbar-wide${stampSteps ? ' is-active' : ''}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={toggleStampSteps}
+            title={stampSteps ? 'Stamping: every new list item starts with the current time. Click to stop.' : 'Stamp steps: start every new list item with the current time'}
+            aria-pressed={stampSteps}
+          >
+            <IconClock />
+            <span>{stampSteps ? 'Stamping' : 'Stamp steps'}</span>
+          </button>
+        </span>
+      )}
       {hintLabel && (
         <button
           type="button"
           className="toolbar-wide toolbar-hint-action"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor?.chain().focus().linkAllRecognized().convertAllQuantities().run()}
           title="Turn every underlined known name into a reference and every underlined amount into a quantity token (Ctrl/Cmd+Shift+L; Ctrl/Cmd+. for the next one)"
         >
@@ -1064,6 +1104,7 @@ export default function App() {
                   onAttachmentUploaded={() => setAttachmentsToken((previous) => previous + 1)}
                   toolbar={toolbar}
                   focusTitle={focusTitleId === selectedDocument.id}
+                  stampSteps={stampSteps}
                 />
 
                 {selectedDocument.kind !== 'experiment' && (

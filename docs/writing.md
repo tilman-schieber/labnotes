@@ -76,6 +76,8 @@ Recognition skips words inside a `#` or `@` you are still typing, glued single-l
 
 Write a procedure as a numbered or bulleted list (`1. ` or `- ` at the start of a line): one item per step, with its amounts, times and temperatures as tokens, and timestamps where you want to record when something happened. Nested items are sub-steps. Task lists (`[ ] `) give each step a checkbox.
 
+**Stamp steps** in the toolbar turns on protocol mode for the document: every new list item you start with Enter begins with the current time, so a procedure written as it happens records when each step began. Enter on an item that holds only its stamp leaves the list, as usual. The setting is remembered per document in this browser.
+
 ## The `/` palette
 
 Type `/` at the start of a word:

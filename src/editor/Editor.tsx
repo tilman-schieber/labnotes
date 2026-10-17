@@ -27,6 +27,7 @@ import { Recognition } from './extensions/Recognition';
 import { QuantityRecognition } from './extensions/QuantityRecognition';
 import { UnitSuggest } from './extensions/UnitSuggest';
 import { TokenSpacing } from './extensions/TokenSpacing';
+import { StampedSteps } from './extensions/StampedSteps';
 import { invalidateEntityCache } from './extensions/CompoundToken';
 import { refreshEntityTypes } from './entityTypes';
 
@@ -43,6 +44,8 @@ type Props = {
   toolbar?: ReactNode;
   // Select the title on mount so typing replaces the placeholder name (new experiments).
   focusTitle?: boolean;
+  // Start with "stamp new steps with the time" on (kept per document in the browser).
+  stampSteps?: boolean;
 };
 
 // Uploads image files from a paste/drop and inserts them; returns whether anything was handled.
@@ -76,6 +79,7 @@ export default function NotebookEditor({
   onAttachmentUploaded,
   toolbar,
   focusTitle = false,
+  stampSteps = false
 }: Props) {
   // The paste/drop handlers are created before `editor` exists, so they read it through a ref.
   const editorRef = useRef<Editor | null>(null);
@@ -115,6 +119,7 @@ export default function NotebookEditor({
       QuantityRecognition,
       UnitSuggest,
       TokenSpacing,
+      StampedSteps.configure({ enabled: stampSteps }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),
@@ -143,6 +148,11 @@ export default function NotebookEditor({
     onEditorReady(editor);
     return () => onEditorReady(null);
   }, [editor, onEditorReady]);
+
+  // The toggle lives in the toolbar; the extension reads it from its storage.
+  useEffect(() => {
+    editor?.commands.setStampSteps(stampSteps);
+  }, [editor, stampSteps]);
 
   // A freshly created document opens with its title selected: the first thing typed names it.
   useEffect(() => {

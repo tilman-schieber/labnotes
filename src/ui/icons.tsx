@@ -154,3 +154,9 @@ export const IconSign = (p: IconProps) => (
     <path d="m4 20 4-1 10-10-3-3L5 16zM13 7l3 3M3 22h18" />
   </Icon>
 );
+export const IconClock = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </Icon>
+);

@@ -29,6 +29,7 @@ Everything in the editor is reachable without the mouse. `/shortcuts` inside the
 | --- | --- |
 | Alt + N | new experiment in the current project, title selected |
 | Enter in the title | moves on to the body |
+| Toolbar "Stamp steps" | every new list item starts with the time |
 
 ## Reaction tables
 
