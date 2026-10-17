@@ -2853,6 +2853,15 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.reaction-conditions-compact {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.1rem 0.5rem 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
 .reaction-conditions-label {
   color: var(--muted, #6b7280);
   font-size: 0.72rem;

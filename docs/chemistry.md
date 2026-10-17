@@ -43,7 +43,7 @@ Rows created this way carry a small **¶ from text** marker; hover it to see the
 
 **▾ table / ▸ table** in the block header folds the stoichiometry table away: the scheme, the conditions and a one-line summary (rows, isolated mass and yield per product, warning count) stay visible. A table inserted from prose that already carries amounts starts folded, since the summary line says what matters; an empty one opens for typing. The choice is kept with the document.
 
-In the table, density and purity inputs appear only when they have a value or you ask for them with **+ density / purity** on the row, so a row is one line tall. Rows read from the prose carry a small **¶**; hover it for the sentence.
+The open table shows amounts and equivalents only. **▸ details** in the header adds the MW column, the concentration / density / purity column and turns the conditions line into inputs; without it, conditions read as one line with an **edit** link. The setting is kept with the block. In the details view, density and purity inputs appear only when they have a value or you ask for them with **+ density / purity** on the row, so a row is one line tall. Rows read from the prose carry a small **¶**; hover it for the sentence.
 
 **The yield goes back into the text.** When a product row has an isolated mass that was read from a sentence, the table writes the computed yield after it — `gave 1.15 g of #Methyl benzoate (85 % yield)` — and keeps it current when the numbers change; a yield above 100 % is a warning in the table and never written. The sentence is the record; the table explains it.
 

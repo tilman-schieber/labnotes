@@ -2,7 +2,7 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { fetchSuggestions, registerBatch, searchEntities, type BackendEntitySearchResult, type BackendSuggestion } from '../api/backend';
 import { getCurrentUserId } from '../storage/currentUser';
-import { EMPTY_CONDITIONS, extractConditions, mergeConditions, type Atmosphere, type ReactionConditions } from '../chemistry/conditions';
+import { EMPTY_CONDITIONS, describeConditions, extractConditions, mergeConditions, type Atmosphere, type ReactionConditions } from '../chemistry/conditions';
 import { isCompoundAttributes, smilesToSvg, type CompoundAttributes } from '../chemistry/molecule';
 import { COMPONENT_ROLES, computeReaction, createComponent, type ComponentRole, type ReactionComponent } from '../chemistry/reaction';
 import { componentsFromBlocks, mergeComponents, sectionBlocksBefore } from '../chemistry/reactionFromText';
@@ -512,6 +512,10 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
   // Density and purity are rarely typed: the cell shows them only when they have a value or the
   // writer asked for them, so a row is one line tall by default.
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set());
+  // Without details the table is amounts and equivalents; MW, concentration, density, purity
+  // and the condition inputs stay out of the way until asked for.
+  const details = Boolean(attrs.details);
+  const [editingConditions, setEditingConditions] = useState(false);
   const expandRow = (id: string) => setExpandedRows((previous) => new Set([...previous, id]));
 
   // The yield a product row computes is written back into the sentence its isolated mass was
@@ -587,6 +591,17 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
             ↻ from text
           </button>
         )}
+        {!collapsed && (
+          <button
+            type="button"
+            className="reaction-collapse"
+            onClick={() => updateAttributes({ details: !details })}
+            title={details ? 'Hide MW, concentration, density and purity' : 'Show MW, concentration, density and purity'}
+            aria-pressed={details}
+          >
+            {details ? '▾ details' : '▸ details'}
+          </button>
+        )}
         <button
           type="button"
           className="reaction-collapse"
@@ -602,9 +617,26 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
         <SchemeView components={attrs.components} conditions={attrs.conditions} scheme={attrs.scheme ?? null} disabled={disabled} onChange={(scheme) => updateAttributes({ scheme })} />
       )}
 
-      {(!disabled || attrs.conditions) && (
-        <ConditionsLine conditions={attrs.conditions} disabled={disabled} onChange={(conditions) => updateAttributes({ conditions })} />
-      )}
+      {(() => {
+        const text = describeConditions(attrs.conditions);
+        if (!disabled && (details || editingConditions)) {
+          return <ConditionsLine conditions={attrs.conditions} disabled={disabled} onChange={(conditions) => updateAttributes({ conditions })} />;
+        }
+        if (!text && disabled) {
+          return null;
+        }
+        return (
+          <div className="reaction-conditions-compact">
+            <span className="reaction-conditions-label">Conditions</span>
+            <span>{text || <span className="entity-muted">none recorded</span>}</span>
+            {!disabled && (
+              <button type="button" className="link-button" onClick={() => setEditingConditions(true)}>
+                {text ? 'edit' : '+ add'}
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {collapsed && (
         <div className="reaction-summary-line">
@@ -620,12 +652,12 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
             <tr>
               <th>Role</th>
               <th>Compound</th>
-              <th>MW</th>
+              {details && <th>MW</th>}
               <th>Equiv</th>
               <th>mmol</th>
               <th>Mass</th>
               <th>Volume</th>
-              <th>Conc. / density / purity</th>
+              {details && <th>Conc. / density / purity</th>}
               <th>Yield</th>
               <th />
             </tr>
@@ -664,9 +696,11 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                       </span>
                     )}
                   </td>
-                  <td>
-                    <NumberInput value={component.molecularWeight} placeholder="g/mol" disabled={disabled} onChange={(value) => patch(component.id, { molecularWeight: value })} />
-                  </td>
+                  {details && (
+                    <td>
+                      <NumberInput value={component.molecularWeight} placeholder="g/mol" disabled={disabled} onChange={(value) => patch(component.id, { molecularWeight: value })} />
+                    </td>
+                  )}
                   <td>
                     <NumberInput value={component.equivalents} placeholder={component.computedEquivalents?.toString() ?? 'equiv'} disabled={disabled} onChange={(value) => patch(component.id, { equivalents: value })} />
                     {component.computedEquivalents !== null && component.computedEquivalents !== component.equivalents && (
@@ -694,6 +728,7 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                       <QuantityInput value={component.volume} field="volume" disabled={disabled} onChange={(value) => patchAmount(component, 'volume', value)} />
                     )}
                   </td>
+                  {details && (
                   <td>
                     {!isProduct && (() => {
                       const showAll = expandedRows.has(component.id);
@@ -713,6 +748,7 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                       );
                     })()}
                   </td>
+                  )}
                   <td>
                     {isProduct && (
                       <div className="reaction-stack">

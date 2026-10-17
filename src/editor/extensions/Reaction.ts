@@ -14,6 +14,9 @@ export type ReactionAttrs = {
   scheme: string | null;
   // Table folded away: scheme, conditions and the summary line stay visible.
   collapsed: boolean;
+  // Open table showing every column (MW, concentration, density, purity) and the condition
+  // inputs; off, the table is amounts and equivalents only.
+  details: boolean;
 };
 
 declare module '@tiptap/core' {
@@ -91,6 +94,11 @@ export const ReactionNode = Node.create<ReactionOptions>({
         default: true,
         parseHTML: (element) => element.getAttribute('data-collapsed') === 'true',
         renderHTML: (attributes) => (attributes.collapsed ? { 'data-collapsed': 'true' } : {})
+      },
+      details: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-details') === 'true',
+        renderHTML: (attributes) => (attributes.details ? { 'data-details': 'true' } : {})
       }
     };
   },
@@ -137,7 +145,7 @@ export const ReactionNode = Node.create<ReactionOptions>({
           const collapsed = fromText.some((component) => component.mass || component.volume || component.actualMass || component.amount);
           return commands.insertContent({
             type: this.name,
-            attrs: { title: '', components, conditions, scheme: null, collapsed } satisfies ReactionAttrs
+            attrs: { title: '', components, conditions, scheme: null, collapsed, details: false } satisfies ReactionAttrs
           });
         }
     };
