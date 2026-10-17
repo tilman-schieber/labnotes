@@ -74,6 +74,10 @@
 
 **Planned amount** — the value a quantity token had in the template or the previous run; a changed value shows the deviation. → [Writing](writing.md#quantities)
 
+**Barcode** — a code printed as a Code 128 label from the registry and read back by a scanner as a `#` lookup. → [Entities](entities.md#where-things-are)
+
+**Stored in** — the relation that says where something is kept, read from "stored #A in #B" or set in the popover. → [Entities](entities.md#where-things-are)
+
 **Reaction table** — a block computing stoichiometry from its rows, pre-filled from the section above. → [Chemistry](chemistry.md#reaction-tables)
 
 **Recognition** — underlining of plain-text names and amounts that could be tokens; nothing changes until you click or use the shortcuts. → [Writing](writing.md#recognition-names-and-amounts-you-did-not-tokenise)

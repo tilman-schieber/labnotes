@@ -24,6 +24,10 @@ With values present the plate becomes a **heat map** (pale to deep per value, th
 
 Values are not quantities in the text: they are not summed into usages and they carry no unit beyond the measure's name. Write the conclusion in the prose, as always.
 
+## The plate as a container
+
+**Register as container** in the block header creates a container entity for the plate (kind *microplate*, the format as an attribute) and links the block to it. Other experiments can then write `#` and the plate's name; the entry it was laid out in is listed among its references.
+
 ## Clones and the PDF
 
 A [clone](history.md) of the experiment keeps the plate's layout and notes and drops the values, so the next run starts from the same plate. The PDF export draws the plate with its colours and values, the legend with counts and means, the value range and the note summary.

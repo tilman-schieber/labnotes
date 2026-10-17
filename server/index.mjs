@@ -1098,6 +1098,7 @@ app.get('/api/entities/search', async (request, response) => {
           )
           or lower(e.attributes->>'casNumber') = $1
           or lower(e.attributes->>'formula') = $1
+          or lower(e.attributes->>'barcode') = $1
         )
       order by
         e.last_used is not null desc,
@@ -1157,7 +1158,9 @@ app.get('/api/entities', async (request, response) => {
         e.attributes,
         e.created_at as "createdAt",
         e.updated_at as "updatedAt",
-        (select count(*)::int from document_mentions m where m.ref_type = 'entity' and m.target_id = e.id) as "mentionCount"
+        (select count(*)::int from document_mentions m where m.ref_type = 'entity' and m.target_id = e.id) as "mentionCount",
+        (select r.object_entity_id from entity_relations r where r.subject_entity_id = e.id and r.predicate = 'stored_in' order by r.created_at desc limit 1) as "storedInId",
+        (select o.label from entity_relations r join entities o on o.id = r.object_entity_id where r.subject_entity_id = e.id and r.predicate = 'stored_in' order by r.created_at desc limit 1) as "storedInLabel"
       from entities e
       where
         ($2 = '' or e.type = $2)
@@ -1173,6 +1176,7 @@ app.get('/api/entities', async (request, response) => {
           or e.attributes->>'idCode' = $4
           or lower(e.attributes->>'smiles') = $1
           or lower(e.attributes->>'casNumber') = $1
+          or lower(e.attributes->>'barcode') = $1
         )
       order by
         ($1 <> '' and lower(e.label) like $1 || '%') desc,

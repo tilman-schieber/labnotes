@@ -1,6 +1,7 @@
 import { createId } from './ids.mjs';
 import { extractUsages } from '../../src/chemistry/usages.ts';
 import { extractResults } from '../../src/chemistry/results.ts';
+import { extractTransfers } from '../../src/chemistry/transfers.ts';
 
 // TipTap node type -> document_mentions.ref_type
 const MENTION_NODE_TYPES = {
@@ -48,6 +49,7 @@ export function extractMentions(content) {
     }
     if (node.type === 'plate' && Array.isArray(node.attrs?.groups)) {
       node.attrs.groups.forEach((group) => add('entity', group?.entityId, group?.label));
+      add('entity', node.attrs?.entityId, node.attrs?.title || null);
     }
     if (node.type === 'results' && Array.isArray(node.attrs?.rows)) {
       node.attrs.rows.forEach((row) => add('entity', row?.entityId, row?.label));
@@ -159,9 +161,36 @@ export async function syncDocumentMentions(client, documentId, content) {
 
   await syncDocumentUsages(client, documentId, content);
   await syncDocumentResults(client, documentId, content);
+  await syncDocumentRelations(client, documentId, content);
   return mentions;
 }
 
+// Confidence that marks a relation as read from a sentence; hand-made ones carry null.
+export const DERIVED_RELATION_CONFIDENCE = 0.5;
+
+// "stored #A in #B" and "took 2 mL of #A into #B" become stored_in / derived_from relations
+// with the document as source. Re-read on every save; relations a person added stay.
+export async function syncDocumentRelations(client, documentId, content) {
+  const transfers = extractTransfers(content);
+  await client.query('delete from entity_relations where source_document_id = $1 and confidence = $2', [documentId, DERIVED_RELATION_CONFIDENCE]);
+  for (const transfer of transfers) {
+    const existing = await client.query(
+      'select id from entity_relations where subject_entity_id = $1 and predicate = $2 and object_entity_id = $3 limit 1',
+      [transfer.subjectId, transfer.kind, transfer.objectId]
+    );
+    if (existing.rows.length > 0) {
+      continue;
+    }
+    await client.query(
+      `
+        insert into entity_relations (id, subject_entity_id, predicate, object_entity_id, confidence, source_document_id)
+        values ($1, $2, $3, $4, $5, $6)
+      `,
+      [createId('relation'), transfer.subjectId, transfer.kind, transfer.objectId, DERIVED_RELATION_CONFIDENCE, documentId]
+    );
+  }
+  return transfers;
+}
 
 // Results are derived like usages: replaced on every save.
 export async function syncDocumentResults(client, documentId, content) {

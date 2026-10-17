@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Editor } from '@tiptap/core';
-import { fetchEntity, updateEntity, type BackendEntityDetail } from '../api/backend';
+import { addEntityRelation, deleteEntityRelation, fetchEntity, searchEntities, updateEntity, type BackendEntityDetail, type BackendEntitySearchResult } from '../api/backend';
 import { describeSmiles, isCompoundAttributes, smilesToSvg } from '../chemistry/molecule';
 import AttributeFields from '../registry/AttributeFields';
 import StructureEditorDialog from '../registry/StructureEditorDialog';
@@ -79,6 +79,11 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Where it is kept: the stored_in relation, editable here for anything that can be put somewhere.
+  const [storedIn, setStoredIn] = useState<{ id: string; label: string } | null>(null);
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [placeResults, setPlaceResults] = useState<BackendEntitySearchResult[]>([]);
+  const [placeOpen, setPlaceOpen] = useState(false);
   // The Ketcher dialog is portalled outside the popover; while it is open the popover stays.
   const [isDrawing, setIsDrawing] = useState(false);
   const container = useRef<HTMLDivElement | null>(null);
@@ -95,6 +100,9 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
         setType(next.entity.type);
         setAttributes(next.entity.attributes ?? {});
         setSmiles(isCompoundAttributes(next.entity.attributes) ? next.entity.attributes.smiles ?? '' : '');
+        const place = next.relations.find((relation) => relation.predicate === 'stored_in' && relation.subjectEntityId === entityId);
+        setStoredIn(place ? { id: place.objectEntityId, label: place.objectLabel } : null);
+        setPlaceQuery(place?.objectLabel ?? '');
       })
       .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : 'Could not load the entity'));
     return () => {
@@ -146,6 +154,26 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
     };
   }, [onClose, isDrawing]);
 
+  useEffect(() => {
+    if (!placeOpen || !placeQuery.trim()) {
+      setPlaceResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      searchEntities(placeQuery, { type: ['container', 'location'] })
+        .then((items) => {
+          if (!cancelled) {
+            setPlaceResults(items.filter((item) => item.id !== entityId).slice(0, 6));
+          }
+        })
+        .catch(() => undefined);
+    }, 150);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [placeQuery, placeOpen, entityId]);
 
   const isDraft = detail?.entity.status === 'draft';
   const isDocument = detail?.entity.type === 'document';
@@ -174,6 +202,14 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
       // A draft given a real type is classified: that is what "verified" means here.
       const status = detail.entity.status === 'draft' && type !== DRAFT_TYPE ? 'verified' : detail.entity.status;
       await updateEntity(entityId, { label: trimmedLabel, type, subtype: detail.entity.subtype ?? null, status, attributes: nextAttributes });
+      // The place: replace the stored_in relation when it changed.
+      const current = detail.relations.filter((relation) => relation.predicate === 'stored_in' && relation.subjectEntityId === entityId);
+      if ((current[0]?.objectEntityId ?? null) !== (storedIn?.id ?? null)) {
+        await Promise.all(current.map((relation) => deleteEntityRelation(entityId, relation.id)));
+        if (storedIn) {
+          await addEntityRelation(entityId, 'stored_in', storedIn.id);
+        }
+      }
       invalidateEntityCache(entityId);
       relabelTokens(editor, entityId, trimmedLabel);
       window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
@@ -253,6 +289,47 @@ function EntityPopover({ entityId, editor, inlineStructure, onToggleInline, onCl
             )}
             {svg && <div className="entity-popover-svg" dangerouslySetInnerHTML={{ __html: svg }} />}
 
+            {type !== 'location' && type !== DRAFT_TYPE && (
+              <label className="entity-popover-row entity-popover-place">
+                Stored in
+                <span className="entity-popover-place-field">
+                  <input
+                    type="text"
+                    value={placeQuery}
+                    placeholder="a freezer, box, shelf, room…"
+                    onFocus={() => setPlaceOpen(true)}
+                    onBlur={() => window.setTimeout(() => setPlaceOpen(false), 120)}
+                    onChange={(event) => {
+                      setPlaceQuery(event.target.value);
+                      setPlaceOpen(true);
+                      if (!event.target.value.trim()) {
+                        setStoredIn(null);
+                      }
+                    }}
+                  />
+                  {storedIn && <span className="badge type-badge type-container">{storedIn.label}</span>}
+                  {placeOpen && placeResults.length > 0 && (
+                    <div className="mention-list entity-popover-place-list">
+                      {placeResults.map((result) => (
+                        <div
+                          key={result.id}
+                          className="mention-item"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            setStoredIn({ id: result.id, label: result.label });
+                            setPlaceQuery(result.label);
+                            setPlaceOpen(false);
+                          }}
+                        >
+                          <div className="mention-item-label">{result.label}</div>
+                          <div className="mention-item-meta">{result.type}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </span>
+              </label>
+            )}
             {(ATTRIBUTE_SCHEMA[type] ?? []).length > 0 && <AttributeFields type={type} attributes={attributes} onChange={setAttributes} />}
           </>
         )}

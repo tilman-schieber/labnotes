@@ -464,7 +464,7 @@ export type BackendEntityRecord = {
   updatedAt: string;
 };
 
-export type BackendEntityListItem = BackendEntityRecord & { mentionCount: number };
+export type BackendEntityListItem = BackendEntityRecord & { mentionCount: number; storedInId?: string | null; storedInLabel?: string | null };
 
 export type BackendEntityAlias = {
   id: string;

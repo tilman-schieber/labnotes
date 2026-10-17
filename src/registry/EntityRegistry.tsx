@@ -69,6 +69,38 @@ const refsColumn: Column = { key: 'refs', label: 'Used in', numeric: true, rende
 
 const kindColumn: Column = { key: 'kind', label: 'Kind', render: (entity) => <span className={`badge type-badge type-${entity.type}`}>{typeLabel(entity.type)}</span> };
 
+// Where it is: the stored_in relation (from "stored #A in #B" or the popover), else the storage text.
+const whereColumn: Column = { key: 'where', label: 'Where', render: (entity) => entity.storedInLabel || attribute(entity, 'storage') };
+
+// Places nest: a box in a freezer in a room. Parents first, children indented under them.
+function treeOrder(list: BackendEntityListItem[]): { entity: BackendEntityListItem; depth: number }[] {
+  const ids = new Set(list.map((entity) => entity.id));
+  const children = new Map<string | null, BackendEntityListItem[]>();
+  for (const entity of list) {
+    const parent = entity.storedInId && ids.has(entity.storedInId) ? entity.storedInId : null;
+    children.set(parent, [...(children.get(parent) ?? []), entity]);
+  }
+  const out: { entity: BackendEntityListItem; depth: number }[] = [];
+  const seen = new Set<string>();
+  const walk = (parent: string | null, depth: number) => {
+    for (const entity of children.get(parent) ?? []) {
+      if (seen.has(entity.id)) {
+        continue;
+      }
+      seen.add(entity.id);
+      out.push({ entity, depth });
+      walk(entity.id, depth + 1);
+    }
+  };
+  walk(null, 0);
+  list.forEach((entity) => {
+    if (!seen.has(entity.id)) {
+      out.push({ entity, depth: 0 });
+    }
+  });
+  return out;
+}
+
 const COLUMNS: Record<string, Column[]> = {
   chemicals: [
     { key: 'structure', label: '', render: (entity) => (typeof entity.attributes?.smiles === 'string' && entity.attributes.smiles ? <StructureThumb smiles={entity.attributes.smiles} /> : <span className="registry-structure registry-structure-empty" />) },
@@ -78,6 +110,7 @@ const COLUMNS: Record<string, Column[]> = {
     { key: 'mw', label: 'MW', numeric: true, render: (entity) => attribute(entity, 'molecularWeight') },
     { key: 'cas', label: 'CAS / purity', render: (entity) => attribute(entity, 'casNumber') || (attribute(entity, 'purity') ? `${attribute(entity, 'purity')} %` : '') },
     { key: 'amount', label: 'Stock', render: (entity) => attribute(entity, 'amount') },
+    whereColumn,
     refsColumn
   ],
   reagents: [
@@ -87,6 +120,7 @@ const COLUMNS: Record<string, Column[]> = {
     { key: 'conc', label: 'Conc.', render: (entity) => attribute(entity, 'concentration') },
     { key: 'amount', label: 'Stock', render: (entity) => attribute(entity, 'amount') },
     { key: 'expiry', label: 'Expiry', render: (entity) => attribute(entity, 'expiry') },
+    whereColumn,
     refsColumn
   ],
   samples: [
@@ -94,6 +128,7 @@ const COLUMNS: Record<string, Column[]> = {
     kindColumn,
     { key: 'organism', label: 'Organism', render: (entity) => attribute(entity, 'organism') },
     { key: 'condition', label: 'Condition', render: (entity) => [attribute(entity, 'condition'), attribute(entity, 'timepoint')].filter(Boolean).join(' · ') },
+    whereColumn,
     { key: 'collected', label: 'Collected', render: (entity) => attribute(entity, 'collectedAt') },
     refsColumn
   ],
@@ -110,6 +145,7 @@ const COLUMNS: Record<string, Column[]> = {
     { key: 'kind', label: 'What', render: (entity) => attribute(entity, 'kind') || [attribute(entity, 'building'), attribute(entity, 'room')].filter(Boolean).join(' ') },
     { key: 'temperature', label: 'Temperature', render: (entity) => attribute(entity, 'temperature') },
     { key: 'position', label: 'Position', render: (entity) => attribute(entity, 'position') },
+    { key: 'barcode', label: 'Barcode', render: (entity) => <span className="registry-barcode">{attribute(entity, 'barcode')}</span> },
     refsColumn
   ],
   unsorted: [nameColumn('Written as'), refsColumn],
@@ -218,6 +254,7 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
   }, [entities, showArchived, onlyExpiring]);
 
   const expiringCount = entities.filter((entity) => expiryState(entity.attributes) !== null).length;
+  const ordered = useMemo(() => (!searching && shelf.id === 'places' ? treeOrder(visible) : visible.map((entity) => ({ entity, depth: 0 }))), [visible, searching, shelf.id]);
   const columns = COLUMNS[searching ? 'search' : shelf.id] ?? COLUMNS.search;
 
   // Tokens in open documents colour themselves by the registry's type, so tell them; the
@@ -375,14 +412,15 @@ export default function EntityRegistry({ onOpenDocument, initialSelectedId = nul
                 </td>
               </tr>
             )}
-            {visible.map((entity) => (
+            {ordered.map(({ entity, depth }) => (
               <tr
                 key={entity.id}
                 className={`registry-row${entity.id === selectedId ? ' is-active' : ''}${entity.status === 'archived' ? ' is-archived' : ''}${entity.status === 'draft' ? ' is-draft' : ''}`}
                 onClick={() => setSelectedId(entity.id)}
               >
-                {columns.map((column) => (
-                  <td key={column.key} className={column.numeric ? 'is-numeric' : undefined}>
+                {columns.map((column, index) => (
+                  <td key={column.key} className={column.numeric ? 'is-numeric' : undefined} style={index === 0 && depth > 0 ? { paddingLeft: `${0.5 + depth * 1.2}rem` } : undefined}>
+                    {index === 0 && depth > 0 && <span className="registry-tree-branch">└ </span>}
                     {column.render(entity)}
                   </td>
                 ))}

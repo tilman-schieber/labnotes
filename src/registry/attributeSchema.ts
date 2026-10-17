@@ -75,6 +75,13 @@ export const ATTRIBUTE_SCHEMA: Record<string, AttributeField[]> = {
   ]
 };
 
+// Everything can carry a barcode: printed from the registry, read back by a scanner as a `#` lookup.
+for (const fields of Object.values(ATTRIBUTE_SCHEMA)) {
+  if (!fields.some((field) => field.key === 'barcode')) {
+    fields.push({ key: 'barcode', label: 'Barcode', kind: 'text', placeholder: 'scan, or assign one' });
+  }
+}
+
 // Keys that a type's panel or the chemistry panel manages elsewhere; hidden from the raw JSON editor.
 export const MANAGED_KEYS = new Set(['smiles', 'idCode', 'formula', 'molecularWeight', 'exactMass', 'logP', 'tpsa', 'hDonors', 'hAcceptors', 'pubchemCid', 'madeInDocumentId', 'analytics', 'autoClassify', 'ghs', 'ghsAttemptedAt', 'madeBy']);
 

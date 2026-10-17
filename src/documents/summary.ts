@@ -39,6 +39,10 @@ function collectEntities(node: JSONContent, into: Map<string, { id: string; labe
     }
   }
   if (node.type === 'plate') {
+    const plateId = node.attrs?.entityId as string | null | undefined;
+    if (plateId && !into.has(plateId)) {
+      into.set(plateId, { id: plateId, label: String(node.attrs?.title || 'plate'), type: 'container' });
+    }
     for (const group of (node.attrs?.groups as { entityId?: string | null; label?: string; entityType?: string | null }[] | undefined) ?? []) {
       if (group.entityId && !into.has(group.entityId)) {
         into.set(group.entityId, { id: group.entityId, label: group.label ?? group.entityId, type: group.entityType ?? 'entity' });

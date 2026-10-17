@@ -1,6 +1,6 @@
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { searchEntities, type BackendEntitySearchResult } from '../api/backend';
+import { createEntity, searchEntities, type BackendEntitySearchResult } from '../api/backend';
 import {
   PALETTE,
   PLATE_FORMATS,
@@ -282,6 +282,22 @@ export default function PlateView({ node, updateAttributes, editor, selected }: 
     ...notes.wells.slice(0, 12).map((item) => `${item.id}: ${item.note}`),
     ...(notes.wells.length > 12 ? [`… ${notes.wells.length - 12} more`] : [])
   ].join(' · ');
+  const [registering, setRegistering] = useState(false);
+  const [registeredLabel, setRegisteredLabel] = useState<string | null>(null);
+  // The plate becomes a container in the registry: "#P-… " in a later entry inherits the layout
+  // by reference, and the plate shows up on the Storage & places shelf.
+  const registerPlate = async () => {
+    setRegistering(true);
+    try {
+      const label = attrs.title.trim() || `${attrs.format}-well plate ${new Date().toISOString().slice(0, 10)}`;
+      const entity = await createEntity('container', label, 'verified', { attributes: { kind: 'microplate', format: attrs.format } });
+      update({ entityId: entity.id });
+      setRegisteredLabel(entity.label);
+      window.dispatchEvent(new CustomEvent('labnotes:entities-changed'));
+    } finally {
+      setRegistering(false);
+    }
+  };
   const current = selectedWell ? wellAt(attrs, selectedWell) : null;
   const filled = Object.values(attrs.wells).filter((well) => well.group !== null).length;
 
@@ -306,6 +322,17 @@ export default function PlateView({ node, updateAttributes, editor, selected }: 
               {attrs.measure || 'Values'}
             </button>
           </span>
+        )}
+        {attrs.entityId ? (
+          <button type="button" className="link-button plate-registered" onClick={() => window.dispatchEvent(new CustomEvent('labnotes:open-entity', { detail: { entityId: attrs.entityId } }))} title="Registered as a container; open it in the registry">
+            #{registeredLabel ?? attrs.title ?? 'plate'}
+          </button>
+        ) : (
+          !disabled && (
+            <button type="button" className="link-button" onClick={() => void registerPlate()} disabled={registering} title="Create a container entity for this plate so other entries can reference it">
+              {registering ? 'Registering…' : 'Register as container'}
+            </button>
+          )
         )}
         {!disabled && (
           <>

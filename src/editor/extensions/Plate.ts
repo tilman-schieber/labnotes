@@ -57,6 +57,12 @@ export const PlateNode = Node.create({
       measure: {
         default: '',
         parseHTML: (element) => element.getAttribute('data-measure') ?? ''
+      },
+      // The container entity this plate was registered as, so other entries can reference it.
+      entityId: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-entity-id') || null,
+        renderHTML: (attributes) => (attributes.entityId ? { 'data-entity-id': attributes.entityId } : {})
       }
     };
   },

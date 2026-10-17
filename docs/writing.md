@@ -67,6 +67,14 @@ The pattern is *measure* **of** *#entity* **was / is / = / reads** *number* *uni
 
 For many samples at once, type `/results`: a small table with one row per sample and one column per measure (with a unit). **Paste…** takes a spreadsheet export whose header row names the measures (`Viability (%)` gives the unit) and whose first column names the samples; names that match a reference in the document are linked automatically, others can be picked from the registry. Every number in a linked row is a result. A [plate](plates.md) with a measure records the mean per group that is a registry entity in the same way.
 
+## Moving things: storage and transfers
+
+Two more things the sentence records (see [Where things are](entities.md#where-things-are)):
+
+> Stored #Batch 7 in #Freezer 2, box 3. Took 2 mL of #Stock A into #Tube 14 and #Tube 15.
+
+The first puts Batch 7 *in* Freezer 2 (Storage & places shelf, Where column, hover card); the second makes the tubes *derived from* Stock A with 2 mL taken, which the registry shows under Around this entity and in Stock A's stock.
+
 ## Recognition: names and amounts you did not tokenise
 
 Plain text that matches a registry name (label or alias, three characters or more) is underlined, and so are amounts written without a token (`25mg` pasted from somewhere, or typed before the unit was known). Nothing changes until you ask:

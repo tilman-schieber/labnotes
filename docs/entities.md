@@ -70,6 +70,16 @@ In the registry an entity shows:
 - a **Timeline**: every usage in experiment-date order (the experiment's date field, else its creation date) with the running total after each; the sentence is on hover;
 - **Stock**, when a stock is recorded — see above.
 
+## Where things are
+
+**Stored in.** A sample, reagent, batch, compound or container can be *in* a container or location: a box in a freezer in a room. Say so in the text — `Stored #Batch 7 in #Freezer 2` — or pick the place in the popover's **Stored in** field (or the Relations section of the registry page). The **Storage & places** shelf shows containers and locations as a tree, and the other shelves have a **Where** column. Sentences like *put back into*, *kept at*, *moved to* count too; a relation read from a sentence is dropped again when the sentence goes.
+
+**Transfers.** `Took 2 mL of #Stock A into #Tube 14 and #Tube 15`, `Aliquoted the #Lysate into #Cryotube 1`, `Inoculated 5 mL of #LB from #Colony 3 into #Flask 1` make the destination *derived from* the source (shown under **Around this entity**), and the amount is a usage of the source as usual. Verbs understood: took, transferred, pipetted, aliquoted, poured, dispensed, withdrew, split, inoculated, seeded, streaked, plated, harvested, passaged.
+
+**Barcodes.** Every entry can carry a barcode: type one from an existing sticker into the Barcode field, or **Assign a barcode** on its registry page (`SM-7K3Q9D`-style, no look-alike characters). **Print label** opens a printable Code 128 label with the name and the date. A scanner types the code, so `#` followed by a scan finds the entry in the picker, and the search box finds it too.
+
+**Plates as containers.** A [plate block](plates.md) can **Register as container**: the plate becomes an entry on the Storage & places shelf that other experiments can reference with `#`, and that links back to the entry it was laid out in.
+
 ## Results
 
 Measured values read from documents — "OD600 of #Culture A was 1.21", a row of a `/results` table, the mean of a plate group — listed newest first with the measure, the value and the sentence or block they came from. See [Results](writing.md#results-what-came-out) for the patterns. The hover card on a reference shows the latest one.

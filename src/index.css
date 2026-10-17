@@ -4277,3 +4277,49 @@ button:disabled {
   font-weight: 600;
 }
 
+/* ---------- Inventory: places, barcodes ---------- */
+.registry-tree-branch {
+  color: var(--text-3);
+}
+
+.registry-barcode {
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+}
+
+.entity-label-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0;
+  font-size: 0.82rem;
+}
+
+.registry-barcode-svg svg {
+  display: block;
+}
+
+.entity-popover-place-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.entity-popover-place-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.entity-popover-place-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 14rem;
+}
+
+.plate-registered {
+  font-weight: 500;
+}

@@ -39,6 +39,8 @@ export type PlateAttrs = {
   wells: Record<string, PlateWell>;
   // What the values are: "OD600", "fluorescence", "CFU"…
   measure: string;
+  // Registry container this plate is, once registered from the block.
+  entityId?: string | null;
 };
 
 export const PALETTE = ['#60a5fa', '#f59e0b', '#34d399', '#f472b6', '#a78bfa', '#fb7185', '#2dd4bf', '#facc15', '#94a3b8', '#c084fc', '#fb923c', '#4ade80'];

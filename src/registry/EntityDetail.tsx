@@ -22,6 +22,7 @@ import { expiryState } from './attributeSchema';
 import BatchList from './BatchList';
 import BatchPanel from './BatchPanel';
 import { typeLabel } from './typeCatalog';
+import { code128Svg, newBarcode } from './code128';
 import CompoundPanel from './CompoundPanel';
 import { stockState, usageTimeline } from './stock';
 import { confirmDialog } from '../ui/dialogs';
@@ -290,6 +291,37 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
     }
   };
 
+  // Labels: a Code 128 of the barcode attribute, assigned here or typed from an existing sticker.
+  const assignBarcode = async () => {
+    if (!detail) {
+      return;
+    }
+    const barcode = newBarcode(detail.entity.type);
+    await updateEntity(entityId, {
+      label: detail.entity.label,
+      type: detail.entity.type,
+      subtype: detail.entity.subtype ?? null,
+      status: detail.entity.status,
+      attributes: { ...(detail.entity.attributes ?? {}), barcode }
+    });
+    await load();
+    onChanged();
+  };
+
+  const printLabel = () => {
+    if (!detail) {
+      return;
+    }
+    const barcode = String(detail.entity.attributes?.barcode ?? '');
+    const popup = window.open('', '_blank', 'width=420,height=260');
+    if (!popup) {
+      return;
+    }
+    const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    popup.document.write(`<!doctype html><title>Label ${escape(barcode)}</title><style>body{font-family:system-ui,sans-serif;margin:12px}.label{display:inline-block;border:1px dashed #999;padding:8px 10px}.name{font-weight:600;font-size:13px;margin-bottom:4px}.meta{font-size:10px;color:#555}@media print{.label{border:none}}</style><div class="label"><div class="name">${escape(detail.entity.label)}</div>${code128Svg(barcode, { height: 40, module: 2 })}<div class="meta">${escape(typeLabel(detail.entity.type))} · ${escape(new Date().toISOString().slice(0, 10))}</div></div><script>window.onload=function(){window.print()}</script>`);
+    popup.document.close();
+  };
+
   return (
     <div className="entity-detail">
       <form className="entity-form" onSubmit={(event) => void handleSave(event)}>
@@ -410,6 +442,24 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
           {error && <span className="entity-error">{error}</span>}
         </div>
       </form>
+
+      <div className="entity-label-bar">
+        {typeof detail.entity.attributes?.barcode === 'string' && detail.entity.attributes.barcode ? (
+          <>
+            <span className="registry-barcode-svg" dangerouslySetInnerHTML={{ __html: code128Svg(String(detail.entity.attributes.barcode), { height: 28, module: 1.5 }) }} />
+            <button type="button" className="link-button" onClick={() => printLabel()}>
+              Print label
+            </button>
+            <span className="entity-muted">Scanning it types the code: `#` + scan finds this entry.</span>
+          </>
+        ) : (
+          !isDocument && (
+            <button type="button" className="link-button" onClick={() => void assignBarcode()}>
+              Assign a barcode
+            </button>
+          )
+        )}
+      </div>
 
       {detail.entity.type === 'compound' && isCompoundAttributes(detail.entity.attributes) && (
         <CompoundPanel
