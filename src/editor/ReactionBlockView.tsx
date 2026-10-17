@@ -514,6 +514,53 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set());
   const expandRow = (id: string) => setExpandedRows((previous) => new Set([...previous, id]));
 
+  // The yield a product row computes is written back into the sentence its isolated mass was
+  // read from, as "(84 % yield)" after the amount and the name, and kept in step with the table.
+  // The text is the record; the table only explains it.
+  useEffect(() => {
+    if (disabled) {
+      return;
+    }
+    const position = typeof getPos === 'function' ? getPos() : null;
+    if (position === null || position === undefined) {
+      return;
+    }
+    const { doc } = editor.state;
+    const { from, to } = sectionRange(doc, doc.resolve(position).index(0));
+    const bound = findBoundQuantities(doc, from, to);
+    const edits: { from: number; to: number; text: string | null }[] = [];
+    for (const product of summary.components.filter((component) => component.role === 'product' && component.entityId)) {
+      const mass = (bound.get(product.entityId as string) ?? []).find((item) => item.dimension === 'mass');
+      if (!mass) {
+        continue;
+      }
+      // After whichever of amount and name comes last; both are one-position atoms.
+      const anchor = Math.max(mass.pos, mass.entityPos ?? mass.pos) + 1;
+      const after = doc.resolve(anchor).nodeAfter;
+      const text = after?.isText ? after.text ?? '' : '';
+      const existing = /^ \((\d+(?:\.\d+)?) % yield\)/.exec(text);
+      // Only a yield the table itself does not flag goes into the record; above 100 % the
+      // sentence keeps its amount alone and the table shows the warning.
+      const desired = product.yieldPercent !== null && product.yieldPercent <= 100 ? ` (${Math.round(product.yieldPercent)} % yield)` : null;
+      if (existing && desired === null) {
+        edits.push({ from: anchor, to: anchor + existing[0].length, text: null });
+      } else if (existing && existing[0] !== desired) {
+        edits.push({ from: anchor, to: anchor + existing[0].length, text: desired });
+      } else if (!existing && desired !== null) {
+        edits.push({ from: anchor, to: anchor, text: desired });
+      }
+    }
+    if (edits.length === 0) {
+      return;
+    }
+    const tr = editor.state.tr;
+    edits
+      .sort((left, right) => right.from - left.from)
+      .forEach((edit) => (edit.text === null ? tr.delete(edit.from, edit.to) : tr.insertText(edit.text, edit.from, edit.to)));
+    editor.view.dispatch(tr);
+    // Keyed on the computed yields, not on every keystroke in the table.
+  }, [summary.components.map((component) => (component.role === 'product' && component.yieldPercent !== null && component.yieldPercent <= 100 ? `${component.entityId}:${Math.round(component.yieldPercent)}` : '')).join('|'), disabled]);
+
   const remove = (id: string) => setComponents(currentComponents().filter((component) => component.id !== id));
   const add = (role: ComponentRole) => setComponents([...currentComponents(), createComponent(role)]);
   const setLimiting = (id: string) => setComponents(currentComponents().map((component) => ({ ...component, limiting: component.id === id })));

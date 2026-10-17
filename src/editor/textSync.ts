@@ -6,7 +6,7 @@ import { findUnit, type Quantity } from '../units/quantity';
 // document, the amount token that a table cell was read from, so an edit in the table can be
 // written back to the sentence. Same binding rules as chemistry/usages.ts, with positions.
 
-export type BoundQuantity = { pos: number; dimension: string; quantity: Quantity };
+export type BoundQuantity = { pos: number; dimension: string; quantity: Quantity; entityPos: number | null };
 
 // Positions of the top-level blocks a reaction at `blockIndex` describes: from the last heading
 // before it (inclusive) up to the reaction block (exclusive).
@@ -81,7 +81,7 @@ export function findBoundQuantities(doc: ProseMirrorNode, from: number, to: numb
           if (!dimension) {
             continue;
           }
-          found.set(entity.id, [...(found.get(entity.id) ?? []), { pos: quantity.pos, dimension, quantity: { value: quantity.value, unit: quantity.unit } }]);
+          found.set(entity.id, [...(found.get(entity.id) ?? []), { pos: quantity.pos, dimension, quantity: { value: quantity.value, unit: quantity.unit }, entityPos: entity.pos ?? null }]);
         }
       }
     }

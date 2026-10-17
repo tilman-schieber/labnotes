@@ -53,6 +53,10 @@ export function findQuantities(text: string): QuantityMatch[] {
     if (!/\s/.test(match[0]) && match[2].length < 2) {
       continue;
     }
+    // "(84 % yield)" is what a reaction table writes next to a product; not an amount used.
+    if (/^\s*yield\b/i.test(text.slice(match.index + match[0].length))) {
+      continue;
+    }
     const quantity = parseQuantity(match[0]);
     if (!quantity) {
       continue;
