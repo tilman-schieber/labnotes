@@ -21,6 +21,7 @@ import {
   type DocumentMetadata
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
+import DocumentFeed from './documents/DocumentFeed';
 import { fetchEntity } from './api/backend';
 import { formatExperimentNumber } from './chemistry/batchCode';
 import UserSelect from './ui/UserSelect';
@@ -1064,6 +1065,17 @@ export default function App() {
                   toolbar={toolbar}
                   focusTitle={focusTitleId === selectedDocument.id}
                 />
+
+                {selectedDocument.kind !== 'experiment' && (
+                  <DocumentFeed
+                    kind={selectedDocument.kind}
+                    projects={selectedDocument.kind === 'project' ? db.projects.filter((project) => project.id === selectedDocument.id) : db.projects.filter((project) => project.groupId === selectedDocument.id)}
+                    experiments={db.experiments}
+                    onOpenDocument={openDocumentById}
+                    onOpenEntity={openEntityInRegistry}
+                    onNewExperiment={selectedDocument.kind === 'project' ? () => void handleNewExperiment() : undefined}
+                  />
+                )}
 
                 <div className="doc-footer">
                   <AttachmentsPanel

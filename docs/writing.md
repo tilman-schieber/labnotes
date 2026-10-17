@@ -105,6 +105,10 @@ Paste or drop an image into the text and it is uploaded as an attachment and ins
 
 **Alt+N**, the **New experiment** button on a project page, the **+** menu in the sidebar or the palette (Ctrl/Cmd+K) start today's experiment in the current project: it gets the next number, today's date and the status *in progress*, and opens with its title selected so the first thing you type names it. The empty body shows a one-line hint of what to write.
 
+## Project and group pages
+
+A project page is the notebook's table of contents: below its own text it lists every experiment in the project, newest first, with number, status, date, the first line of the protocol and the entities it references (click one to open it in the registry). A group page lists the same per project.
+
 ## Metadata: number, status, date, tags
 
 Experiments carry a status (planned, in progress, done, failed, abandoned), a date, and tags, edited in the strip above the editor. A new experiment starts *in progress* with today's date. The date orders chapters in the [project book](export.md#project-and-group-books) and the entity timeline; tags are searchable.
