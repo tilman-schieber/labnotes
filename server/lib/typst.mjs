@@ -206,10 +206,15 @@ export function renderDocumentBody(
       }
       case 'userMention':
         return `#box(fill: rgb("#ede9fe"), inset: (x: 3pt, y: 1pt), radius: 2pt)[${escapeText(`@${node.attrs?.label ?? ''}`)}]`;
-      case 'quantity':
-        return `#box(fill: rgb("#fef3c7"), inset: (x: 3pt, y: 1pt), radius: 2pt)[${escapeText(
-          formatQuantity({ value: Number(node.attrs?.value ?? 0), unit: String(node.attrs?.unit ?? '') })
-        )}]`;
+      case 'quantity': {
+        const actual = { value: Number(node.attrs?.value ?? 0), unit: String(node.attrs?.unit ?? '') };
+        const planned = node.attrs?.planned;
+        const deviates = planned && (Number(planned.value) !== actual.value || String(planned.unit) !== actual.unit);
+        const plan = deviates ? ` #text(size: 7pt, fill: luma(110))[(planned ${escapeText(formatQuantity({ value: Number(planned.value), unit: String(planned.unit) }))})]` : '';
+        return `#box(fill: rgb("#fef3c7"), inset: (x: 3pt, y: 1pt), radius: 2pt)[${escapeText(formatQuantity(actual))}]${plan}`;
+      }
+      case 'blank':
+        return `#box(stroke: (bottom: 0.6pt + luma(120)), inset: (x: 8pt, y: 1pt))[#text(fill: luma(140), size: 0.85em)[${escapeText(String(node.attrs?.label ?? ''))}]]`;
       case 'inlineMath':
         return `#mi("${escapeString(convertMhchem(node.attrs?.latex ?? ''))}")`;
       default:

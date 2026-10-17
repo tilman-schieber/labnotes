@@ -157,3 +157,19 @@ export function withDocumentTitle(content: JSONContent, title: string): JSONCont
 export function getDefaultTitle(kind: NotebookDocumentKind): string {
   return TEMPLATE_DEFINITIONS[kind].defaultTitle;
 }
+
+// Starting from a template or a previous run: every amount becomes the plan, so the token can
+// show how far the run deviated from it once the value is edited.
+export function markPlannedQuantities(content: JSONContent): JSONContent {
+  const visit = (node: JSONContent): JSONContent => {
+    let next = node;
+    if (node.type === 'quantity' && node.attrs && !node.attrs.planned) {
+      next = { ...node, attrs: { ...node.attrs, planned: { value: node.attrs.value, unit: node.attrs.unit } } };
+    }
+    if (Array.isArray(next.content)) {
+      next = { ...next, content: next.content.map(visit) };
+    }
+    return next;
+  };
+  return visit(content);
+}

@@ -24,6 +24,7 @@ import { ReactionNode } from './extensions/Reaction';
 import { AnalyticsNode } from './extensions/Analytics';
 import { PlateNode } from './extensions/Plate';
 import { ResultsNode } from './extensions/Results';
+import { BlankNode } from './extensions/Blank';
 import { TrailingParagraph } from './extensions/TrailingParagraph';
 import { Recognition } from './extensions/Recognition';
 import { QuantityRecognition } from './extensions/QuantityRecognition';
@@ -116,6 +117,7 @@ export default function NotebookEditor({
       AnalyticsNode.configure({ documentId }),
       PlateNode,
       ResultsNode,
+      BlankNode,
       TrailingParagraph.configure({
         kind: documentKind
       }),

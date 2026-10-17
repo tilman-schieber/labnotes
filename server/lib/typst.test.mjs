@@ -142,3 +142,14 @@ test('results blocks render samples down and measures across', () => {
   assert.match(typst, /#table\(columns: 4, stroke: none, inset: 3pt,\s*\[\*Sample\*\], \[\*OD600\*\], \[\*Viability\* #text\(size: 7pt, fill: luma\(90\)\)\[\(%\)\]\], \[\*Note\*\], \[Culture A\], \[1\.21\], \[95\]/);
 });
 
+test('planned amounts and blanks are printed', () => {
+  const doc = {
+    title: 'T',
+    metadata: {},
+    content: { type: 'doc', content: [heading(1, 'T'), paragraph({ type: 'quantity', attrs: { value: 25, unit: 'mg', planned: { value: 20, unit: 'mg' } } }, text(' of '), { type: 'blank', attrs: { label: 'strain' } }, { type: 'quantity', attrs: { value: 2, unit: 'mL', planned: { value: 2, unit: 'mL' } } })] }
+  };
+  const typst = documentToTypst(doc, { path: [] });
+  assert.match(typst, /\[25 mg\] #text\(size: 7pt, fill: luma\(110\)\)\[\(planned 20 mg\)\]/);
+  assert.match(typst, /\[strain\]\]/);
+  assert.match(typst, /\[2 mL\](?! #text)/);
+});

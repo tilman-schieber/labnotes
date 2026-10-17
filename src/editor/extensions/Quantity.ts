@@ -7,12 +7,20 @@ import { promptDialog } from '../../ui/dialogs';
 type QuantityAttrs = {
   value: number;
   unit: string;
+  // The amount the template or the previous run said; set when an experiment is started from
+  // one, kept while the value is edited, so the deviation stays visible.
+  planned?: { value: number; unit: string } | null;
 };
+
+function hasDeviation(attrs: QuantityAttrs): boolean {
+  return Boolean(attrs.planned) && (attrs.planned!.value !== attrs.value || attrs.planned!.unit !== attrs.unit);
+}
 
 function tooltipFor(attrs: QuantityAttrs): string {
   const conversions = conversionsFor(attrs).map(formatQuantity);
   const dimension = findUnit(attrs.unit)?.dimension ?? 'quantity';
-  return [dimension, ...conversions].join(' · ');
+  const planned = hasDeviation(attrs) ? [`planned ${formatQuantity(attrs.planned!)}`] : [];
+  return [...planned, dimension, ...conversions].join(' · ');
 }
 
 // Edit dialog for the token at `position`; used by double-click and by Enter on a selected token.
@@ -38,7 +46,7 @@ function editQuantity(editor: Editor, position: number): void {
       // Not a quantity any more: turn it back into plain text.
       editor.view.dispatch(editor.state.tr.replaceWith(position, position + node.nodeSize, editor.schema.text(next)));
     } else {
-      editor.view.dispatch(editor.state.tr.setNodeMarkup(position, undefined, parsed));
+      editor.view.dispatch(editor.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, ...parsed }));
     }
     editor.commands.focus(position + 1);
   });
@@ -62,6 +70,21 @@ export const QuantityNode = Node.create({
       unit: {
         default: '',
         parseHTML: (element) => element.getAttribute('data-unit') ?? ''
+      },
+      planned: {
+        default: null,
+        parseHTML: (element) => {
+          const raw = element.getAttribute('data-planned');
+          if (!raw) {
+            return null;
+          }
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attributes) => (attributes.planned ? { 'data-planned': JSON.stringify(attributes.planned) } : {})
       }
     };
   },
@@ -99,6 +122,8 @@ export const QuantityNode = Node.create({
         dom.title = tooltipFor(attrs);
         dom.setAttribute('data-value', String(attrs.value));
         dom.setAttribute('data-unit', attrs.unit);
+        dom.classList.toggle('has-deviation', hasDeviation(attrs));
+        dom.classList.toggle('is-planned', Boolean(attrs.planned) && !hasDeviation(attrs));
       };
       apply(node.attrs as QuantityAttrs);
 

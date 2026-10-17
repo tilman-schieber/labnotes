@@ -16,7 +16,7 @@ test('a clone keeps prose, amounts and rows but drops what belonged to the origi
   };
   const clone = cloneContent(content);
   assert.equal(clone.content.length, 5, 'analytics block dropped');
-  assert.deepEqual(clone.content[1].content, [{ type: 'text', text: ' Add ' }, { type: 'quantity', attrs: { value: 2, unit: 'g' } }]);
+  assert.deepEqual(clone.content[1].content, [{ type: 'text', text: ' Add ' }, { type: 'quantity', attrs: { value: 2, unit: 'g', planned: { value: 2, unit: 'g' } } }]);
   assert.equal(clone.content[2].content, undefined, 'a paragraph that only held a timestamp is emptied cleanly');
   assert.equal(clone.content[3].content[0].attrs.checked, false);
   assert.deepEqual(clone.content[4].attrs.components[0], { id: 'a', role: 'product', actualMass: null, batchId: null, mass: null });
@@ -48,4 +48,9 @@ test('a cloned plate keeps its layout and notes but not the readings', () => {
   };
   const clone = cloneContent(content);
   assert.deepEqual(clone.content[1].attrs.wells, { A1: { group: 'g1', note: '', value: null }, A2: { group: null, note: 'bubble', value: null } });
+});
+
+test('a clone turns every amount into the plan for the next run', () => {
+  const clone = cloneContent({ type: 'doc', content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Run 1' }] }, { type: 'paragraph', content: [{ type: 'quantity', attrs: { value: 25, unit: 'mg', planned: { value: 20, unit: 'mg' } } }] }] });
+  assert.deepEqual(clone.content[1].content[0].attrs, { value: 25, unit: 'mg', planned: { value: 25, unit: 'mg' } });
 });

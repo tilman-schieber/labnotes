@@ -53,6 +53,7 @@ Units understood: g, L, mol, M with SI prefixes (n, µ/u, m, c, k; `ml` and `ul`
 - **Editing.** Double-click a token, or select it with the arrow keys and press Enter. Typing something that is not a quantity turns it back into plain text.
 - **Hover** shows the same amount in other units of that dimension.
 - **Backspace** right after the space undoes the conversion, like any input rule.
+- **Planned amounts.** An experiment started from a template or a clone carries the template's amount on every quantity token as its *plan*. Edit the token (double-click, or Enter on it) and it keeps the plan: a changed value shows a small △ and "planned 20 mg" on hover. The **Plan vs. done** panel under the document lists every changed amount with its percentage and the blanks still open; clicking one jumps there. The PDF prints "(planned 20 mg)" after a changed amount.
 
 Quantities are more than formatting: the sentence they sit in binds them to the reference next to them. `Add 25 mg of #Compound X` makes 25 mg a *usage* of Compound X. See [Usages](entities.md#usages).
 
@@ -137,11 +138,15 @@ There is no login. The select in the sidebar head names the person at the keyboa
 
 ## Cloning an experiment
 
-**Clone** in the document header starts the next run from the current one: a copy in the same project with a fresh number, status *planned*, today's date and the same tags. The prose, amounts, reaction rows and conditions stay; timestamps, ticked boxes, isolated masses, registered batches and analytics blocks are removed, since they belonged to the run being copied. The clone remembers its origin in its metadata.
+**Clone** in the document header starts the next run from the current one: a copy in the same project with a fresh number, status *planned*, today's date and the same tags. The prose, amounts, reaction rows and conditions stay; timestamps, ticked boxes, isolated masses, registered batches and analytics blocks are removed, since they belonged to the run being copied. The clone remembers its origin in its metadata. Every amount of the copy carries the previous run's value as its plan (see Planned amounts above).
 
 ## Templates
 
 **Template** in the document header saves the current experiment's content as a template. The **+** menu lists templates under "From template"; creating from one copies its content with a fresh title. Templates are content only — no metadata, no history.
+
+## Blanks: fill-in templates
+
+Type `[[strain]]` (or `/blank`) to leave a **blank** in a template: a dashed token with a label. In an experiment made from it, **Tab** jumps to the next blank and **Shift+Tab** to the previous one; typing replaces the selected blank, so `#` goes straight into the reference picker. Together with planned amounts, a template is a worksheet: the blanks say what to decide, the amounts say what was intended, and the Plan vs. done panel says what differed.
 
 ## Search
 

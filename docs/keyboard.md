@@ -14,6 +14,8 @@ Everything in the editor is reachable without the mouse. `/shortcuts` inside the
 | number + Space, then Tab | open the unit list without typing a letter |
 | click a reference | edit the entity in a popover (Escape closes) |
 | Enter on a selected quantity token | edit it (select tokens with the arrow keys) |
+| Tab / Shift+Tab | jump to the next / previous blank of a template (when the document has blanks); typing replaces the selected blank |
+| `[[label]]` | a blank |
 | Ctrl/Cmd + Shift + T | insert the current time |
 | Ctrl/Cmd + . | link the next underlined name or amount after the caret |
 | Ctrl/Cmd + Shift + L | link every underlined name and amount |

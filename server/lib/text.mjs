@@ -22,6 +22,9 @@ export function extractText(content) {
       case 'timestamp':
         parts.push(String(node.attrs?.at ?? '').slice(11, 16));
         return;
+      case 'blank':
+        parts.push(`[${node.attrs?.label ?? ''}]`);
+        return;
       case 'inlineMath':
       case 'blockMath':
         parts.push(String(node.attrs?.latex ?? ''));

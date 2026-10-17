@@ -12,6 +12,11 @@ function cloneNode(node) {
   switch (node.type) {
     case 'timestamp':
       return null;
+    case 'quantity': {
+      // The last run's amounts are the next run's plan.
+      const attrs = node.attrs ?? {};
+      return { ...node, attrs: { ...attrs, planned: { value: attrs.value, unit: attrs.unit } } };
+    }
     case 'analytics':
       return null;
     case 'taskItem':

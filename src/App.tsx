@@ -2,13 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react
 import type { Editor, JSONContent } from '@tiptap/core';
 import NotebookEditor from './editor/Editor';
 import EntityRegistry from './registry/EntityRegistry';
-import {
-  type NotebookDocumentKind,
-  createTemplateDocument,
-  extractDocumentTitle,
-  getDefaultTitle,
-  withDocumentTitle
-} from './documents/templates';
+import { type NotebookDocumentKind, createTemplateDocument, extractDocumentTitle, getDefaultTitle, withDocumentTitle, markPlannedQuantities } from './documents/templates';
 import { sanitizeLatex } from './editor/extensions/Math';
 import {
   cloneDocument,
@@ -22,6 +16,7 @@ import {
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
 import DocumentFeed from './documents/DocumentFeed';
+import DeviationsPanel from './documents/DeviationsPanel';
 import CommandPalette, { type PaletteAction } from './ui/CommandPalette';
 import { pushRecentDocument, readRecentDocuments } from './storage/recentDocuments';
 import { readStampSteps, writeStampSteps } from './editor/extensions/StampedSteps';
@@ -490,7 +485,7 @@ export default function App() {
 
     const siblingCount = db.experiments.filter((experiment) => experiment.projectId === db.active.projectId).length;
     const title = siblingCount === 0 ? 'Untitled Experiment' : `Untitled Experiment ${siblingCount + 1}`;
-    const content = templateId ? withDocumentTitle((await fetchTemplate(templateId)).content, title) : createBlankDocument(title);
+    const content = templateId ? markPlannedQuantities(withDocumentTitle((await fetchTemplate(templateId)).content, title)) : createBlankDocument(title);
     // Today's experiment, already running: the number comes from the server, the rest is the
     // state a notebook entry is in when you start writing it.
     const document = await createNotebookDocument('experiment', db.active.projectId, title, content, { status: 'in_progress', date: todayIso() });
@@ -1172,6 +1167,7 @@ export default function App() {
                 )}
 
                 <div className="doc-footer">
+                  {selectedDocument.kind === 'experiment' && <DeviationsPanel key={`deviations-${selectedDocument.id}`} editor={editor} refreshToken={saveCount} />}
                   <AttachmentsPanel
                     key={`attachments-${selectedDocument.id}`}
                     documentId={selectedDocument.id}

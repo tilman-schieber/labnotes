@@ -4182,3 +4182,98 @@ button:disabled {
   font-size: 0.76rem;
 }
 
+/* ---------- Templates: blanks and planned amounts ---------- */
+.blank-token {
+  display: inline-block;
+  min-width: 3.5em;
+  padding: 0 0.4em;
+  margin: 0 0.05em;
+  border-bottom: 1.5px dashed var(--text-3);
+  color: var(--text-3);
+  font-style: italic;
+  font-size: 0.94em;
+  text-align: center;
+  cursor: text;
+}
+
+.ProseMirror-selectednode.blank-token,
+.blank-token.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 3px;
+  background: var(--accent-soft-2, #eef2ff);
+}
+
+.quantity-token.has-deviation {
+  box-shadow: inset 0 -2px 0 var(--warning-text, #b45309);
+}
+
+.quantity-token.has-deviation::after {
+  content: '△';
+  font-size: 0.65em;
+  vertical-align: super;
+  margin-left: 0.15em;
+  color: var(--warning-text, #b45309);
+}
+
+.deviations-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+
+.deviations-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.deviations-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.deviations-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.deviations-jump {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+
+.deviations-planned {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.deviations-arrow {
+  color: var(--text-3);
+}
+
+.deviations-actual {
+  font-weight: 600;
+}
+
+.deviations-percent {
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.deviations-percent.is-large {
+  color: var(--warning-text, #b45309);
+  font-weight: 600;
+}
+

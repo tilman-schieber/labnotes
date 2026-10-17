@@ -70,6 +70,10 @@
 
 **Results block** — a table of samples × measures (`/results`); linked rows record results. → [Writing](writing.md#results-what-came-out)
 
+**Blank** — a fill-in token in a template (`[[label]]`); Tab jumps to it, typing replaces it. → [Writing](writing.md#blanks-fill-in-templates)
+
+**Planned amount** — the value a quantity token had in the template or the previous run; a changed value shows the deviation. → [Writing](writing.md#quantities)
+
 **Reaction table** — a block computing stoichiometry from its rows, pre-filled from the section above. → [Chemistry](chemistry.md#reaction-tables)
 
 **Recognition** — underlining of plain-text names and amounts that could be tokens; nothing changes until you click or use the shortcuts. → [Writing](writing.md#recognition-names-and-amounts-you-did-not-tokenise)

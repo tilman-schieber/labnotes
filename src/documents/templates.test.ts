@@ -1,13 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { JSONContent } from '@tiptap/core';
-import {
-  allowsFreeContent,
-  createTemplateDocument,
-  extractDocumentTitle,
-  normalizeTemplateDocument,
-  type NotebookDocumentKind
-} from './templates.ts';
+import { allowsFreeContent, createTemplateDocument, extractDocumentTitle, normalizeTemplateDocument, type NotebookDocumentKind, markPlannedQuantities } from './templates.ts';
 
 const KINDS: NotebookDocumentKind[] = ['group', 'project', 'experiment'];
 
@@ -68,4 +62,20 @@ test('a demoted title heading is restored to level 1', () => {
     assert.equal(first?.attrs?.level, 1, kind);
     assert.equal(extractDocumentTitle(normalizeTemplateDocument(kind, demoted), 'fallback'), 'Still the title');
   }
+});
+
+test('markPlannedQuantities records every amount as the plan, once', () => {
+  const content = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Add ' }, { type: 'quantity', attrs: { value: 25, unit: 'mg' } }, { type: 'quantity', attrs: { value: 3, unit: 'mL', planned: { value: 2, unit: 'mL' } } }] },
+      { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'quantity', attrs: { value: 10, unit: 'min' } }] }] }] }
+    ]
+  };
+  const marked = markPlannedQuantities(content);
+  const paragraph = marked.content![0].content!;
+  assert.deepEqual(paragraph[1].attrs, { value: 25, unit: 'mg', planned: { value: 25, unit: 'mg' } });
+  assert.deepEqual(paragraph[2].attrs!.planned, { value: 2, unit: 'mL' }, 'an existing plan is kept');
+  assert.deepEqual(marked.content![1].content![0].content![0].content![0].attrs!.planned, { value: 10, unit: 'min' });
+  assert.equal(content.content[0].content![1].attrs!.planned, undefined, 'the input is not mutated');
 });

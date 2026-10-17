@@ -13,6 +13,7 @@ const SHORTCUTS: [string, string][] = [
   ['Click a reference', 'Edit the entity in a popover: type, attributes, SMILES'],
   ['Ctrl/Cmd + K', 'Jump to an experiment, project, group or entity, or run an action'],
   ['Alt + N', 'New experiment in the current project'],
+  ['Tab / Shift+Tab', 'Jump to the next / previous blank of a template'],
   ['Ctrl/Cmd + .', 'Link the next underlined known name or amount after the caret'],
   ['Ctrl/Cmd + Shift + L', 'Link every underlined name and amount'],
   ['Ctrl/Cmd + Shift + T', 'Insert the current time'],
@@ -121,6 +122,13 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     description: 'Measured values per sample; paste a spreadsheet',
     keywords: ['results', 'measurements', 'values', 'od', 'assay', 'readout'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).insertResults().run()
+  },
+  {
+    id: 'blank',
+    label: 'Blank',
+    description: 'A fill-in for templates; Tab jumps to it, typing replaces it (also [[label]])',
+    keywords: ['blank', 'fill', 'template', 'placeholder'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).insertBlank('fill in').run()
   },
   {
     id: 'analytics',
