@@ -147,11 +147,12 @@ export async function createDocument(
   kind: NotebookDocumentKind,
   parentId: string | null,
   title: string,
-  content: JSONContent
+  content: JSONContent,
+  metadata?: DocumentMetadata
 ): Promise<BackendDocumentRecord> {
   const payload = await request<{ document: BackendDocumentRecord }>('/documents', {
     method: 'POST',
-    body: JSON.stringify({ kind, parentId, title, content })
+    body: JSON.stringify({ kind, parentId, title, content, ...(metadata ? { metadata } : {}) })
   });
 
   return payload.document;

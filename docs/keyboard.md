@@ -22,6 +22,13 @@ Everything in the editor is reachable without the mouse. `/shortcuts` inside the
 | Ctrl/Cmd + Z, Shift + Z | undo, redo |
 | Backspace after a conversion | undo the input rule (token back to text) |
 
+## Notebook
+
+| Keys | Does |
+| --- | --- |
+| Alt + N | new experiment in the current project, title selected |
+| Enter in the title | moves on to the body |
+
 ## Reaction tables
 
 Rows are ordinary inputs: Tab moves between cells, Enter commits an amount, the role is a select, "lim." is a radio button.

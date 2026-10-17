@@ -190,9 +190,10 @@ export async function createNotebookDocument(
   kind: NotebookDocumentKind,
   parentId: string | null,
   title: string,
-  content: JSONContent
+  content: JSONContent,
+  metadata?: DocumentMetadata
 ): Promise<BackendDocumentRecord> {
-  return createDocument(kind, parentId, title, content);
+  return createDocument(kind, parentId, title, content, metadata);
 }
 
 export async function updateNotebookDocument(

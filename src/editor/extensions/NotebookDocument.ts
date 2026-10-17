@@ -18,6 +18,20 @@ export const NotebookDocumentStructure = Extension.create<{ kind: NotebookDocume
     };
   },
 
+  // The title is one line: Enter in it moves on to the body as a paragraph instead of splitting
+  // the heading in two.
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { $from } = this.editor.state.selection;
+        if ($from.depth === 0 || $from.index(0) !== 0 || $from.parent.type.name !== 'heading') {
+          return false;
+        }
+        return this.editor.chain().splitBlock().setParagraph().run();
+      }
+    };
+  },
+
   addProseMirrorPlugins() {
     return [
       new Plugin({
@@ -40,10 +54,18 @@ export const NotebookDocumentStructure = Extension.create<{ kind: NotebookDocume
   }
 });
 
-export const NotebookTitlePlaceholder = Extension.create({
+// Shown in the first paragraph of an experiment that has no text yet.
+export const BODY_PLACEHOLDER = 'What did you do? e.g. Add 25 mg of #Compound X to 2 mL of #Buffer and stir for 10 min. Type / for blocks.';
+
+export const NotebookTitlePlaceholder = Extension.create<{ kind: NotebookDocumentKind }>({
   name: 'notebookTitlePlaceholder',
 
+  addOptions() {
+    return { kind: 'experiment' as NotebookDocumentKind };
+  },
+
   addProseMirrorPlugins() {
+    const kind = this.options.kind;
     return [
       new Plugin({
         props: {
@@ -54,18 +76,20 @@ export const NotebookTitlePlaceholder = Extension.create({
               return null;
             }
 
+            const decorations: Decoration[] = [];
             const isH1 = firstNode.type === headingType && Number(firstNode.attrs.level) === 1;
-            const isEmpty = firstNode.textContent.trim().length === 0;
-            if (!isH1 || !isEmpty) {
-              return null;
+            if (isH1 && firstNode.textContent.trim().length === 0) {
+              decorations.push(Decoration.node(0, firstNode.nodeSize, { class: 'is-empty', 'data-placeholder': 'enter title' }));
             }
 
-            return DecorationSet.create(state.doc, [
-              Decoration.node(0, firstNode.nodeSize, {
-                class: 'is-empty',
-                'data-placeholder': 'enter title'
-              })
-            ]);
+            // Only while the body is a single empty paragraph: once anything is written the
+            // hint is gone for good.
+            const body = state.doc.maybeChild(1);
+            if (kind === 'experiment' && state.doc.childCount === 2 && body && body.type.name === 'paragraph' && body.content.size === 0) {
+              decorations.push(Decoration.node(firstNode.nodeSize, firstNode.nodeSize + body.nodeSize, { class: 'is-empty', 'data-placeholder': BODY_PLACEHOLDER }));
+            }
+
+            return decorations.length > 0 ? DecorationSet.create(state.doc, decorations) : null;
           }
         }
       })

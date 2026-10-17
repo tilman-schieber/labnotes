@@ -963,12 +963,17 @@ button:disabled {
   line-height: 1.2;
 }
 
-.ProseMirror h1.is-empty::before {
+.ProseMirror h1.is-empty::before,
+.ProseMirror p.is-empty::before {
   content: attr(data-placeholder);
   color: var(--text-3);
   pointer-events: none;
   float: left;
   height: 0;
+}
+
+.ProseMirror p.is-empty::before {
+  font-style: italic;
 }
 
 .ProseMirror h2 {

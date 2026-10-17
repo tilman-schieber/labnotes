@@ -41,6 +41,8 @@ type Props = {
   onAttachmentUploaded: () => void;
   // Rendered inside the sticky toolbar strip above the content.
   toolbar?: ReactNode;
+  // Select the title on mount so typing replaces the placeholder name (new experiments).
+  focusTitle?: boolean;
 };
 
 // Uploads image files from a paste/drop and inserts them; returns whether anything was handled.
@@ -72,7 +74,8 @@ export default function NotebookEditor({
   onEditorReady,
   onDocumentChange,
   onAttachmentUploaded,
-  toolbar
+  toolbar,
+  focusTitle = false,
 }: Props) {
   // The paste/drop handlers are created before `editor` exists, so they read it through a ref.
   const editorRef = useRef<Editor | null>(null);
@@ -93,7 +96,7 @@ export default function NotebookEditor({
       NotebookDocumentStructure.configure({
         kind: documentKind
       }),
-      NotebookTitlePlaceholder,
+      NotebookTitlePlaceholder.configure({ kind: documentKind }),
       MarkdownShortcuts,
       LinkExtension,
       BlockMath,
@@ -140,6 +143,22 @@ export default function NotebookEditor({
     onEditorReady(editor);
     return () => onEditorReady(null);
   }, [editor, onEditorReady]);
+
+  // A freshly created document opens with its title selected: the first thing typed names it.
+  useEffect(() => {
+    if (!editor || !focusTitle) {
+      return;
+    }
+    const title = editor.state.doc.firstChild;
+    if (!title) {
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: 1, to: 1 + title.content.size })
+      .run();
+  }, [editor, focusTitle]);
 
   // Reference tokens draw themselves from the registry's current type, and hover cards from the
   // detail cache. Both are refreshed when the registry changes and when the window comes back,

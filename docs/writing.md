@@ -99,9 +99,13 @@ The toolbar **Formula** button wraps the selection (or nothing) in inline math; 
 
 Paste or drop an image into the text and it is uploaded as an attachment and inserted. The **Attachments** panel below the editor lists every file attached to the document (any type, up to 50 MB by default), with download, delete, and "insert" for images. Attachments keep their SHA-256 so exports and audits can prove which file was meant.
 
+## Starting an experiment
+
+**Alt+N**, the **New experiment** button on a project page, the **+** menu in the sidebar or the palette (Ctrl/Cmd+K) start today's experiment in the current project: it gets the next number, today's date and the status *in progress*, and opens with its title selected so the first thing you type names it. The empty body shows a one-line hint of what to write.
+
 ## Metadata: number, status, date, tags
 
-Experiments carry a status (planned, in progress, done, failed, abandoned), a date, and tags, edited in the strip above the editor. The date orders chapters in the [project book](export.md#project-and-group-books) and the entity timeline; tags are searchable.
+Experiments carry a status (planned, in progress, done, failed, abandoned), a date, and tags, edited in the strip above the editor. A new experiment starts *in progress* with today's date. The date orders chapters in the [project book](export.md#project-and-group-books) and the entity timeline; tags are searchable.
 
 Every experiment also has a **number**, assigned when it is created: the next free number in its project, never reused, shown in the tree (`012 · Title`) and in the strip (`Exp 012`). Together with the writer's initials it forms the experiment code, `TS-012`, that product [batches](entities.md#batches) are named after (`TS-012-A`).
 

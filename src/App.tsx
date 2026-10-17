@@ -69,6 +69,11 @@ import {
   type NotebookExperiment
 } from './storage/documentStore';
 
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 type SelectedDocument = {
   kind: NotebookDocumentKind;
   id: string;
@@ -113,6 +118,8 @@ export default function App() {
   const [saveCount, setSaveCount] = useState(0);
   const [registryEntityId, setRegistryEntityId] = useState<string | null>(null);
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
+  // The document whose title should be selected when its editor mounts (just created).
+  const [focusTitleId, setFocusTitleId] = useState<string | null>(null);
 
   const openEntityInRegistry = (entityId: string) => {
     setRegistryEntityId(entityId);
@@ -465,7 +472,10 @@ export default function App() {
     const siblingCount = db.experiments.filter((experiment) => experiment.projectId === db.active.projectId).length;
     const title = siblingCount === 0 ? 'Untitled Experiment' : `Untitled Experiment ${siblingCount + 1}`;
     const content = templateId ? withDocumentTitle((await fetchTemplate(templateId)).content, title) : createBlankDocument(title);
-    const document = await createNotebookDocument('experiment', db.active.projectId, title, content);
+    // Today's experiment, already running: the number comes from the server, the rest is the
+    // state a notebook entry is in when you start writing it.
+    const document = await createNotebookDocument('experiment', db.active.projectId, title, content, { status: 'in_progress', date: todayIso() });
+    setFocusTitleId(document.id);
     await reloadDb({
       groupId: db.active.groupId,
       projectId: db.active.projectId,
@@ -594,6 +604,20 @@ export default function App() {
     });
     setView('notebook');
   };
+
+  // Keyboard paths that do not need the editor: the palette, and starting today's experiment.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        void handleNewExperiment();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db]);
+
 
   const handleDocumentRestored = async () => {
     if (!selectedDocument) {
@@ -1007,6 +1031,7 @@ export default function App() {
                   onDocumentChange={handleDocumentChange}
                   onAttachmentUploaded={() => setAttachmentsToken((previous) => previous + 1)}
                   toolbar={toolbar}
+                  focusTitle={focusTitleId === selectedDocument.id}
                 />
 
                 <div className="doc-footer">
