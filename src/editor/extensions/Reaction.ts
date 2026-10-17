@@ -86,7 +86,9 @@ export const ReactionNode = Node.create<ReactionOptions>({
         renderHTML: (attributes) => (attributes.scheme ? { 'data-scheme': attributes.scheme } : {})
       },
       collapsed: {
-        default: false,
+        // Folded by default: scheme, conditions and the summary line say what matters; the
+        // table opens on demand.
+        default: true,
         parseHTML: (element) => element.getAttribute('data-collapsed') === 'true',
         renderHTML: (attributes) => (attributes.collapsed ? { 'data-collapsed': 'true' } : {})
       }
@@ -130,9 +132,12 @@ export const ReactionNode = Node.create<ReactionOptions>({
                 : [...fromText, createComponent('product')]
               : [createComponent('reactant'), createComponent('reactant'), createComponent('product')];
 
+          // Rows that already carry amounts can be checked from the summary line; a table with
+          // nothing in it is for typing into, so it opens.
+          const collapsed = fromText.some((component) => component.mass || component.volume || component.actualMass || component.amount);
           return commands.insertContent({
             type: this.name,
-            attrs: { title: '', components, conditions, scheme: null, collapsed: false } satisfies ReactionAttrs
+            attrs: { title: '', components, conditions, scheme: null, collapsed } satisfies ReactionAttrs
           });
         }
     };

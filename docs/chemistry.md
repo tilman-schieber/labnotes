@@ -41,7 +41,9 @@ Rows created this way carry a small **¶ from text** marker; hover it to see the
 
 **↻ from text** re-reads the section and adds rows for new entities and fills empty cells — it never overwrites what you typed in the table.
 
-**▾ table / ▸ table** in the block header folds the stoichiometry table away once the numbers are settled: the scheme, the conditions and a one-line summary (rows, isolated mass and yield per product, warning count) stay visible. The choice is kept with the document.
+**▾ table / ▸ table** in the block header folds the stoichiometry table away: the scheme, the conditions and a one-line summary (rows, isolated mass and yield per product, warning count) stay visible. A table inserted from prose that already carries amounts starts folded, since the summary line says what matters; an empty one opens for typing. The choice is kept with the document.
+
+In the table, density and purity inputs appear only when they have a value or you ask for them with **+ density / purity** on the row, so a row is one line tall. Rows read from the prose carry a small **¶**; hover it for the sentence.
 
 ### What the table computes
 

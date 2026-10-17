@@ -3394,3 +3394,15 @@ button:disabled {
   margin-top: 0.4rem;
 }
 
+/* ---------- Reaction table: compact rows ---------- */
+.reaction-more {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  text-align: left;
+  padding: 0;
+}
+
+.reaction-source {
+  margin-top: 0;
+  margin-left: 0.3rem;
+}

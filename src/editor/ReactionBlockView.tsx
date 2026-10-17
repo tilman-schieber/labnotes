@@ -509,6 +509,11 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
     editor.chain().focus().insertAnalytics({ batchId: component.batchId, batchCode: component.batchCode ?? null }, position + node.nodeSize).run();
   };
 
+  // Density and purity are rarely typed: the cell shows them only when they have a value or the
+  // writer asked for them, so a row is one line tall by default.
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set());
+  const expandRow = (id: string) => setExpandedRows((previous) => new Set([...previous, id]));
+
   const remove = (id: string) => setComponents(currentComponents().filter((component) => component.id !== id));
   const add = (role: ComponentRole) => setComponents([...currentComponents(), createComponent(role)]);
   const setLimiting = (id: string) => setComponents(currentComponents().map((component) => ({ ...component, limiting: component.id === id })));
@@ -607,8 +612,8 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                   <td>
                     <CompoundCell component={component} disabled={disabled} onChange={(changes) => patch(component.id, changes)} />
                     {component.source?.sentence && (
-                      <span className="reaction-source" title={`Read from: “${component.source.sentence}”`}>
-                        ¶ from text
+                      <span className="reaction-source" title={`Read from the text: “${component.source.sentence}”`} aria-label="Read from the text">
+                        ¶
                       </span>
                     )}
                   </td>
@@ -643,13 +648,23 @@ export default function ReactionBlockView({ node, updateAttributes, editor, sele
                     )}
                   </td>
                   <td>
-                    {!isProduct && (
-                      <div className="reaction-stack">
-                        <QuantityInput value={component.concentration} field="concentration" disabled={disabled} onChange={(value) => patchAmount(component, 'concentration', value)} />
-                        <NumberInput value={component.density} placeholder="d g/mL" disabled={disabled} onChange={(value) => patch(component.id, { density: value })} />
-                        <NumberInput value={component.purity ?? null} placeholder="purity %" disabled={disabled} onChange={(value) => patch(component.id, { purity: value })} />
-                      </div>
-                    )}
+                    {!isProduct && (() => {
+                      const showAll = expandedRows.has(component.id);
+                      const showDensity = showAll || component.density !== null;
+                      const showPurity = showAll || (component.purity !== null && component.purity !== undefined);
+                      return (
+                        <div className="reaction-stack">
+                          <QuantityInput value={component.concentration} field="concentration" disabled={disabled} onChange={(value) => patchAmount(component, 'concentration', value)} />
+                          {showDensity && <NumberInput value={component.density} placeholder="d g/mL" disabled={disabled} onChange={(value) => patch(component.id, { density: value })} />}
+                          {showPurity && <NumberInput value={component.purity ?? null} placeholder="purity %" disabled={disabled} onChange={(value) => patch(component.id, { purity: value })} />}
+                          {!disabled && !(showDensity && showPurity) && (
+                            <button type="button" className="link-button reaction-more" onClick={() => expandRow(component.id)} title="Density and purity">
+                              + density / purity
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td>
                     {isProduct && (
