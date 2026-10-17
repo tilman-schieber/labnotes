@@ -22,7 +22,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "dev:client": "vite",
-    "db:reindex": "node scripts/db/reindex.mjs"
+    "db:reindex": "node scripts/db/reindex.mjs",
+    "db:fixtures": "node scripts/db/fixtures.mjs"
   },
   "dependencies": {
     "@tiptap/core": "^2.11.5",

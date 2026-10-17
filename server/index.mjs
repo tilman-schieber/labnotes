@@ -11,6 +11,8 @@ import { syncBatchAnalytics } from './lib/analytics.mjs';
 import { buildContext, loadConfiguredProvider, suggestFor } from './lib/suggest/index.mjs';
 import { experimentNumberOf, initialsFor, nextExperimentNumber, normaliseInitials, planBackfill } from './lib/numbering.mjs';
 import { syncAllDocumentMentions, syncDocumentMentions } from './lib/mentions.mjs';
+import { demoFixtures } from './lib/fixtures/demo.mjs';
+import { loadFixtures } from './lib/fixtures/load.mjs';
 import { runMigrations } from './lib/migrations.mjs';
 import { SignError, getRevision, listRevisions, recordRevision, signRevision, verifyRevisionChain } from './lib/revisions.mjs';
 import { ShareError, createShareLink, listShareLinks, renderSharePage, resolveShareLink, revokeShareLink } from './lib/share.mjs';
@@ -35,6 +37,9 @@ import { createTemplateDocument } from './lib/templates.mjs';
 const PORT = Number(process.env.PORT ?? 5174);
 const AUTO_MIGRATE_ON_START = process.env.AUTO_MIGRATE_ON_START !== 'false';
 const AUTO_SEED_ON_START = process.env.AUTO_SEED_ON_START !== 'false';
+// FIXTURES_ON_START=demo loads the demo notebook once (see server/lib/fixtures) — for demo and
+// test deployments; a database that already has it is left alone.
+const FIXTURES_ON_START = String(process.env.FIXTURES_ON_START ?? '').trim();
 
 const app = express();
 app.use(cors());
@@ -1763,6 +1768,15 @@ async function bootstrap() {
       await backfillSearchText(client);
       await backfillExperimentNumbers(client);
     });
+  }
+
+  if (FIXTURES_ON_START === 'demo') {
+    const result = await withTransaction((client) => loadFixtures(client, demoFixtures(), { reset: false }));
+    if (result.loaded) {
+      console.log('Demo fixtures loaded');
+    }
+  } else if (FIXTURES_ON_START) {
+    console.warn(`Unknown FIXTURES_ON_START value "${FIXTURES_ON_START}"; only "demo" exists`);
   }
 }
 

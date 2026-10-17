@@ -21,6 +21,7 @@ A SQLite notebook is one file plus the attachments directory — copying both is
 | `PORT` | `5174` | API port in standalone mode; combined `npm run dev` selects a free port |
 | `AUTO_MIGRATE_ON_START` | `true` | apply pending migrations on start |
 | `AUTO_SEED_ON_START` | `true` | seed an empty database; also re-syncs derived data |
+| `FIXTURES_ON_START` | unset | `demo` loads the [demo fixtures](#demo-fixtures) once on start |
 | `REVISION_COALESCE_SECONDS` | `120` | writing-session window for revisions |
 | `TYPST_BIN` | `typst` | Typst binary for PDF export |
 | `AUTO_CLASSIFY` | `true` | background classification of unclassified entities |
@@ -45,9 +46,16 @@ overrides the file for one run.
 | `npm run db:up` / `db:down` | local Postgres via Docker Compose |
 | `npm run db:migrate`, `db:status` | apply / list migrations for the configured backend |
 | `npm run db:seed`, `db:bootstrap` | seed; migrate + seed |
+| `npm run db:fixtures` | load the demo fixtures (replacing a previous copy); `-- --keep` loads only if absent, `-- --remove` takes them out |
 | `npm run db:reindex` | re-derive mentions, usages, results and relations for every document |
 | `npm run db:dump`, `db:restore`, `db:sync` | pg_dump-based; refuse SQLite URLs |
 | `npm test` | unit tests (server and shared modules) |
+
+## Demo fixtures
+
+`server/lib/fixtures/demo.mjs` describes a small notebook the way the app wants to be used, built with the content builders in `builders.mjs`: a lab with a **Synthesis** project (a finished Fischer esterification with a reaction block, a registered batch and a stored product; an aspirin run started from the **Demo · Acetylation** template with planned amounts, a deviation and an open blank) and a **Microbiology** project (a kanamycin MIC plate with reader values, prose results and storage/transfer sentences; a growth curve with a results block). The registry behind it has compounds with structures, reagents with lots and expiry dates, two strains, instruments, a room, a freezer, a box and tubes with barcodes.
+
+Load it with `npm run db:fixtures` (any backend) or set `FIXTURES_ON_START=demo` for a demo deployment. Everything is marked `fixture: "demo"` (document metadata, entity attributes, template ids), so `npm run db:fixtures -- --remove` takes it out again and a reload replaces it without touching other content. Loading goes through the same derivations as a save, so usages, results, relations and revisions are there from the start; `server/lib/fixtures/fixtures.test.mjs` loads the set into an in-memory SQLite database and checks exactly that, which makes it the integration test for the recognisers too.
 
 Migrations are SQL files per backend under `db/migrations/postgres/` (incremental history) and `db/migrations/sqlite/`; versions are the filenames.
 
