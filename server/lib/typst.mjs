@@ -2,6 +2,7 @@ import { describeEntry } from '../../src/chemistry/analytics.ts';
 import { describeConditions } from '../../src/chemistry/conditions.ts';
 import { parseScheme, schemeFromComponents } from '../../src/chemistry/scheme.ts';
 import { computeReaction } from '../../src/chemistry/reaction.ts';
+import { EMPTY_WELL, PLATE_FORMATS, formatValue, groupStats, plateLayout, rowLabel, summarizeNotes, valueRange, wellId } from '../../src/plates/plate.ts';
 import { formatQuantity } from '../../src/units/quantity.ts';
 
 // Characters that start Typst markup or code when they appear in plain text.
@@ -284,6 +285,68 @@ export function renderDocumentBody(
 ]`;
   };
 
+  // A microplate: the wells as coloured circles (a heat map when values were recorded), the
+  // legend with counts and means underneath.
+  const plate = (node) => {
+    const format = PLATE_FORMATS.includes(Number(node.attrs?.format)) ? Number(node.attrs.format) : 96;
+    const { rows, cols } = plateLayout(format);
+    const groups = Array.isArray(node.attrs?.groups) ? node.attrs.groups : [];
+    const wells = node.attrs?.wells && typeof node.attrs.wells === 'object' ? node.attrs.wells : {};
+    const attrs = { title: '', format, groups, wells, measure: String(node.attrs?.measure ?? '') };
+    const range = valueRange(attrs);
+    const groupById = new Map(groups.map((group) => [group.id, group]));
+    const colour = (hex) => (/^#[0-9a-f]{6}$/i.test(hex) ? hex : '#94a3b8');
+    const heatFill = (value) => {
+      const span = range.max - range.min;
+      const t = span > 0 ? (value - range.min) / span : 1;
+      // Same ramp as the editor: pale yellow to orange-red.
+      const hue = 38 - t * 26;
+      const light = 96 - t * 44;
+      return `color.hsl(${hue.toFixed(1)}deg, 92%, ${light.toFixed(1)}%)`;
+    };
+    const size = format >= 384 ? '0.28cm' : format >= 96 ? '0.56cm' : format >= 48 ? '0.68cm' : '0.9cm';
+    const header = ['[]', ...Array.from({ length: cols }, (_, col) => `[#text(size: 7pt, fill: luma(110))[${col + 1}]]`)];
+    const body = [];
+    for (let row = 0; row < rows; row += 1) {
+      body.push(`[#text(size: 7pt, fill: luma(110))[${rowLabel(row)}]]`);
+      for (let col = 0; col < cols; col += 1) {
+        const well = wells[wellId(row, col)] ?? EMPTY_WELL;
+        const group = well.group ? groupById.get(well.group) : null;
+        const hasValue = typeof well.value === 'number' && range;
+        const fill = hasValue ? heatFill(well.value) : group ? `rgb("${colour(group.color)}")` : 'white';
+        const stroke = group ? `${hasValue ? '1.5pt' : '0.5pt'} + rgb("${colour(group.color)}")` : '0.5pt + luma(170)';
+        const label = hasValue && format < 384 ? `#text(size: ${format >= 96 ? '6pt' : '7.5pt'}, weight: "semibold")[${escapeText(formatValue(well.value))}]` : '';
+        body.push(`[#circle(radius: ${size} / 2, fill: ${fill}, stroke: ${stroke}, inset: 0pt)[#align(center + horizon)[${label}]]]`);
+      }
+    }
+    const title = node.attrs?.title ? escapeText(node.attrs.title) : `${format}-well plate`;
+    const measure = attrs.measure ? escapeText(attrs.measure) : '';
+    const legend = groups.map((group) => {
+      const stats = groupStats(attrs, group.id);
+      const mean = stats.measured > 0 && stats.mean !== null ? ` · ${formatValue(stats.mean)}${stats.sd !== null ? ` ± ${formatValue(stats.sd)}` : ''}${measure ? ` ${measure}` : ''}` : '';
+      return `#box(baseline: 1pt)[#circle(radius: 3pt, fill: rgb("${colour(group.color)}"))] ${escapeText(group.label || 'unnamed')} #text(size: 8pt, fill: luma(90))[(${stats.count} ${stats.count === 1 ? 'well' : 'wells'}${escapeText(mean)})]`;
+    });
+    const noteSummary = summarizeNotes(attrs);
+    const notes = [
+      ...noteSummary.columns.map((item) => `col ${item.index + 1}: ${escapeText(item.note)}`),
+      ...noteSummary.rows.map((item) => `row ${rowLabel(item.index)}: ${escapeText(item.note)}`),
+      ...noteSummary.wells.map((item) => `${escapeText(item.id)}: ${escapeText(item.note)}`)
+    ];
+    const footer = [
+      ...legend,
+      range && measure ? `#text(size: 8pt, fill: luma(90))[${measure}: ${escapeText(formatValue(range.min))} – ${escapeText(formatValue(range.max))}]` : '',
+      notes.length > 0 ? `#text(size: 8pt, fill: luma(90))[${notes.join(' · ')}]` : ''
+    ].filter(Boolean);
+    return `#block(stroke: 0.5pt + luma(180), inset: 6pt, radius: 3pt, width: 100%, breakable: false)[
+  *${title}*
+  #align(center)[#table(columns: ${cols + 1}, stroke: none, inset: 1.2pt, align: center + horizon,
+    ${[...header, ...body].join(', ')}
+  )]
+  ${footer.join(' \\\n  ')}
+]`;
+  };
+
+  // A results table: samples down, measures across, units in the header.
   const blocks = (nodes = [], indent = '') =>
     nodes
       .map((node) => {
@@ -310,6 +373,8 @@ export function renderDocumentBody(
             return table(node);
           case 'reaction':
             return reaction(node);
+          case 'plate':
+            return plate(node);
           case 'analytics': {
             const entries = Array.isArray(node.attrs?.entries) ? node.attrs.entries : [];
             const title = node.attrs?.batchCode ? `Analytics · ${escapeText(node.attrs.batchCode)}` : 'Analytics';

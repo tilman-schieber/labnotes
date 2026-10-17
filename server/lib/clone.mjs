@@ -24,6 +24,14 @@ function cloneNode(node) {
       }));
       return { ...node, attrs: { ...(node.attrs ?? {}), components } };
     }
+    case 'plate': {
+      const wells = Object.fromEntries(
+        Object.entries(node.attrs?.wells ?? {})
+          .map(([id, well]) => [id, { ...well, value: null }])
+          .filter(([, well]) => well.group || well.note)
+      );
+      return { ...node, attrs: { ...(node.attrs ?? {}), wells } };
+    }
     default: {
       const next = { ...node };
       if (Array.isArray(node.content)) {

@@ -3630,3 +3630,306 @@ button:disabled {
   margin-top: 0;
   margin-left: 0.3rem;
 }
+
+/* ---------- Plate block (microplates) ---------- */
+.plate-block {
+  --well: 2.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: 0.75rem 0.9rem;
+  margin: 1rem 0;
+  background: var(--surface-2);
+}
+
+.plate-block.plate-6,
+.plate-block.plate-12,
+.plate-block.plate-24 {
+  --well: 2.8rem;
+}
+
+.plate-block.plate-48 {
+  --well: 2.4rem;
+}
+
+.plate-block.plate-384 {
+  --well: 1rem;
+}
+
+.plate-block.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.plate-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.plate-title {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+}
+
+.plate-format {
+  width: auto;
+}
+
+.plate-header-spacer {
+  flex: 1;
+}
+
+.plate-view-toggle {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.plate-paste {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+}
+
+.plate-paste-measure {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.plate-paste-text {
+  width: 100%;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-s);
+  padding: 0.35rem 0.45rem;
+  resize: vertical;
+}
+
+.plate-paste-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.plate-body {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.plate-grid {
+  display: grid;
+  gap: 2px;
+  align-items: center;
+  justify-items: center;
+  padding: 0.3rem 0.4rem 0.4rem 0.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  user-select: none;
+  touch-action: none;
+}
+
+.plate-grid.is-painting {
+  cursor: crosshair;
+}
+
+.plate-axis {
+  font-size: 0.68rem;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  padding: 0;
+  width: 100%;
+  height: var(--well);
+  line-height: var(--well);
+  text-align: center;
+  cursor: pointer;
+}
+
+.plate-axis:disabled {
+  cursor: default;
+  color: var(--text-3);
+}
+
+.plate-axis:not(:disabled):hover {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.plate-well {
+  width: calc(var(--well) - 4px);
+  height: calc(var(--well) - 4px);
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: transform 0.05s;
+}
+
+.plate-well:hover {
+  transform: scale(1.12);
+}
+
+.plate-well.is-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.plate-well.has-note::after {
+  content: '';
+  position: relative;
+  top: calc(var(--well) * -0.32);
+  left: calc(var(--well) * 0.32);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-1);
+}
+
+.plate-well.has-note:has(.plate-well-value)::after {
+  display: none;
+}
+
+.plate-well-value {
+  font-size: calc(var(--well) * 0.4);
+  line-height: 1;
+  font-weight: 600;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.plate-384 .plate-well-value {
+  display: none;
+}
+
+.plate-legend {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.plate-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+
+.plate-tools-hint {
+  font-size: 0.74rem;
+}
+
+.plate-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: var(--radius-s);
+}
+
+.plate-legend-row.is-active {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.plate-swatch {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+}
+
+.plate-legend-name {
+  position: relative;
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.plate-legend-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.plate-legend-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 14rem;
+}
+
+.plate-legend-stats {
+  font-size: 0.74rem;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.plate-legend-mean {
+  font-variant-numeric: tabular-nums;
+}
+
+.plate-legend-remove {
+  color: var(--text-3);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.plate-add-group {
+  align-self: flex-start;
+  font-size: 0.8rem;
+}
+
+.plate-summary,
+.plate-notes {
+  font-size: 0.74rem;
+  margin-top: 0.2rem;
+}
+
+.plate-well-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+.plate-well-note {
+  flex: 1 1 10rem;
+  width: auto;
+}
+
+@media print {
+  .plate-well:hover {
+    transform: none;
+  }
+}
+

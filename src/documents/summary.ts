@@ -38,6 +38,13 @@ function collectEntities(node: JSONContent, into: Map<string, { id: string; labe
       }
     }
   }
+  if (node.type === 'plate') {
+    for (const group of (node.attrs?.groups as { entityId?: string | null; label?: string; entityType?: string | null }[] | undefined) ?? []) {
+      if (group.entityId && !into.has(group.entityId)) {
+        into.set(group.entityId, { id: group.entityId, label: group.label ?? group.entityId, type: group.entityType ?? 'entity' });
+      }
+    }
+  }
   (node.content ?? []).forEach((child) => collectEntities(child, into));
 }
 

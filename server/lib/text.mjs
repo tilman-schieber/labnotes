@@ -32,6 +32,12 @@ export function extractText(content) {
         parts.push('\n');
         return;
       }
+      case 'plate': {
+        const groups = Array.isArray(node.attrs?.groups) ? node.attrs.groups : [];
+        parts.push([node.attrs?.title, `${node.attrs?.format ?? 96}-well plate`, node.attrs?.measure, ...groups.map((group) => group?.label)].filter(Boolean).join(' '));
+        parts.push('\n');
+        return;
+      }
       default:
         break;
     }

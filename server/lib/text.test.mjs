@@ -31,3 +31,8 @@ test('handles empty and malformed input', () => {
   assert.equal(extractText({ type: 'doc' }), '');
   assert.equal(extractText({ type: 'doc', content: [{ type: 'paragraph' }] }), '');
 });
+
+test('plates contribute their title, format, measure and group names', () => {
+  const doc = { type: 'doc', content: [{ type: 'plate', attrs: { title: 'MIC', format: 96, measure: 'OD600', groups: [{ label: 'BL21' }, { label: '' }], wells: {} } }] };
+  assert.equal(extractText(doc).trim(), 'MIC 96-well plate OD600 BL21');
+});

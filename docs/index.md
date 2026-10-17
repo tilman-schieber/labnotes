@@ -47,6 +47,7 @@ Tokens are what make the notebook more than text: references are indexed, amount
 
 - [Writing a protocol](writing.md) — the editor, references, quantities, steps, templates, search
 - [Chemistry & reactions](chemistry.md) — compounds, structures, reaction tables and their checks
+- [Plates](plates.md) — microplate blocks: layout, groups, reader values
 - [Entities & registry](entities.md) — types, attributes, aliases, relations, merging, stock, drafts
 - [Revisions, signatures & sharing](history.md) — history, restore, signing, the hash chain, share links
 - [PDF export](export.md) — single experiments and project books

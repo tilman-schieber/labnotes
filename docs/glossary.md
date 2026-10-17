@@ -62,6 +62,8 @@
 
 **Quantity token** — a value with a unit as one inline chip (`25 mg`). Bound to nearby references to form usages. → [Writing](writing.md#quantities)
 
+**Plate** — a block showing a microplate (6 to 384 wells): groups painted onto wells, one value per well pasted from the reader, means per group. → [Plates](plates.md)
+
 **Reaction table** — a block computing stoichiometry from its rows, pre-filled from the section above. → [Chemistry](chemistry.md#reaction-tables)
 
 **Recognition** — underlining of plain-text names and amounts that could be tokens; nothing changes until you click or use the shortcuts. → [Writing](writing.md#recognition-names-and-amounts-you-did-not-tokenise)

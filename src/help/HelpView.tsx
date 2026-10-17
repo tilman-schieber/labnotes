@@ -10,6 +10,7 @@ export const HELP_PAGES: { id: string; title: string }[] = [
   { id: 'index', title: 'Overview' },
   { id: 'writing', title: 'Writing a protocol' },
   { id: 'chemistry', title: 'Chemistry & reactions' },
+  { id: 'plates', title: 'Plates' },
   { id: 'entities', title: 'Entities & registry' },
   { id: 'history', title: 'Revisions, signatures & sharing' },
   { id: 'export', title: 'PDF export' },

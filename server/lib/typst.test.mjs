@@ -92,3 +92,36 @@ test('reaction blocks render computed stoichiometry and structures', () => {
   assert.match(typst, /1\.2 g \(80%\)/);
   assert.deepEqual([...assets.keys()], ['structure-cmp.svg']);
 });
+
+test('plate blocks render wells, heat values and the legend', () => {
+  const doc = {
+    title: 'Plate',
+    metadata: {},
+    content: {
+      type: 'doc',
+      content: [
+        heading(1, 'Plate'),
+        {
+          type: 'plate',
+          attrs: {
+            title: 'MIC plate',
+            format: 6,
+            measure: 'OD600',
+            groups: [{ id: 'g1', label: 'control', color: '#60a5fa', entityId: 'e1', entityType: 'sample' }],
+            wells: { A1: { group: 'g1', note: 'blank', value: 0.1 }, A2: { group: 'g1', note: '', value: 0.3 }, B3: { group: null, note: '', value: 1 } }
+          }
+        }
+      ]
+    }
+  };
+  const typst = documentToTypst(doc, { path: [] });
+  assert.match(typst, /\*MIC plate\*/);
+  assert.match(typst, /#table\(columns: 4, stroke: none/);
+  assert.match(typst, /#circle\(radius: 0\.9cm \/ 2, fill: color\.hsl\(38\.0deg, 92%, 96\.0%\), stroke: 1\.5pt \+ rgb\("#60a5fa"\)/, 'lowest value is the palest, ringed in the group colour');
+  assert.match(typst, /color\.hsl\(12\.0deg, 92%, 52\.0%\), stroke: 0\.5pt \+ luma\(170\)/, 'highest value is the deepest, no group ring');
+  assert.match(typst, /control #text\(size: 8pt, fill: luma\(90\)\)\[\(2 wells · 0\.2 ± 0\.141 OD600\)\]/);
+  assert.match(typst, /OD600: 0\.1 – 1/);
+  assert.match(typst, /A1: blank/);
+  assert.doesNotMatch(typst, /A1: blank · A2/);
+});
+

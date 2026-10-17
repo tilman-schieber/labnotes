@@ -48,6 +48,7 @@ import {
   IconItalic,
   IconLayers,
   IconLink,
+  IconPlate,
   IconList,
   IconPdf,
   IconPlus,
@@ -302,6 +303,14 @@ export default function App() {
         wide: true,
         onClick: () => editor?.chain().focus().insertReaction().run(),
         isActive: Boolean(editor?.isActive('reaction'))
+      },
+      {
+        label: 'Plate',
+        icon: <IconPlate />,
+        group: 'insert',
+        wide: true,
+        onClick: () => editor?.chain().focus().insertPlate().run(),
+        isActive: Boolean(editor?.isActive('plate'))
       },
       {
         label: 'Link',

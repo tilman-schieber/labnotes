@@ -99,3 +99,18 @@ test('tolerates a missing label', () => {
 
   assert.deepEqual(extractMentions(doc), [{ refType: 'user', targetId: 'user-1', label: null }]);
 });
+
+test('plate legend entities count as references and are retargeted on merge', () => {
+  const plate = {
+    type: 'plate',
+    attrs: { format: 96, groups: [{ id: 'g1', label: 'BL21', color: '#60a5fa', entityId: 'strain-a', entityType: 'sample' }, { id: 'g2', label: 'blank', color: '#f59e0b', entityId: null, entityType: null }], wells: {} }
+  };
+  const doc = { type: 'doc', content: [plate] };
+  assert.deepEqual(extractMentions(doc), [{ refType: 'entity', targetId: 'strain-a', label: 'BL21' }]);
+
+  const { content, changed } = retargetEntityMentions(doc, 'strain-a', 'strain-b', 'BL21(DE3)');
+  assert.equal(changed, true);
+  assert.deepEqual(content.content[0].attrs.groups[0], { id: 'g1', label: 'BL21(DE3)', color: '#60a5fa', entityId: 'strain-b', entityType: 'sample' });
+  assert.equal(content.content[0].attrs.groups[1], plate.attrs.groups[1], 'untouched groups keep identity');
+});
+

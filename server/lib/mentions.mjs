@@ -45,6 +45,9 @@ export function extractMentions(content) {
     if (node.type === 'analytics' && node.attrs?.batchId) {
       add('entity', node.attrs.batchId, null);
     }
+    if (node.type === 'plate' && Array.isArray(node.attrs?.groups)) {
+      node.attrs.groups.forEach((group) => add('entity', group?.entityId, group?.label));
+    }
 
     if (Array.isArray(node.content)) {
       node.content.forEach(visit);
@@ -78,6 +81,14 @@ export function retargetEntityMentions(content, fromId, toId, label) {
       if (components.some((component, index) => component !== node.attrs.components[index])) {
         changed = true;
         next = { ...next, attrs: { ...next.attrs, components } };
+      }
+    }
+
+    if (node.type === 'plate' && Array.isArray(node.attrs?.groups)) {
+      const groups = node.attrs.groups.map((group) => (group?.entityId === fromId ? { ...group, entityId: toId, label } : group));
+      if (groups.some((group, index) => group !== node.attrs.groups[index])) {
+        changed = true;
+        next = { ...next, attrs: { ...next.attrs, groups } };
       }
     }
 

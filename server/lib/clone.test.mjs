@@ -30,3 +30,22 @@ test('retitling replaces the level-1 heading only', () => {
   const noTitle = { type: 'doc', content: [{ type: 'paragraph' }] };
   assert.deepEqual(withTitle(noTitle, 'New'), noTitle);
 });
+
+test('a cloned plate keeps its layout and notes but not the readings', () => {
+  const content = {
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Run 1' }] },
+      {
+        type: 'plate',
+        attrs: {
+          format: 6,
+          groups: [{ id: 'g1', label: 'x', color: '#60a5fa', entityId: null, entityType: null }],
+          wells: { A1: { group: 'g1', note: '', value: 0.5 }, A2: { group: null, note: 'bubble', value: 0.7 }, A3: { group: null, note: '', value: 0.9 } }
+        }
+      }
+    ]
+  };
+  const clone = cloneContent(content);
+  assert.deepEqual(clone.content[1].attrs.wells, { A1: { group: 'g1', note: '', value: null }, A2: { group: null, note: 'bubble', value: null } });
+});

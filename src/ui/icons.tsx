@@ -54,6 +54,17 @@ export const IconTable = (p: IconProps) => (
     <path d="M3 10h18M3 15h18M10 4v16" />
   </Icon>
 );
+export const IconPlate = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <circle cx="7" cy="10" r="1.3" />
+    <circle cx="12" cy="10" r="1.3" />
+    <circle cx="17" cy="10" r="1.3" />
+    <circle cx="7" cy="14.5" r="1.3" />
+    <circle cx="12" cy="14.5" r="1.3" />
+    <circle cx="17" cy="14.5" r="1.3" />
+  </Icon>
+);
 export const IconFlask = (p: IconProps) => (
   <Icon {...p}>
     <path d="M9 3h6M10 3v6.5L4.5 19a1.5 1.5 0 0 0 1.3 2.2h12.4a1.5 1.5 0 0 0 1.3-2.2L14 9.5V3" />
