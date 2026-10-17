@@ -27,6 +27,7 @@ Everything in the editor is reachable without the mouse. `/shortcuts` inside the
 
 | Keys | Does |
 | --- | --- |
+| Ctrl/Cmd + K | palette: jump to an experiment, project, group or entity, or run an action |
 | Alt + N | new experiment in the current project, title selected |
 | Enter in the title | moves on to the body |
 | Toolbar "Stamp steps" | every new list item starts with the time |

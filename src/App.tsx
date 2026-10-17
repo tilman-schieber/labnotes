@@ -22,6 +22,8 @@ import {
 } from './api/backend';
 import ExperimentMeta, { STATUS_LABELS } from './editor/ExperimentMeta';
 import DocumentFeed from './documents/DocumentFeed';
+import CommandPalette, { type PaletteAction } from './ui/CommandPalette';
+import { pushRecentDocument, readRecentDocuments } from './storage/recentDocuments';
 import { readStampSteps, writeStampSteps } from './editor/extensions/StampedSteps';
 import { fetchEntity } from './api/backend';
 import { formatExperimentNumber } from './chemistry/batchCode';
@@ -124,6 +126,8 @@ export default function App() {
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   // The document whose title should be selected when its editor mounts (just created).
   const [focusTitleId, setFocusTitleId] = useState<string | null>(null);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [recentIds, setRecentIds] = useState<string[]>(() => readRecentDocuments());
   // Protocol mode for the open experiment: new list items start with the time.
   const [stampSteps, setStampSteps] = useState(false);
 
@@ -614,6 +618,11 @@ export default function App() {
   // Keyboard paths that do not need the editor: the palette, and starting today's experiment.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setIsPaletteOpen((open) => !open);
+        return;
+      }
       if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
         void handleNewExperiment();
@@ -659,6 +668,7 @@ export default function App() {
     if (!selectedDocument) {
       return;
     }
+    setRecentIds(pushRecentDocument(selectedDocument.id));
     setStampSteps(readStampSteps(selectedDocument.id));
     // A new page starts at its top, whatever the previous one was scrolled to.
     window.scrollTo({ top: 0 });
@@ -789,6 +799,15 @@ export default function App() {
 
   const saveStatusClass = saveState === 'saving' ? ' is-saving' : saveState === 'error' ? ' is-error' : '';
   const saveStatusLabel = saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'Saved';
+
+  const paletteActions: PaletteAction[] = [
+    { id: 'new-experiment', label: 'New experiment', hint: 'Alt+N · in the current project', run: () => void handleNewExperiment(), disabled: !db.active.projectId },
+    { id: 'new-project', label: 'New project', hint: 'in the current group', run: () => void handleNewProject(), disabled: !db.active.groupId },
+    { id: 'new-group', label: 'New group', run: () => void handleNewGroup() },
+    { id: 'entities', label: 'Open the registry', hint: 'Entities view', run: () => setView('entities') },
+    { id: 'help', label: 'Open help', run: () => setView('help') },
+    { id: 'pdf', label: 'Export PDF', hint: 'current document', run: () => selectedDocument && window.open(`/api/documents/${selectedDocument.id}/export.pdf`, '_blank', 'noopener'), disabled: !selectedDocument }
+  ];
 
   return (
     <div className="app">
@@ -940,6 +959,28 @@ export default function App() {
             />
           ) : (
             <div className="tree">
+              {(() => {
+                const recent = recentIds
+                  .filter((id) => id !== selectedDocument?.id)
+                  .map((id) => db.experiments.find((experiment) => experiment.id === id) ?? null)
+                  .filter((experiment): experiment is NotebookExperiment => experiment !== null)
+                  .slice(0, 4);
+                if (recent.length === 0) {
+                  return null;
+                }
+                return (
+                  <div className="tree-recent">
+                    <div className="tree-section-title">Recent</div>
+                    {recent.map((experiment) => (
+                      <button key={experiment.id} type="button" className="tree-item tree-experiment-item" onClick={() => openDocumentById(experiment.id)} title={experiment.title}>
+                        <IconBeaker size={14} />
+                        {experiment.metadata.number && <span className="tree-number">{formatExperimentNumber(experiment.metadata.number)}</span>}
+                        <span className="tree-label">{experiment.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
               {db.groups.length === 0 && <div className="tree-empty">No groups yet — create one with +.</div>}
               {db.groups.map((group) => {
                 const groupProjects = db.projects.filter((project) => project.groupId === group.id);
@@ -961,6 +1002,7 @@ export default function App() {
                         type="button"
                         className={`tree-item tree-group-item${isGroupSelected ? ' is-active' : ''}`}
                         onClick={() => handleGroupSelect(group.id)}
+                        title={group.name}
                       >
                         <IconFolder size={14} />
                         <span className="tree-label">{group.name}</span>
@@ -989,6 +1031,7 @@ export default function App() {
                                   type="button"
                                   className={`tree-item tree-project-item${isProjectSelected ? ' is-active' : ''}`}
                                   onClick={() => handleProjectSelect(group.id, project.id)}
+                                  title={project.name}
                                 >
                                   <IconLayers size={14} />
                                   <span className="tree-label">{project.name}</span>
@@ -1004,6 +1047,7 @@ export default function App() {
                                       type="button"
                                       className={`tree-item tree-experiment-item${db.active.experimentId === experiment.id ? ' is-active' : ''}`}
                                       onClick={() => handleExperimentSelect(group, project, experiment)}
+                                      title={experiment.title}
                                     >
                                       <IconBeaker size={14} />
                                       {experiment.metadata.number && <span className="tree-number">{formatExperimentNumber(experiment.metadata.number)}</span>}
@@ -1144,6 +1188,16 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {isPaletteOpen && (
+        <CommandPalette
+          db={db}
+          actions={paletteActions}
+          onOpenDocument={openDocumentById}
+          onOpenEntity={openEntityInRegistry}
+          onClose={() => setIsPaletteOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -111,6 +111,10 @@ Paste or drop an image into the text and it is uploaded as an attachment and ins
 
 A project page is the notebook's table of contents: below its own text it lists every experiment in the project, newest first, with number, status, date, the first line of the protocol and the entities it references (click one to open it in the registry). A group page lists the same per project.
 
+## Finding things: Ctrl/Cmd+K
+
+The palette jumps anywhere from the keyboard: type part of an experiment title or number, a project, a group or an entity name; Enter opens it. With nothing typed it offers the actions (new experiment, new project, registry, help, PDF) and the latest experiments. The sidebar also keeps a short **Recent** list above the tree.
+
 ## Metadata: number, status, date, tags
 
 Experiments carry a status (planned, in progress, done, failed, abandoned), a date, and tags, edited in the strip above the editor. A new experiment starts *in progress* with today's date. The date orders chapters in the [project book](export.md#project-and-group-books) and the entity timeline; tags are searchable.

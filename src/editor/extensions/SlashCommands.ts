@@ -11,6 +11,8 @@ const SHORTCUTS: [string, string][] = [
   ['/', 'This command palette'],
   ['25 mg␣', 'A number with a unit becomes a quantity token on the following space; the unit list opens on the first letter (or Tab after "25 ")'],
   ['Click a reference', 'Edit the entity in a popover: type, attributes, SMILES'],
+  ['Ctrl/Cmd + K', 'Jump to an experiment, project, group or entity, or run an action'],
+  ['Alt + N', 'New experiment in the current project'],
   ['Ctrl/Cmd + .', 'Link the next underlined known name or amount after the caret'],
   ['Ctrl/Cmd + Shift + L', 'Link every underlined name and amount'],
   ['Ctrl/Cmd + Shift + T', 'Insert the current time'],
