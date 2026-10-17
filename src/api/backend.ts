@@ -547,6 +547,13 @@ export async function fetchEntities(filters: EntityListFilters = {}): Promise<{ 
   return request(`/entities?${params.toString()}`);
 }
 
+export type BackendEntityCount = { type: string; status: string; count: number };
+
+export async function fetchEntityCounts(): Promise<BackendEntityCount[]> {
+  const payload = await request<{ counts: BackendEntityCount[] }>('/entities/counts');
+  return payload.counts;
+}
+
 export async function fetchEntity(id: string): Promise<BackendEntityDetail> {
   return request(`/entities/${id}`);
 }

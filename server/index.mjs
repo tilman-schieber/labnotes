@@ -1147,6 +1147,12 @@ app.get('/api/entities', async (request, response) => {
   response.json({ entities: result.rows, types: typesResult.rows.map((row) => row.type) });
 });
 
+// How many entities of each type and status: the registry's shelf counts.
+app.get('/api/entities/counts', async (_request, response) => {
+  const result = await query('select type, status, count(*) as count from entities group by type, status');
+  response.json({ counts: result.rows.map((row) => ({ type: row.type, status: row.status, count: Number(row.count) })) });
+});
+
 // Compounds that share a PubChem CID or a canonical structure: two names for one substance.
 // Drafts are merged automatically by the classifier; these are the pairs left for a person.
 app.get('/api/entities/duplicates', async (_request, response) => {

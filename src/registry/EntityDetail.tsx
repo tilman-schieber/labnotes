@@ -21,6 +21,7 @@ import AttributeFields from './AttributeFields';
 import { expiryState } from './attributeSchema';
 import BatchList from './BatchList';
 import BatchPanel from './BatchPanel';
+import { typeLabel } from './typeCatalog';
 import CompoundPanel from './CompoundPanel';
 import { stockState, usageTimeline } from './stock';
 import { confirmDialog } from '../ui/dialogs';
@@ -308,7 +309,7 @@ export default function EntityDetail({ entityId, types, onChanged, onOpenDocumen
             <select value={form.type} onChange={(event) => updateField('type', event.target.value)} disabled={isDocument}>
               {Array.from(new Set([...types, form.type])).map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {typeLabel(type)}
                 </option>
               ))}
             </select>

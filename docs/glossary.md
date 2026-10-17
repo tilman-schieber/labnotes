@@ -64,6 +64,8 @@
 
 **Plate** — a block showing a microplate (6 to 384 wells): groups painted onto wells, one value per well pasted from the reader, means per group. → [Plates](plates.md)
 
+**Shelf** — a section of the Entities view: Chemicals, Reagents & stock, Samples & organisms, Equipment, Storage & places, Needs sorting. Each covers one or two entity types and shows the columns that matter for them. → [Entities](entities.md#the-shelves)
+
 **Reaction table** — a block computing stoichiometry from its rows, pre-filled from the section above. → [Chemistry](chemistry.md#reaction-tables)
 
 **Recognition** — underlining of plain-text names and amounts that could be tokens; nothing changes until you click or use the shortcuts. → [Writing](writing.md#recognition-names-and-amounts-you-did-not-tokenise)

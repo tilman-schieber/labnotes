@@ -2244,9 +2244,132 @@ button:disabled {
 /* ---------- Registry ---------- */
 .registry {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  grid-template-columns: 11rem minmax(0, 5fr) minmax(0, 5fr);
   gap: 0.75rem;
   align-items: start;
+}
+
+.registry-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  position: sticky;
+  top: calc(var(--header-h) + 1.25rem);
+}
+
+.registry-search {
+  margin-bottom: 0.5rem;
+  width: 100%;
+}
+
+.registry .registry-shelf {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  height: auto;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  background: none;
+  text-align: left;
+  font-size: 0.88rem;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.registry .registry-shelf:hover {
+  background: var(--surface-2);
+}
+
+.registry .registry-shelf.is-active {
+  background: var(--surface);
+  border-color: var(--border);
+  font-weight: 600;
+}
+
+.registry-shelf-count {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.registry .registry-shelf-unsorted {
+  margin-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-s) var(--radius-s);
+}
+
+.registry .registry-shelf-unsorted.has-items .registry-shelf-count {
+  background: var(--warning-soft, #fef3c7);
+  color: var(--warning-text, #92400e);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+}
+
+.registry-shelf-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.registry-shelf-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.registry-shelf-hint {
+  font-size: 0.8rem;
+}
+
+.registry-shelf-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.registry-structure {
+  display: inline-block;
+  width: 76px;
+  height: 40px;
+  vertical-align: middle;
+}
+
+.registry-structure svg {
+  width: 76px;
+  height: 40px;
+}
+
+.registry-name {
+  font-weight: 500;
+}
+
+.registry-table td {
+  vertical-align: middle;
+}
+
+@media (max-width: 1100px) {
+  .registry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .registry-rail {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .registry-search {
+    flex-basis: 100%;
+  }
+
+  .registry .registry-shelf-unsorted {
+    margin-top: 0;
+    border-top: 1px solid transparent;
+  }
 }
 
 .registry-list,

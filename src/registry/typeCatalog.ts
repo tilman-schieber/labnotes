@@ -22,3 +22,45 @@ export function isChemical(type: string | null | undefined): boolean {
 // Reserved types nobody picks by hand.
 export const DOCUMENT_TYPE = 'document';
 export const DRAFT_TYPE = 'unclassified';
+
+// What a type is called on screen. The stored type stays the short word; this is the label.
+export const TYPE_LABELS: Record<string, { singular: string; plural: string }> = {
+  compound: { singular: 'Compound', plural: 'Compounds' },
+  batch: { singular: 'Batch (lot)', plural: 'Batches' },
+  reagent: { singular: 'Reagent', plural: 'Reagents' },
+  sample: { singular: 'Sample', plural: 'Samples' },
+  specimen: { singular: 'Specimen', plural: 'Specimens' },
+  instrument: { singular: 'Instrument', plural: 'Instruments' },
+  container: { singular: 'Container', plural: 'Containers' },
+  location: { singular: 'Location', plural: 'Locations' },
+  document: { singular: 'Notebook page', plural: 'Notebook pages' },
+  [DRAFT_TYPE]: { singular: 'Unsorted', plural: 'Unsorted' }
+};
+
+export function typeLabel(type: string | null | undefined, plural = false): string {
+  const entry = type ? TYPE_LABELS[type] : undefined;
+  return entry ? (plural ? entry.plural : entry.singular) : type || 'entity';
+}
+
+// The registry is browsed by shelf, the way a lab is organised, not by abstract type. Each
+// shelf covers one or more types; the first is what "new" creates there.
+export type Shelf = {
+  id: string;
+  label: string;
+  hint: string;
+  types: string[];
+  // Verb phrase for the create button, e.g. "New compound".
+  create: string;
+};
+
+export const SHELVES: Shelf[] = [
+  { id: 'chemicals', label: 'Chemicals', hint: 'compounds with a structure, and the batches (lots) made or bought of them', types: ['compound', 'batch'], create: 'New compound' },
+  { id: 'reagents', label: 'Reagents & stock', hint: 'bought materials, buffers, media, kits — with vendor, lot and expiry', types: ['reagent'], create: 'New reagent' },
+  { id: 'samples', label: 'Samples & organisms', hint: 'strains, cell lines, tissues, extracts and what was collected from them', types: ['sample', 'specimen'], create: 'New sample' },
+  { id: 'equipment', label: 'Equipment', hint: 'instruments and their calibration', types: ['instrument'], create: 'New instrument' },
+  { id: 'places', label: 'Storage & places', hint: 'freezers, boxes, shelves, rooms', types: ['container', 'location'], create: 'New container' }
+];
+
+export function shelfForType(type: string | null | undefined): Shelf | null {
+  return SHELVES.find((shelf) => shelf.types.includes(type ?? '')) ?? null;
+}

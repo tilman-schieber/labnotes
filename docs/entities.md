@@ -2,6 +2,23 @@
 
 Everything you can reference with `#` is an **entity**. Most editing happens in the text: click a reference and a popover offers the name, the type and the attributes that matter for it (see [Writing](writing.md#references-with-)). The **Entities** view is the registry for everything else — aliases, relations, merges, batches, the chemistry panel: a filterable list on the left, the selected entity's details on the right. Typed fields come first; the raw JSON of the attributes is folded away under *Attributes as JSON*.
 
+## The shelves
+
+The **Entities** view is organised like a lab, not like a database. The rail on the left lists the shelves, each with a count:
+
+| Shelf | What is on it | Columns shown |
+| --- | --- | --- |
+| **Chemicals** | compounds with a structure, and the batches (lots) made or bought of them | structure, formula, MW, CAS or purity, stock |
+| **Reagents & stock** | bought materials, buffers, media, kits | vendor and catalogue number, lot, concentration, stock, expiry, storage |
+| **Samples & organisms** | strains, cell lines, tissues, extracts, specimens | organism, condition and timepoint, storage, collection date |
+| **Equipment** | instruments | make and model, where it stands, next calibration |
+| **Storage & places** | freezers, boxes, shelves, rooms | what it is, temperature, position |
+| **Needs sorting** | names written with `#` that nobody has typed yet | written as, used in |
+
+Each shelf has its own **+ New …** button that creates the right kind of thing; Chemicals also shows [duplicate suggestions](#merging), and Needs sorting the [draft reconciliation](#drafts). The search box at the top of the rail searches every shelf at once and says which shelf a hit is on. *Archived* entries are hidden unless you tick **archived**; shelves with expiry dates offer **expiring only**.
+
+Underneath, every entry is still an *entity* with a type, and the detail page on the right is the same for all of them.
+
 ## Types and statuses
 
 Types are free text, but the registry offers `sample`, `specimen`, `reagent`, `compound`, `instrument`, `container`, `location`; `document` is reserved for the mirrored notebook tree and `unclassified` for drafts. A `subtype` refines the type (e.g. sample / tissue).
